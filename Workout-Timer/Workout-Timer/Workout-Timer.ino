@@ -40,8 +40,9 @@ void setup() {
   lcd.fillScreen(ST77XX_BLACK);
 
   lcd.setCursor(0, 0);
-  lcd.setTextSize(4);
+  lcd.setTextSize(3);
   lcd.setTextColor(ST77XX_WHITE);
+  lcd.print("TIMER STANDING BY BUTTON 12        BUZZER 27        LED 13");
 
   pinMode(buttonPin, INPUT_PULLUP);
   pinMode(ledPin, OUTPUT);
