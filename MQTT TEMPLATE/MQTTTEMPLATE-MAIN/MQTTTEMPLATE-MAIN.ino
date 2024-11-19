@@ -11,7 +11,7 @@ const char* mqtt_server = "9321cdfa0af34b83b77797a4488354cd.s1.eu.hivemq.cloud";
 const int mqtt_port = 8883; // BE MINDFUL ******************
 const char* mqtt_user = "MasterA"; // BE MINDFUL ******************
 const char* mqtt_password = "MasterA1"; // BE MINDFUL ******************
-const char* mqtt_topic = "Workout-Timer"; // Add if more topics ******************
+const char* mqtt_topic = "WORKOUT-TIMER"; // Add if more topics ******************
 const char* clientID = "RESV-MAIN"; // Change the NAME/NUMBER for each device******************
 
 
