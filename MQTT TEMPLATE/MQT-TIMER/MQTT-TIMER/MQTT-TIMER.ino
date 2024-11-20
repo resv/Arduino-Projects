@@ -302,8 +302,8 @@ void resetTimerToStandby() {
   lcd.setTextSize(6);
   lcd.setTextColor(ST77XX_BLUE);
   lcd.print("ADD STANDBY NTP");
-  Serial.println("----------- [ TIMER SHUTDOWN ] -----------");
-  Serial.println("*** SEND MQTT TIMER SHUT DOWN??");
+  Serial.println("----------- [ TIMER STOPPED ] ------------");
+  Serial.println("*** SEND MQTT TIMER SHUT DOWN?? sent 0:00 time");
                   
   threshold750msReached = true;
 }            
@@ -320,14 +320,14 @@ void handleHoldDurations() {
       lcd.setTextSize(4);
       lcd.setCursor(5, 70);  // Position at the bottom row
       lcd.setTextColor(ST77XX_WHITE);
-      lcd.print("SHUTTING DOWN");
+      lcd.print("STOPPING TIME");
       lcd.setTextSize(2);
       lcd.setCursor(0, 110);  // Position at the bottom row
       lcd.setTextColor(ST77XX_RED);
       lcd.print("[========================]");
       Serial.println("HOLDING: 0.5sec");
-
       resetTimerToStandby();
+
     } else if (holdDuration >= 500 && !threshold500msReached) {
       tone(buzzerPin, 100);
 
@@ -338,13 +338,12 @@ void handleHoldDurations() {
       lcd.setTextSize(4);
       lcd.setCursor(5, 70);  // Position at the bottom row
       lcd.setTextColor(ST77XX_WHITE);
-      lcd.print("SHUTTING DOWN");
+      lcd.print("STOPPING TIME");
       lcd.setTextSize(2);
       lcd.setCursor(0, 110);  // Position at the bottom row
       lcd.setTextColor(ST77XX_RED);
       lcd.print("[========================]");
       Serial.println("HOLDING: 0.5sec");
-
       threshold500msReached = true;
 
     } else if (holdDuration >= 250 && !threshold250msReached) {
@@ -354,17 +353,16 @@ void handleHoldDurations() {
       lcd.setTextSize(2);
       lcd.setCursor(0, 45);  // Position at the bottom row
       lcd.setTextColor(ST77XX_RED);
-      lcd.print("[==========]");
+      lcd.print("[==========");
       lcd.setTextSize(4);
       lcd.setCursor(5, 70);  // Position at the bottom row
       lcd.setTextColor(ST77XX_WHITE);
-      lcd.print("SHUTTING DOWN");
+      lcd.print("STOPPING TIME");
       lcd.setTextSize(2);
-      lcd.setCursor(168, 110);  // Position at the bottom row
+      lcd.setCursor(180, 110);  // Position at the bottom row
       lcd.setTextColor(ST77XX_RED);
-      lcd.print("[==========]");
+      lcd.print("==========]");
       Serial.println("HOLDING: 0.25 sec");
-      lcd.fillRect(0, 0, LCD_HEIGHT, LCD_WIDTH, ST77XX_BLACK);
       
       threshold250msReached = true;
     }
@@ -377,7 +375,7 @@ void countdownTimer() {
 
   int minutes = timerRemaining / 60;
   int seconds = timerRemaining % 60;
-
+  
   lcd.fillRect(0, 0, 320, 80, ST77XX_BLACK);
   lcd.setCursor(16, 0);
   lcd.setTextColor(ST77XX_GREEN);
