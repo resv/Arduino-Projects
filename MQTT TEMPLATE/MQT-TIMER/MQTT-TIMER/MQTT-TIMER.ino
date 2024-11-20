@@ -14,6 +14,9 @@
 #define LCD_RST 4
 #define LCD_BLK 32
 
+Adafruit_ST7789 lcd = Adafruit_ST7789(LCD_CS, LCD_DC, LCD_RST);
+
+
 //OPERATIONAL CODE
 const int buttonPin = 12;
 const int ledPin = 13;
@@ -27,9 +30,6 @@ unsigned long buttonHoldStartTime = 0;
 bool timerRunning = false;
 bool buttonHeld = false;
 bool buttonPressShort = false;
-
-Adafruit_ST7789 lcd = Adafruit_ST7789(LCD_CS, LCD_DC, LCD_RST);
-
 bool buttonState = HIGH;
 bool lastButtonState = HIGH;
 
@@ -108,7 +108,7 @@ void setup_wifi() {
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("MQTT RECEIVED [");
+  Serial.print(String(clientID) + " RCVD [");
   Serial.print(topic);
   Serial.print("]: ");
   
@@ -130,18 +130,19 @@ void reconnect() {
         Serial.println(String(clientID) + " | CONNECTED TT MQTT BROKER!");
 
         client.subscribe(mqtt_topic_CENTRAL_HUB);
-        String centralHubConnect = String(clientID) + " | CONNECTED TO CENTRAL-HUB";
+        String centralHubConnect = String(clientID) + " | FULL SUB TO CENTRAL-HUB";
         client.publish(mqtt_topic_CENTRAL_HUB, centralHubConnect.c_str());
 
         client.subscribe(mqtt_topic_NTP);
-        String NTPConnect = String(clientID) + " | CONNECTED TO NTP-TOPIC";
+        String NTPConnect = String(clientID) + " | FULL SUB TO NTP-TOPIC";
         client.publish(mqtt_topic_NTP, NTPConnect.c_str());
 
-        client.subscribe(mqtt_topic_WORKOUT_TIMER);
-        String workOutTimerConnect = String(clientID) + " | CONNECTED TO WORKOUT-TIMER";
+        //client.subscribe(mqtt_topic_WORKOUT_TIMER);
+        String workOutTimerConnect = String(clientID) + " | ONLY PUB TO WORKOUT-TIMER";
         client.publish(mqtt_topic_WORKOUT_TIMER, workOutTimerConnect.c_str());
 
-        Serial.println(String(clientID) + " | SUBSCRIBED TO : [" + mqtt_topic_CENTRAL_HUB + "] | [" + mqtt_topic_NTP + "] | [" + mqtt_topic_WORKOUT_TIMER + "]");
+        Serial.println(String(clientID) + " | FULLY SUBSCRIBED TO [" + mqtt_topic_CENTRAL_HUB + "] | [" + mqtt_topic_NTP + "]");
+        Serial.println(String(clientID) + " | ONLY PUBLISHING TO [" + mqtt_topic_WORKOUT_TIMER + "]");
       
       } else {
         Serial.print(String(clientID) + " | MQTT BROKER CONNECTION FAILED!, rc=");
@@ -179,6 +180,7 @@ void setup() {
 
   Serial.begin(115200);
   Serial.println("TIMER STANDING BY...");
+  Serial.println("*** SEND MQTT TIMER STANDING BY 00:00");
 
 }
 
@@ -275,12 +277,15 @@ void adjustTimerInterval() {
   if (seconds < 10) Serial.print("0");
   Serial.print(seconds);
   Serial.println(" ] --------");
+  Serial.println("*** SEND MQTT TIME EXTENDDED????");
+
 }
 
 void startTimer() {
   lcd.fillRect(0, 0, LCD_HEIGHT, LCD_WIDTH, ST77XX_BLACK);
   lcd.setCursor(0, 0);
   Serial.println("----------- [ TIMER STARTED ] -----------");
+  Serial.println("*** SEND MQTT TIMER START");
  
   timerRunning = true;
   timerRemaining = timerInterval;
@@ -298,6 +303,7 @@ void resetTimerToStandby() {
   lcd.setTextColor(ST77XX_BLUE);
   lcd.print("ADD STANDBY NTP");
   Serial.println("----------- [ TIMER SHUTDOWN ] -----------");
+  Serial.println("*** SEND MQTT TIMER SHUT DOWN??");
                   
   threshold750msReached = true;
 }            
@@ -391,6 +397,10 @@ void countdownTimer() {
   if (seconds < 10) Serial.print("0");
   Serial.println(seconds);
 
+  // PUBLISH TO MQTT TOPIC WORKOUT-TIMER
+  String timeMessage = String(minutes) + ":" + String(seconds);
+  client.publish(mqtt_topic_WORKOUT_TIMER, timeMessage.c_str());
+
   if (timerRemaining <= 0) {
     endTimerSequence();
   }
@@ -415,6 +425,7 @@ void endTimerSequence() {
   lcd.print("[========================]");
 
   Serial.println("TIMER FINISHED!");
+  Serial.println("*** SEND MQTT TIMER FINISHED");
 
   for (int cycle = 0; cycle < 3; cycle++) {
     for (int i = 0; i < 5; i++) {

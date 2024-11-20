@@ -1,6 +1,23 @@
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7789.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
+
+//OPERATIONAL CODE
+#define LCD_WIDTH 170
+#define LCD_HEIGHT 320
+#define LCD_MOSI 23
+#define LCD_SCLK 18
+#define LCD_CS 15
+#define LCD_DC 2
+#define LCD_RST 4
+#define LCD_BLK 32
+
+Adafruit_ST7789 lcd = Adafruit_ST7789(LCD_CS, LCD_DC, LCD_RST);
+
+// WORKOUT-TIMER VARIABLES
+String WORKOUT_TIMER_TIME = "";
 
 // Wi-Fi credentials
 const char* ssid = "icup +1"; // BE MINDFUL ******************
@@ -11,9 +28,10 @@ const char* mqtt_server = "9321cdfa0af34b83b77797a4488354cd.s1.eu.hivemq.cloud";
 const int mqtt_port = 8883; // BE MINDFUL ******************
 const char* mqtt_user = "MasterA"; // BE MINDFUL ******************
 const char* mqtt_password = "MasterA1"; // BE MINDFUL ******************
-const char* mqtt_topic = "WORKOUT-TIMER"; // Add if more topics ******************
+const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB"; // Add if more topics ******************
+const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT-TIMER"; // Add if more topics ******************
+const char* mqtt_topic_NTP = "NTP"; // Add if more topics ******************
 const char* clientID = "RESV-MAIN"; // Change the NAME/NUMBER for each device******************
-
 
 // Root certificate
 const char* root_ca = R"EOF(
@@ -53,39 +71,101 @@ WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
 void setup_wifi() {
-  Serial.println("Connecting to WiFi...");
+  Serial.println("-------------------------------------------------------------------");
+  Serial.println("HOSTNAME | "+ String(clientID));
+  
+  Serial.println(String(clientID) + " | ATTEMPTING TO CONNECT TO WIFI...");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.print(".");
   }
-  Serial.println("\nConnected to WiFi");
-  Serial.print("IP Address: ");
+
+  Serial.println(String(clientID) + " | CONNECTED TO WIFI!");
+  Serial.print("IP ADDRESS | ");
   Serial.println(WiFi.localIP());
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
+  // Print the received message for all topics
+  Serial.print(String(clientID) + " RCVD [");
   Serial.print(topic);
   Serial.print("]: ");
-  
+
+  String message;
   for (unsigned int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
+    message += (char)payload[i];
   }
-  Serial.println();
+  Serial.println(message);
+
+  // RCV TIMER MQTT 
+  if (String(topic) == "WORKOUT-TIMER") {
+    // Parse the "MM:SS" format
+    int colonIndex = message.indexOf(':');
+    if (colonIndex != -1) { // Ensure the colon exists
+      int WORKOUT_TIMER_MINUTES = message.substring(0, colonIndex).toInt();    // Extract minutes
+      int WORKOUT_TIMER_SECONDS = message.substring(colonIndex + 1).toInt();  // Extract seconds
+      String WORKOUT_TIMER_TIME = String(WORKOUT_TIMER_MINUTES) + ":" + String(WORKOUT_TIMER_SECONDS);
+      
+      // Display parsed time
+      Serial.println("Parsed Time: Minutes: " + String(WORKOUT_TIMER_MINUTES) + " Seconds: " + String(WORKOUT_TIMER_SECONDS) + " WORKOUT_TIMER_TIME: " + WORKOUT_TIMER_TIME);
+      Serial.println("WORKOUT_TIMER_TIME:" + WORKOUT_TIMER_TIME);
+     
+      lcd.setRotation(1);
+      lcd.fillScreen(ST77XX_BLACK);
+      lcd.setCursor(0, 0);
+      lcd.setTextSize(4);
+      lcd.setTextColor(ST77XX_WHITE);
+      lcd.print(WORKOUT_TIMER_TIME);
+
+
+
+      // Add logic here to update your display or perform actions
+    } else {
+      Serial.println("Invalid time format received.");
+    }
+  } 
+  else if (String(topic) == "another-topic") {
+    // Handle messages for another topic
+    Serial.println("Processing message for another-topic...");
+    // Add custom logic for this topic
+  } 
+  else {
+    // Default action for unrecognized topics
+    Serial.println("Message received for unhandled topic.");
+  }
 }
 
+
 void reconnect() {
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    if (client.connect(clientID, mqtt_user, mqtt_password)) {
-      Serial.println("Connected to MQTT broker");
-      client.subscribe(mqtt_topic);
-    } else {
-      Serial.print("Connection failed, rc=");
-      Serial.println(client.state());
-      Serial.println("Retrying in 5 seconds...");
-      delay(5000);
+  static unsigned long lastAttemptTime = 0;
+  const unsigned long retryInterval = 5000;
+
+  if (!client.connected()) {
+    if (millis() - lastAttemptTime > retryInterval) {
+      lastAttemptTime = millis();
+      Serial.print(String(clientID) +" | ATTEMPTING TO CONNECT TO MQTT BROKER...\n");
+      if (client.connect(clientID, mqtt_user, mqtt_password)) {
+        Serial.println(String(clientID) + " | CONNECTED TT MQTT BROKER!");
+
+        client.subscribe(mqtt_topic_CENTRAL_HUB);
+        String centralHubConnect = String(clientID) + " | CONNECTED TO CENTRAL-HUB";
+        client.publish(mqtt_topic_CENTRAL_HUB, centralHubConnect.c_str());
+
+        client.subscribe(mqtt_topic_NTP);
+        String NTPConnect = String(clientID) + " | CONNECTED TO NTP-TOPIC";
+        client.publish(mqtt_topic_NTP, NTPConnect.c_str());
+
+        client.subscribe(mqtt_topic_WORKOUT_TIMER);
+        String workOutTimerConnect = String(clientID) + " | CONNECTED TO WORKOUT-TIMER";
+        client.publish(mqtt_topic_WORKOUT_TIMER, workOutTimerConnect.c_str());
+
+        Serial.println(String(clientID) + " | SUBSCRIBED TO : [" + mqtt_topic_CENTRAL_HUB + "] | [" + mqtt_topic_NTP + "] | [ " + mqtt_topic_WORKOUT_TIMER + "]");
+        //Serial.println(String(clientID) + " | [ ONLY PUBLISHING TO " + mqtt_topic_WORKOUT_TIMER + "]");
+
+      } else {
+        Serial.print(String(clientID) + " | MQTT BROKER CONNECTION FAILED!, rc=");
+        Serial.println(client.state());
+      }
     }
   }
 }
@@ -98,6 +178,19 @@ void setup() {
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
   client.setKeepAlive(60); // Set keep-alive to 60 seconds
+
+  //OPERATIONAL CODE
+   //OPERATIONAL CODE
+  lcd.init(LCD_WIDTH, LCD_HEIGHT);
+  delay(500);
+  lcd.setRotation(1);
+  lcd.fillScreen(ST77XX_BLACK);
+
+  lcd.setCursor(0, 0);
+  lcd.setTextSize(3);
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.print(WORKOUT_TIMER_TIME);
+
 }
 
 void loop() {
