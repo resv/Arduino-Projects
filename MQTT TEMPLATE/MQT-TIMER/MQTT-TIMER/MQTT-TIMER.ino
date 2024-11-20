@@ -277,15 +277,12 @@ void adjustTimerInterval() {
   if (seconds < 10) Serial.print("0");
   Serial.print(seconds);
   Serial.println(" ] --------");
-  Serial.println("*** SEND MQTT TIME EXTENDDED????");
-
 }
 
 void startTimer() {
   lcd.fillRect(0, 0, LCD_HEIGHT, LCD_WIDTH, ST77XX_BLACK);
   lcd.setCursor(0, 0);
   Serial.println("----------- [ TIMER STARTED ] -----------");
-  Serial.println("*** SEND MQTT TIMER START");
  
   timerRunning = true;
   timerRemaining = timerInterval;
@@ -293,6 +290,8 @@ void startTimer() {
 }
 
 void resetTimerToStandby() {
+  if (threshold750msReached) return;  // Avoid repeating the reset
+
   noTone(buzzerPin);
   timerRunning = false;
   timerRemaining = timerInterval;
@@ -303,10 +302,12 @@ void resetTimerToStandby() {
   lcd.setTextColor(ST77XX_BLUE);
   lcd.print("ADD STANDBY NTP");
   Serial.println("----------- [ TIMER STOPPED ] ------------");
-  Serial.println("*** SEND MQTT TIMER SHUT DOWN?? sent 0:00 time");
-                  
+
+  String timeMessage = "TIMER STOPPED";
+  client.publish(mqtt_topic_WORKOUT_TIMER, timeMessage.c_str());
+
   threshold750msReached = true;
-}            
+}
 
 void handleHoldDurations() {
   if (buttonHeld) {
@@ -375,7 +376,7 @@ void countdownTimer() {
 
   int minutes = timerRemaining / 60;
   int seconds = timerRemaining % 60;
-  
+
   lcd.fillRect(0, 0, 320, 80, ST77XX_BLACK);
   lcd.setCursor(16, 0);
   lcd.setTextColor(ST77XX_GREEN);
@@ -396,13 +397,19 @@ void countdownTimer() {
   Serial.println(seconds);
 
   // PUBLISH TO MQTT TOPIC WORKOUT-TIMER
-  String timeMessage = String(minutes) + ":" + String(seconds);
+  // Ensuring mm:ss format with leading zeros
+  String timeMessage = "";
+  if (minutes < 10) timeMessage += "0";
+  timeMessage += String(minutes) + ":";
+  if (seconds < 10) timeMessage += "0";
+  timeMessage += String(seconds);
   client.publish(mqtt_topic_WORKOUT_TIMER, timeMessage.c_str());
 
   if (timerRemaining <= 0) {
     endTimerSequence();
   }
 }
+
 
 void endTimerSequence() {
   timerRunning = false;

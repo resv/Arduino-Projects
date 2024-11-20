@@ -85,43 +85,45 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
+
 void callback(char* topic, byte* payload, unsigned int length) {
   // Print the received message for all topics
   Serial.print(String(clientID) + " RCVD [");
   Serial.print(topic);
   Serial.print("]: ");
 
+  // Convert payload to a String
   String message;
   for (unsigned int i = 0; i < length; i++) {
     message += (char)payload[i];
   }
   Serial.println(message);
 
-  // RCV TIMER MQTT 
+  // Handle WORKOUT-TIMER topic
   if (String(topic) == "WORKOUT-TIMER") {
-    // Parse the "MM:SS" format
-    int colonIndex = message.indexOf(':');
-    if (colonIndex != -1) { // Ensure the colon exists
-      int WORKOUT_TIMER_MINUTES = message.substring(0, colonIndex).toInt();    // Extract minutes
-      int WORKOUT_TIMER_SECONDS = message.substring(colonIndex + 1).toInt();  // Extract seconds
-      String WORKOUT_TIMER_TIME = String(WORKOUT_TIMER_MINUTES) + ":" + String(WORKOUT_TIMER_SECONDS);
-      
-      // Display parsed time
-      Serial.println("Parsed Time: Minutes: " + String(WORKOUT_TIMER_MINUTES) + " Seconds: " + String(WORKOUT_TIMER_SECONDS) + " WORKOUT_TIMER_TIME: " + WORKOUT_TIMER_TIME);
-      Serial.println("WORKOUT_TIMER_TIME:" + WORKOUT_TIMER_TIME);
-     
+    if (message == "TIMER STOPPED") { // Check if the payload is "STOPPED"
       lcd.setRotation(1);
       lcd.fillScreen(ST77XX_BLACK);
       lcd.setCursor(0, 0);
       lcd.setTextSize(4);
-      lcd.setTextColor(ST77XX_WHITE);
-      lcd.print(WORKOUT_TIMER_TIME);
-
-
-
-      // Add logic here to update your display or perform actions
+      lcd.setTextColor(ST77XX_RED); // Display in red
+      lcd.print("00:00");
     } else {
-      Serial.println("Invalid time format received.");
+      // Parse the "mm:ss" format
+      int colonIndex = message.indexOf(':');
+      if (colonIndex != -1) { // Ensure the colon exists
+        int WORKOUT_TIMER_MINUTES = message.substring(0, colonIndex).toInt();    // Extract minutes
+        int WORKOUT_TIMER_SECONDS = message.substring(colonIndex + 1).toInt();  // Extract seconds
+        
+        lcd.setRotation(1);
+        lcd.fillScreen(ST77XX_BLACK);
+        lcd.setCursor(0, 0);
+        lcd.setTextSize(4);
+        lcd.setTextColor(ST77XX_WHITE);
+        lcd.print(message); // Directly display the received time
+      } else {
+        Serial.println("Invalid time format received.");
+      }
     }
   } 
   else if (String(topic) == "another-topic") {
@@ -134,6 +136,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.println("Message received for unhandled topic.");
   }
 }
+
+
 
 
 void reconnect() {
