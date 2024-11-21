@@ -3,8 +3,11 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+#include <time.h>
 
-//OPERATIONAL CODE
+// LCD configuration
 #define LCD_WIDTH 170
 #define LCD_HEIGHT 320
 #define LCD_MOSI 23
@@ -16,22 +19,19 @@
 
 Adafruit_ST7789 lcd = Adafruit_ST7789(LCD_CS, LCD_DC, LCD_RST);
 
-// WORKOUT-TIMER VARIABLES
-String WORKOUT_TIMER_TIME = "";
-
 // Wi-Fi credentials
-const char* ssid = "icup +1"; // BE MINDFUL ******************
-const char* password = "aaaaaaaaa1"; // v
+const char* ssid = "icup +1";
+const char* password = "aaaaaaaaa1";
 
 // MQTT broker credentials
-const char* mqtt_server = "9321cdfa0af34b83b77797a4488354cd.s1.eu.hivemq.cloud"; // BE MINDFUL ******************
-const int mqtt_port = 8883; // BE MINDFUL ******************
-const char* mqtt_user = "MasterA"; // BE MINDFUL ******************
-const char* mqtt_password = "MasterA1"; // BE MINDFUL ******************
-const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB"; // Add if more topics ******************
-const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT-TIMER"; // Add if more topics ******************
-const char* mqtt_topic_NTP = "NTP"; // Add if more topics ******************
-const char* clientID = "RESV-MAIN"; // Change the NAME/NUMBER for each device******************
+const char* mqtt_server = "9321cdfa0af34b83b77797a4488354cd.s1.eu.hivemq.cloud";
+const int mqtt_port = 8883;
+const char* mqtt_user = "MasterA";
+const char* mqtt_password = "MasterA1";
+const char* mqtt_topic_NTP = "NTP";
+const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB";
+const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT_TIMER";
+const char* clientID = "RESV-MAIN";
 
 // Root certificate
 const char* root_ca = R"EOF(
@@ -70,109 +70,112 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
+// NTP configuration
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000); // UTC, sync every 60 seconds
+unsigned long lastNTPFetch = 0;
+#define SECONDS_IN_A_DAY 86400
+#define MAX_NTP_RETRIES 5
+
+// Internal time tracking
+time_t internalTime = 0; // Tracks the current epoch time
+unsigned long lastMillis = 0; // Tracks the last time the display was updated
+
+// Function to connect to Wi-Fi
 void setup_wifi() {
-  Serial.println("-------------------------------------------------------------------");
-  Serial.println("HOSTNAME | "+ String(clientID));
-  
-  Serial.println(String(clientID) + " | ATTEMPTING TO CONNECT TO WIFI...");
+  Serial.println("Connecting to Wi-Fi...");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
+    Serial.print(".");
   }
-
-  Serial.println(String(clientID) + " | CONNECTED TO WIFI!");
-  Serial.print("IP ADDRESS | ");
-  Serial.println(WiFi.localIP());
+  Serial.println("\nWi-Fi connected! IP: " + WiFi.localIP().toString());
 }
 
+// Function to fetch NTP time and initialize internal clock
+bool fetchAndSetNTPTime() {
+  int retryCount = 0;
+  while (!timeClient.update() && retryCount < MAX_NTP_RETRIES) {
+    retryCount++;
+    Serial.println("Retrying NTP fetch...");
+    delay(1000);
+  }
 
+  if (retryCount == MAX_NTP_RETRIES) {
+    Serial.println("Failed to fetch NTP time after retries.");
+    return false;
+  }
+
+  internalTime = timeClient.getEpochTime();
+  Serial.println("NTP Time fetched: " + String(ctime(&internalTime)));
+  return true;
+}
+
+// Function to format and display all timezone data
+void displayTimezones() {
+  const int offsets[] = {0, -5, -6, -7, -8};
+  const char* zones[] = {"UTC-0", "EST-5", "CST-6", "MST-7", "PST-8"};
+  char buffer[50];
+
+  lcd.fillScreen(ST77XX_BLACK);
+  lcd.setCursor(0, 0);
+  lcd.setTextSize(2);
+  lcd.setTextColor(ST77XX_WHITE);
+
+  for (int i = 0; i < 5; i++) {
+    time_t adjustedTime = internalTime + (offsets[i] * 3600);
+    struct tm* timeInfo = gmtime(&adjustedTime);
+    strftime(buffer, sizeof(buffer), "%m/%d/%y %I:%M:%S %p (%H:%M:%S)", timeInfo);
+
+    lcd.println(String(zones[i]) + ": " + String(buffer));
+  }
+}
+
+// MQTT callback function
 void callback(char* topic, byte* payload, unsigned int length) {
-  // Print the received message for all topics
-  Serial.print(String(clientID) + " RCVD [");
-  Serial.print(topic);
-  Serial.print("]: ");
-
-  // Convert payload to a String
   String message;
   for (unsigned int i = 0; i < length; i++) {
     message += (char)payload[i];
   }
-  Serial.println(message);
 
-  // Handle WORKOUT-TIMER topic
-  if (String(topic) == "WORKOUT-TIMER") {
-    if (message == "TIMER STOPPED") { // Check if the payload is "STOPPED"
-      lcd.setRotation(1);
-      lcd.fillScreen(ST77XX_BLACK);
-      lcd.setCursor(0, 0);
-      lcd.setTextSize(4);
-      lcd.setTextColor(ST77XX_RED); // Display in red
-      lcd.print("00:00");
-    } else {
-      // Parse the "mm:ss" format
-      int colonIndex = message.indexOf(':');
-      if (colonIndex != -1) { // Ensure the colon exists
-        int WORKOUT_TIMER_MINUTES = message.substring(0, colonIndex).toInt();    // Extract minutes
-        int WORKOUT_TIMER_SECONDS = message.substring(colonIndex + 1).toInt();  // Extract seconds
-        
-        lcd.setRotation(1);
-        lcd.fillScreen(ST77XX_BLACK);
-        lcd.setCursor(0, 0);
-        lcd.setTextSize(4);
-        lcd.setTextColor(ST77XX_WHITE);
-        lcd.print(message); // Directly display the received time
-      } else {
-        Serial.println("Invalid time format received.");
-      }
-    }
-  } 
-  else if (String(topic) == "another-topic") {
-    // Handle messages for another topic
-    Serial.println("Processing message for another-topic...");
-    // Add custom logic for this topic
-  } 
-  else {
-    // Default action for unrecognized topics
-    Serial.println("Message received for unhandled topic.");
+  Serial.println("Message received on [" + String(topic) + "]: " + message);
+
+  // Handle NTP requests
+  if (String(topic) == mqtt_topic_NTP && message == "RESV-TIMER | NTP REQUEST") {
+    Serial.println("Processing NTP REQUEST...");
+    fetchAndSetNTPTime();
   }
 }
 
+// Function to reconnect to MQTT broker
+  void reconnect() {
+    static unsigned long lastAttemptTime = 0;
+    const unsigned long retryInterval = 5000;
 
+    if (client.connected()) return;
 
-
-void reconnect() {
-  static unsigned long lastAttemptTime = 0;
-  const unsigned long retryInterval = 5000;
-
-  if (!client.connected()) {
     if (millis() - lastAttemptTime > retryInterval) {
       lastAttemptTime = millis();
-      Serial.print(String(clientID) +" | ATTEMPTING TO CONNECT TO MQTT BROKER...\n");
+      Serial.println("Connecting to MQTT broker...");
       if (client.connect(clientID, mqtt_user, mqtt_password)) {
-        Serial.println(String(clientID) + " | CONNECTED TT MQTT BROKER!");
+        Serial.println("MQTT connected!");
 
+        // Subscribe to topics
         client.subscribe(mqtt_topic_CENTRAL_HUB);
-        String centralHubConnect = String(clientID) + " | CONNECTED TO CENTRAL-HUB";
-        client.publish(mqtt_topic_CENTRAL_HUB, centralHubConnect.c_str());
-
-        client.subscribe(mqtt_topic_NTP);
-        String NTPConnect = String(clientID) + " | CONNECTED TO NTP-TOPIC";
-        client.publish(mqtt_topic_NTP, NTPConnect.c_str());
-
         client.subscribe(mqtt_topic_WORKOUT_TIMER);
-        String workOutTimerConnect = String(clientID) + " | CONNECTED TO WORKOUT-TIMER";
-        client.publish(mqtt_topic_WORKOUT_TIMER, workOutTimerConnect.c_str());
+        client.subscribe(mqtt_topic_NTP);
 
-        Serial.println(String(clientID) + " | SUBSCRIBED TO : [" + mqtt_topic_CENTRAL_HUB + "] | [" + mqtt_topic_NTP + "] | [ " + mqtt_topic_WORKOUT_TIMER + "]");
-        //Serial.println(String(clientID) + " | [ ONLY PUBLISHING TO " + mqtt_topic_WORKOUT_TIMER + "]");
+        // Publish to the topics after subscribing
+        client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED TO CENTRAL-HUB").c_str());
+        client.publish(mqtt_topic_WORKOUT_TIMER, (String(clientID) + " CONNECTED TO WORKOUT-TIMER").c_str());
+        client.publish(mqtt_topic_NTP, (String(clientID) + " CONNECTED TO NTP").c_str());
 
+        Serial.println("Subscribed to and published to CENTRAL-HUB, WORKOUT-TIMER, and NTP.");
       } else {
-        Serial.print(String(clientID) + " | MQTT BROKER CONNECTION FAILED!, rc=");
-        Serial.println(client.state());
+        Serial.println("MQTT connection failed, rc=" + String(client.state()));
       }
     }
   }
-}
 
 void setup() {
   Serial.begin(115200);
@@ -181,20 +184,18 @@ void setup() {
   espClient.setCACert(root_ca);
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
-  client.setKeepAlive(60); // Set keep-alive to 60 seconds
 
-  //OPERATIONAL CODE
-   //OPERATIONAL CODE
   lcd.init(LCD_WIDTH, LCD_HEIGHT);
-  delay(500);
   lcd.setRotation(1);
   lcd.fillScreen(ST77XX_BLACK);
 
-  lcd.setCursor(0, 0);
-  lcd.setTextSize(3);
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.print(WORKOUT_TIMER_TIME);
+  // Initialize NTP client
+  timeClient.begin();
 
+  // Fetch NTP time on boot
+  if (fetchAndSetNTPTime()) {
+    lastNTPFetch = millis();
+  }
 }
 
 void loop() {
@@ -202,4 +203,19 @@ void loop() {
     reconnect();
   }
   client.loop();
+
+  // Increment internal clock by calculating elapsed time
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastMillis >= 1000) { // Update every second
+    internalTime++;
+    displayTimezones();
+    lastMillis = currentMillis;
+  }
+
+  // Fetch NTP data every 24 hours
+  if (millis() - lastNTPFetch >= SECONDS_IN_A_DAY * 1000) {
+    if (fetchAndSetNTPTime()) {
+      lastNTPFetch = millis();
+    }
+  }
 }
