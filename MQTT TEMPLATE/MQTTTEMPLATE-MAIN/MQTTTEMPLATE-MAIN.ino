@@ -102,7 +102,7 @@ bool fetchAndSetNTPTime() {
   }
 
   if (retryCount == MAX_NTP_RETRIES) {
-    Serial.println("Failed to fetch NTP time after retries.");
+    Serial.println("Failed to fetch NTP time 5 after retries.");
     return false;
   }
 
@@ -115,7 +115,9 @@ bool fetchAndSetNTPTime() {
 void displayTimezones() {
   const int offsets[] = {0, -5, -6, -7, -8};
   const char* zones[] = {"UTC-0", "EST-5", "CST-6", "MST-7", "PST-8"};
-  char buffer[50];
+  char dateBuffer[20];    // Buffer for the date
+  char time12Buffer[10];  // Buffer for 12-hour time
+  char time24Buffer[10];  // Buffer for 24-hour time
 
   lcd.fillScreen(ST77XX_BLACK);
   lcd.setCursor(0, 0);
@@ -125,9 +127,19 @@ void displayTimezones() {
   for (int i = 0; i < 5; i++) {
     time_t adjustedTime = internalTime + (offsets[i] * 3600);
     struct tm* timeInfo = gmtime(&adjustedTime);
-    strftime(buffer, sizeof(buffer), "%m/%d/%y %I:%M:%S %p (%H:%M:%S)", timeInfo);
 
-    lcd.println(String(zones[i]) + ": " + String(buffer));
+    // Format date as MM-DD
+    strftime(dateBuffer, sizeof(dateBuffer), "%m-%d", timeInfo);
+
+    // Format 12-hour time with AM/PM
+    strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", timeInfo);
+
+    // Format 24-hour time
+    strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", timeInfo);
+
+    // Display formatted output on the LCD
+    lcd.println(String(zones[i]) + " | " + String(dateBuffer) + " | " +
+                String(time12Buffer) + " | " + String(time24Buffer));
   }
 }
 
@@ -138,7 +150,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     message += (char)payload[i];
   }
 
-  Serial.println("Message received on [" + String(topic) + "]: " + message);
+  Serial.println("RESV-MAIN RCVD [" + String(topic) + "]: " + message);
 
   // Handle NTP requests
   if (String(topic) == mqtt_topic_NTP && message == "RESV-TIMER | NTP REQUEST") {
@@ -185,17 +197,32 @@ void setup() {
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
 
+  // Initialize LCD
   lcd.init(LCD_WIDTH, LCD_HEIGHT);
   lcd.setRotation(1);
   lcd.fillScreen(ST77XX_BLACK);
 
+  // Display "Fetching NTP..." message
+  lcd.setCursor(0, 0);
+  lcd.setTextSize(2);
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.println("Fetching NTP...");
+  lcd.println("Please wait...");
+
   // Initialize NTP client
   timeClient.begin();
 
-  // Fetch NTP time on boot
+  // Fetch initial NTP time
   if (fetchAndSetNTPTime()) {
     lastNTPFetch = millis();
+  } else {
+    // If NTP fails, show an error and use a default time
+    Serial.println("Failed to fetch NTP. Using default time.");
+    internalTime = 1321019471; // Failed time will show 11/11/11 11:11 AM UTC
   }
+
+  // Display timezones immediately
+  displayTimezones();
 }
 
 void loop() {
@@ -204,10 +231,10 @@ void loop() {
   }
   client.loop();
 
-  // Increment internal clock by calculating elapsed time
+  // Increment internal clock and update LCD every minute
   unsigned long currentMillis = millis();
-  if (currentMillis - lastMillis >= 1000) { // Update every second
-    internalTime++;
+  if (currentMillis - lastMillis >= 60000) {
+    internalTime += 60; // Increment by one minute
     displayTimezones();
     lastMillis = currentMillis;
   }
