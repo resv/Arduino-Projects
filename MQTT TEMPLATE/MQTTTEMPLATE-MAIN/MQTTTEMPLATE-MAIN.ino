@@ -76,6 +76,7 @@ NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000); // UTC, sync every 60 se
 unsigned long lastNTPFetch = 0;
 #define SECONDS_IN_A_DAY 86400
 #define MAX_NTP_RETRIES 5
+int NTPReadyToPublish = 0;
 
 // Internal time tracking
 time_t internalTime = 0; // Tracks the current epoch time
@@ -171,16 +172,21 @@ void publishTimeData() {
   time_t estTime = internalTime + (offsets[estIndex] * 3600);
   struct tm* estTimeInfo = gmtime(&estTime);
 
-  strftime(dateBuffer, sizeof(dateBuffer), "%m-%d", estTimeInfo);
+  strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", estTimeInfo);
   strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", estTimeInfo);
   strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", estTimeInfo);
 
   String estPayload = String(zones[estIndex]) + " | " + String(dateBuffer) + " | " +
                       String(time12Buffer) + " | " + String(time24Buffer);
 
-  client.publish(mqtt_topic_NTP, estPayload.c_str());
-  Serial.println("Published EST-5 NTP data:");
-  Serial.println(estPayload);
+  Serial.println("Staged NTP Publish data:");
+  Serial.println(estPayload + "\n");
+
+  if (NTPReadyToPublish == 1){
+    client.publish(mqtt_topic_NTP, estPayload.c_str());
+  } else {
+    Serial.println("Staged NTP could not publish, NTPReadyToPublish flag remains at 0\n");
+  }
 }
 
 // Handle incoming MQTT messages
@@ -206,16 +212,19 @@ void reconnect() {
   while (!client.connected()) {
     Serial.println("Connecting to MQTT broker...");
     if (client.connect(clientID, mqtt_user, mqtt_password)) {
-      Serial.println("MQTT connected!");
+      Serial.println("MQTT connected!\n");
 
       client.subscribe(mqtt_topic_CENTRAL_HUB);
       client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED").c_str());
 
       client.subscribe(mqtt_topic_NTP);
       client.publish(mqtt_topic_NTP, (String(clientID) + " CONNECTED").c_str());
+      NTPReadyToPublish = 1;
 
       client.subscribe(mqtt_topic_WORKOUT_TIMER);
       client.publish(mqtt_topic_WORKOUT_TIMER, (String(clientID) + " CONNECTED").c_str());
+
+      publishTimeData();
 
     } else {
       Serial.println("MQTT connection failed, rc=" + String(client.state()));
