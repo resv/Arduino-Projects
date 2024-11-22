@@ -28,7 +28,9 @@ const char* mqtt_server = "9321cdfa0af34b83b77797a4488354cd.s1.eu.hivemq.cloud";
 const int mqtt_port = 8883;
 const char* mqtt_user = "MasterA";
 const char* mqtt_password = "MasterA1";
+const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB";
 const char* mqtt_topic_NTP = "NTP";
+const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT-TIMER";
 const char* clientID = "RESV-MAIN";
 
 // Root certificate
@@ -206,8 +208,15 @@ void reconnect() {
     if (client.connect(clientID, mqtt_user, mqtt_password)) {
       Serial.println("MQTT connected!");
 
+      client.subscribe(mqtt_topic_CENTRAL_HUB);
+      client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED").c_str());
+
       client.subscribe(mqtt_topic_NTP);
       client.publish(mqtt_topic_NTP, (String(clientID) + " CONNECTED").c_str());
+
+      client.subscribe(mqtt_topic_WORKOUT_TIMER);
+      client.publish(mqtt_topic_WORKOUT_TIMER, (String(clientID) + " CONNECTED").c_str());
+
     } else {
       Serial.println("MQTT connection failed, rc=" + String(client.state()));
       delay(5000);
