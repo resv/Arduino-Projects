@@ -70,6 +70,9 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
+// Default workout timer value
+String workoutTimer = "00:00";
+
 // NTP configuration
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000); // UTC, sync every 60 seconds
@@ -92,6 +95,17 @@ void setup_wifi() {
   }
   Serial.println("\nWi-Fi connected! IP: " + WiFi.localIP().toString());
 }
+
+
+// Function to update the timer on the LCD
+void updateWorkoutTimerLCD(const String& timerValue) {
+  lcd.fillRect(0, 0, LCD_WIDTH, 40, ST77XX_BLACK); // Clear timer area
+  lcd.setCursor(10, 0);                           // Set cursor position for timer
+  lcd.setTextSize(2);                               // Set text size for timer
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.println("Timer: " + timerValue);              // Display the timer
+}
+
 
 // Fetch NTP time and update internal time
 bool fetchAndSetNTPTime() {
@@ -189,7 +203,7 @@ void publishTimeData() {
   }
 }
 
-// Handle incoming MQTT messages
+// Update callback to handle WORKOUT-TIMER messages
 void callback(char* topic, byte* payload, unsigned int length) {
   String message = "";
   for (unsigned int i = 0; i < length; i++) {
@@ -204,6 +218,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
     if (fetchAndSetNTPTime()) {
       Serial.println("NTP updated and published.");
     }
+  }
+  // Handle WORKOUT-TIMER updates
+  else if (String(topic) == mqtt_topic_WORKOUT_TIMER) {
+    workoutTimer = message;  // Save the latest timer value
+    updateWorkoutTimerLCD(workoutTimer); // Update the LCD
   }
 }
 
@@ -262,6 +281,7 @@ void setup() {
   }
 
   displayTimezones();
+  updateWorkoutTimerLCD(workoutTimer); // Display default timer value
 }
 
 // Loop function
