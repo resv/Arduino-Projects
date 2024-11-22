@@ -29,8 +29,6 @@ const int mqtt_port = 8883;
 const char* mqtt_user = "MasterA";
 const char* mqtt_password = "MasterA1";
 const char* mqtt_topic_NTP = "NTP";
-const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB";
-const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT_TIMER";
 const char* clientID = "RESV-MAIN";
 
 // Root certificate
@@ -81,7 +79,7 @@ unsigned long lastNTPFetch = 0;
 time_t internalTime = 0; // Tracks the current epoch time
 unsigned long lastMillis = 0; // Tracks the last time the display was updated
 
-// Function to connect to Wi-Fi
+// Connect to Wi-Fi
 void setup_wifi() {
   Serial.println("Connecting to Wi-Fi...");
   WiFi.begin(ssid, password);
@@ -92,7 +90,7 @@ void setup_wifi() {
   Serial.println("\nWi-Fi connected! IP: " + WiFi.localIP().toString());
 }
 
-// Function to fetch NTP time and initialize internal clock
+// Fetch NTP time and update internal time
 bool fetchAndSetNTPTime() {
   int retryCount = 0;
   while (!timeClient.update() && retryCount < MAX_NTP_RETRIES) {
@@ -102,22 +100,26 @@ bool fetchAndSetNTPTime() {
   }
 
   if (retryCount == MAX_NTP_RETRIES) {
-    Serial.println("Failed to fetch NTP time 5 after retries.");
+    Serial.println("Failed to fetch NTP time after retries.");
     return false;
   }
 
   internalTime = timeClient.getEpochTime();
   Serial.println("NTP Time fetched: " + String(ctime(&internalTime)));
+
+  // Publish updated times after fetch
+  publishTimeData();
+
   return true;
 }
 
-// Function to format and display all timezone data
+// Display and format all timezone data
 void displayTimezones() {
   const int offsets[] = {0, -5, -6, -7, -8};
   const char* zones[] = {"UTC-0", "EST-5", "CST-6", "MST-7", "PST-8"};
-  char dateBuffer[20];    // Buffer for the date
-  char time12Buffer[10];  // Buffer for 12-hour time
-  char time24Buffer[10];  // Buffer for 24-hour time
+  char dateBuffer[20];
+  char time12Buffer[10];
+  char time24Buffer[10];
 
   lcd.fillScreen(ST77XX_BLACK);
   lcd.setCursor(0, 0);
@@ -128,24 +130,60 @@ void displayTimezones() {
     time_t adjustedTime = internalTime + (offsets[i] * 3600);
     struct tm* timeInfo = gmtime(&adjustedTime);
 
-    // Format date as MM-DD
     strftime(dateBuffer, sizeof(dateBuffer), "%m-%d", timeInfo);
-
-    // Format 12-hour time with AM/PM
     strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", timeInfo);
-
-    // Format 24-hour time
     strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", timeInfo);
 
-    // Display formatted output on the LCD
     lcd.println(String(zones[i]) + " | " + String(dateBuffer) + " | " +
                 String(time12Buffer) + " | " + String(time24Buffer));
   }
 }
 
-// MQTT callback function
+// Publish timezone data to MQTT
+void publishTimeData() {
+  const int offsets[] = {0, -5, -6, -7, -8};
+  const char* zones[] = {"UTC-0", "EST-5", "CST-6", "MST-7", "PST-8"};
+  char dateBuffer[20];
+  char time12Buffer[10];
+  char time24Buffer[10];
+
+  String payload = "";
+
+  for (int i = 0; i < 5; i++) {
+    time_t adjustedTime = internalTime + (offsets[i] * 3600);
+    struct tm* timeInfo = gmtime(&adjustedTime);
+
+    strftime(dateBuffer, sizeof(dateBuffer), "%m-%d", timeInfo);
+    strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", timeInfo);
+    strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", timeInfo);
+
+    payload += String(zones[i]) + " | " + String(dateBuffer) + " | " +
+               String(time12Buffer) + " | " + String(time24Buffer) + "\n";
+  }
+
+  //client.publish(mqtt_topic_NTP, payload.c_str()); (DOESN"T WORK DUE TO HIVEMQ MQTT CHAR LIMIT?)
+  Serial.println("----------- NTP TIME -----------\n" + payload);
+  
+  // Publish only EST-5 row separately
+  int estIndex = 1; // Index of EST-5 in the offsets array
+  time_t estTime = internalTime + (offsets[estIndex] * 3600);
+  struct tm* estTimeInfo = gmtime(&estTime);
+
+  strftime(dateBuffer, sizeof(dateBuffer), "%m-%d", estTimeInfo);
+  strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", estTimeInfo);
+  strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", estTimeInfo);
+
+  String estPayload = String(zones[estIndex]) + " | " + String(dateBuffer) + " | " +
+                      String(time12Buffer) + " | " + String(time24Buffer);
+
+  client.publish(mqtt_topic_NTP, estPayload.c_str());
+  Serial.println("Published EST-5 NTP data:");
+  Serial.println(estPayload);
+}
+
+// Handle incoming MQTT messages
 void callback(char* topic, byte* payload, unsigned int length) {
-  String message;
+  String message = "";
   for (unsigned int i = 0; i < length; i++) {
     message += (char)payload[i];
   }
@@ -153,42 +191,31 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println("RESV-MAIN RCVD [" + String(topic) + "]: " + message);
 
   // Handle NTP requests
-  if (String(topic) == mqtt_topic_NTP && message == "RESV-TIMER | NTP REQUEST") {
+  if (String(topic) == mqtt_topic_NTP && message.endsWith("| NTP REQUEST")) {
     Serial.println("Processing NTP REQUEST...");
-    fetchAndSetNTPTime();
+    if (fetchAndSetNTPTime()) {
+      Serial.println("NTP updated and published.");
+    }
   }
 }
 
-// Function to reconnect to MQTT broker
-  void reconnect() {
-    static unsigned long lastAttemptTime = 0;
-    const unsigned long retryInterval = 5000;
+// Reconnect to MQTT broker
+void reconnect() {
+  while (!client.connected()) {
+    Serial.println("Connecting to MQTT broker...");
+    if (client.connect(clientID, mqtt_user, mqtt_password)) {
+      Serial.println("MQTT connected!");
 
-    if (client.connected()) return;
-
-    if (millis() - lastAttemptTime > retryInterval) {
-      lastAttemptTime = millis();
-      Serial.println("Connecting to MQTT broker...");
-      if (client.connect(clientID, mqtt_user, mqtt_password)) {
-        Serial.println("MQTT connected!");
-
-        // Subscribe to topics
-        client.subscribe(mqtt_topic_CENTRAL_HUB);
-        client.subscribe(mqtt_topic_WORKOUT_TIMER);
-        client.subscribe(mqtt_topic_NTP);
-
-        // Publish to the topics after subscribing
-        client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED TO CENTRAL-HUB").c_str());
-        client.publish(mqtt_topic_WORKOUT_TIMER, (String(clientID) + " CONNECTED TO WORKOUT-TIMER").c_str());
-        client.publish(mqtt_topic_NTP, (String(clientID) + " CONNECTED TO NTP").c_str());
-
-        Serial.println("Subscribed to and published to CENTRAL-HUB, WORKOUT-TIMER, and NTP.");
-      } else {
-        Serial.println("MQTT connection failed, rc=" + String(client.state()));
-      }
+      client.subscribe(mqtt_topic_NTP);
+      client.publish(mqtt_topic_NTP, (String(clientID) + " CONNECTED").c_str());
+    } else {
+      Serial.println("MQTT connection failed, rc=" + String(client.state()));
+      delay(5000);
     }
   }
+}
 
+// Setup function
 void setup() {
   Serial.begin(115200);
   setup_wifi();
@@ -197,49 +224,42 @@ void setup() {
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
 
-  // Initialize LCD
   lcd.init(LCD_WIDTH, LCD_HEIGHT);
   lcd.setRotation(1);
   lcd.fillScreen(ST77XX_BLACK);
 
-  // Display "Fetching NTP..." message
   lcd.setCursor(0, 0);
   lcd.setTextSize(2);
   lcd.setTextColor(ST77XX_WHITE);
   lcd.println("Fetching NTP...");
   lcd.println("Please wait...");
 
-  // Initialize NTP client
   timeClient.begin();
 
-  // Fetch initial NTP time
   if (fetchAndSetNTPTime()) {
     lastNTPFetch = millis();
   } else {
-    // If NTP fails, show an error and use a default time
-    Serial.println("Failed to fetch NTP. Using default time.");
-    internalTime = 1321019471; // Failed time will show 11/11/11 11:11 AM UTC
+    Serial.println("Using default time.");
+    internalTime = 1321019471; // 11/11/11 11:11 UTC
   }
 
-  // Display timezones immediately
   displayTimezones();
 }
 
+// Loop function
 void loop() {
   if (!client.connected()) {
     reconnect();
   }
   client.loop();
 
-  // Increment internal clock and update LCD every minute
   unsigned long currentMillis = millis();
   if (currentMillis - lastMillis >= 60000) {
-    internalTime += 60; // Increment by one minute
+    internalTime += 60;
     displayTimezones();
     lastMillis = currentMillis;
   }
 
-  // Fetch NTP data every 24 hours
   if (millis() - lastNTPFetch >= SECONDS_IN_A_DAY * 1000) {
     if (fetchAndSetNTPTime()) {
       lastNTPFetch = millis();
