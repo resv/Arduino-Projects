@@ -198,7 +198,7 @@ void publishTimeData() {
 
   if (NTPReadyToPublish == 1){
     //client.publish(mqtt_topic_NTP, estPayload.c_str());
-     client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED at " +estPayload).c_str());
+     client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED at " + estPayload).c_str());
   } else {
     Serial.println("Staged NTP could not publish, NTPReadyToPublish flag remains at 0\n");
   }
