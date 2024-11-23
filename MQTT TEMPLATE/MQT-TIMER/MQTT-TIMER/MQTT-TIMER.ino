@@ -148,12 +148,13 @@ void displayTimezones() {
   char time12Buffer[10];
   char time24Buffer[10];
 
-  lcd.fillScreen(ST77XX_BLACK);
-  lcd.setCursor(0, 0);
-  lcd.setTextSize(2);
+  lcd.fillRect(230, 149, 90, 79, ST77XX_BLACK); // Clear clock area only
+  lcd.setTextSize(3);
   lcd.setTextColor(ST77XX_WHITE);
+  lcd.setCursor(230, 127);
+ 
 
-  for (int i = 0; i < 5; i++) {
+/*  for (int i = 0; i < 5; i++) {
     time_t adjustedTime = internalTime + (offsets[i] * 3600);
     struct tm* timeInfo = gmtime(&adjustedTime);
 
@@ -163,7 +164,19 @@ void displayTimezones() {
 
     lcd.println(String(zones[i]) + " | " + String(dateBuffer) + " | " +
                 String(time12Buffer) + " | " + String(time24Buffer));
-  }
+  } 
+*/
+    time_t adjustedTime = internalTime + (offsets[1] * 3600);
+    struct tm* timeInfo = gmtime(&adjustedTime);
+
+    strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", timeInfo);
+    strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", timeInfo);
+    strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", timeInfo);
+
+    lcd.println(String(dateBuffer));
+    lcd.setTextColor(ST77XX_WHITE);
+    lcd.setCursor(230, 149);
+    lcd.println(String(time24Buffer));
 }
 
 // Publish timezone data to MQTT
@@ -180,7 +193,7 @@ void publishTimeData() {
     time_t adjustedTime = internalTime + (offsets[i] * 3600);
     struct tm* timeInfo = gmtime(&adjustedTime);
 
-    strftime(dateBuffer, sizeof(dateBuffer), "%m-%d", timeInfo);
+    strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", timeInfo);
     strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", timeInfo);
     strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", timeInfo);
 
@@ -432,6 +445,7 @@ void resetTimerToStandby() {
 
   String timeMessage = "--:--";
   client.publish(mqtt_topic_WORKOUT_TIMER, timeMessage.c_str());
+  displayTimezones();
 
   threshold750msReached = true;
 }
