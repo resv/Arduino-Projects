@@ -197,7 +197,8 @@ void publishTimeData() {
   Serial.println(estPayload + "\n");
 
   if (NTPReadyToPublish == 1){
-    client.publish(mqtt_topic_NTP, estPayload.c_str());
+    //client.publish(mqtt_topic_NTP, estPayload.c_str());
+     client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED at " +estPayload).c_str());
   } else {
     Serial.println("Staged NTP could not publish, NTPReadyToPublish flag remains at 0\n");
   }
@@ -231,22 +232,24 @@ void reconnect() {
   while (!client.connected()) {
     Serial.println("Connecting to MQTT broker...");
     if (client.connect(clientID, mqtt_user, mqtt_password)) {
-      Serial.println("MQTT connected!\n");
+      Serial.println(String(clientID) + " | CONNECTED TT MQTT BROKER!");
 
       client.subscribe(mqtt_topic_CENTRAL_HUB);
-      client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED").c_str());
+      //client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED").c_str());
 
       client.subscribe(mqtt_topic_NTP);
-      client.publish(mqtt_topic_NTP, (String(clientID) + " CONNECTED").c_str());
+      //client.publish(mqtt_topic_NTP, (String(clientID) + " CONNECTED").c_str());
       NTPReadyToPublish = 1;
 
       client.subscribe(mqtt_topic_WORKOUT_TIMER);
-      client.publish(mqtt_topic_WORKOUT_TIMER, (String(clientID) + " CONNECTED").c_str());
+      //client.publish(mqtt_topic_WORKOUT_TIMER, (String(clientID) + " CONNECTED").c_str());
+
+      Serial.println(String(clientID) + " | FULLY SUBSCRIBED TO [" + mqtt_topic_CENTRAL_HUB + "] | [" + mqtt_topic_NTP + "] | [" + mqtt_topic_WORKOUT_TIMER + "]");
 
       publishTimeData();
 
     } else {
-      Serial.println("MQTT connection failed, rc=" + String(client.state()));
+      Serial.println(" | MQTT BROKER CONNECTION FAILED!, rc=" + String(client.state()));
       delay(5000);
     }
   }
