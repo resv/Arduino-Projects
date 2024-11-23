@@ -134,8 +134,8 @@ void reconnect() {
         client.publish(mqtt_topic_CENTRAL_HUB, centralHubConnect.c_str());
 
         client.subscribe(mqtt_topic_NTP);
-        String NTPConnect = String(clientID) + " | FULL SUB TO NTP-TOPIC";
-        client.publish(mqtt_topic_NTP, NTPConnect.c_str());
+        String NTPRequest = String(clientID) + " | NTP REQUEST";
+        client.publish(mqtt_topic_NTP, NTPRequest.c_str());
 
         //client.subscribe(mqtt_topic_WORKOUT_TIMER);
         String workOutTimerConnect = String(clientID) + " | ONLY PUB TO WORKOUT-TIMER";
@@ -161,7 +161,6 @@ void setup() {
   espClient.setCACert(root_ca);
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
-  client.setKeepAlive(60);  // Set keep-alive to 60 seconds
 
   //OPERATIONAL CODE
   lcd.init(LCD_WIDTH, LCD_HEIGHT);
@@ -178,10 +177,8 @@ void setup() {
   pinMode(ledPin, OUTPUT);
   pinMode(buzzerPin, OUTPUT);
 
-  Serial.begin(115200);
   Serial.println("TIMER STANDING BY...");
-  Serial.println("*** SEND MQTT TIMER STANDING BY 00:00");
-
+  // place holder for LCD PRINT time to be defauled to --:-- until NTP MQTT is parsed. format of MM/DD HH:MM 
 }
 
 void loop() {
@@ -300,10 +297,10 @@ void resetTimerToStandby() {
   lcd.setCursor(0, 0);
   lcd.setTextSize(6);
   lcd.setTextColor(ST77XX_BLUE);
-  lcd.print("ADD STANDBY NTP");
+  // place holder for LCD PRINT time to be defauled to --:-- until NTP MQTT is parsed. format of MM/DD HH:MM 
   Serial.println("----------- [ TIMER STOPPED ] ------------");
 
-  String timeMessage = "TIMER STOPPED";
+  String timeMessage = "--:--";
   client.publish(mqtt_topic_WORKOUT_TIMER, timeMessage.c_str());
 
   threshold750msReached = true;

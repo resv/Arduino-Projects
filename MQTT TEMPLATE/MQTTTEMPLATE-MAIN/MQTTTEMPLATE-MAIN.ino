@@ -113,7 +113,7 @@ bool fetchAndSetNTPTime() {
   while (!timeClient.update() && retryCount < MAX_NTP_RETRIES) {
     retryCount++;
     Serial.println("Retrying NTP fetch...");
-    delay(1000);
+    delay(2000);
   }
 
   if (retryCount == MAX_NTP_RETRIES) {
@@ -220,7 +220,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     }
   }
   // Handle WORKOUT-TIMER updates
-  else if (String(topic) == mqtt_topic_WORKOUT_TIMER) {
+  if (String(topic) == mqtt_topic_WORKOUT_TIMER) {
     workoutTimer = message;  // Save the latest timer value
     updateWorkoutTimerLCD(workoutTimer); // Update the LCD
   }
