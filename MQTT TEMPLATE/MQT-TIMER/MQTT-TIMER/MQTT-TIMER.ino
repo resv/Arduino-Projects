@@ -288,12 +288,12 @@ void setup() {
   lcd.setRotation(1);
   lcd.fillScreen(ST77XX_BLACK);
 
-  lcd.setCursor(0, 0);
-  lcd.setTextSize(3);
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("TIMER STANDING BY BUTTON 12        BUZZER 27        LED 13");
-  lcd.println("Fetching NTP...");
-  lcd.println("Please wait...");
+  lcd.setCursor(88, 25);
+  lcd.setTextSize(5);
+  lcd.setTextColor(ST77XX_GREEN);
+  lcd.println("SWOLE");
+  lcd.setCursor(88, 75);
+  lcd.println("TIMER");
 
   pinMode(buttonPin, INPUT_PULLUP);
   pinMode(ledPin, OUTPUT);
@@ -439,11 +439,14 @@ void resetTimerToStandby() {
   timerRunning = false;
   timerRemaining = timerInterval;
 
-  lcd.fillRect(0, 0, LCD_HEIGHT, LCD_WIDTH, ST77XX_BLACK);
-  lcd.setCursor(0, 0);
-  lcd.setTextSize(6);
-  lcd.setTextColor(ST77XX_BLUE);
-  // place holder for LCD PRINT time to be defauled to --:-- until NTP MQTT is parsed. format of MM/DD HH:MM 
+
+  lcd.fillScreen(ST77XX_BLACK);
+  lcd.setCursor(88, 25);
+  lcd.setTextSize(5);
+  lcd.setTextColor(ST77XX_GREEN);
+  lcd.println("SWOLE");
+  lcd.setCursor(88, 75);
+  lcd.println("TIMER");
   Serial.println("----------- [ TIMER STOPPED ] ------------");
 
   String timeMessage = "--:--";
@@ -574,7 +577,6 @@ void endTimerSequence() {
   lcd.print("[========================]");
 
   Serial.println("TIMER FINISHED!");
-  Serial.println("*** SEND MQTT TIMER FINISHED");
 
   for (int cycle = 0; cycle < 3; cycle++) {
     for (int i = 0; i < 5; i++) {
