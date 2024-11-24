@@ -518,6 +518,7 @@ void handleHoldDurations() {
 }
 
 void countdownTimer() {
+  displayTimezones();
   lastTimerUpdate = millis();
   timerRemaining--;
 
