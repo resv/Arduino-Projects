@@ -398,10 +398,11 @@ void adjustTimerInterval() {
   int minutes = timerRemaining / 60;
   int seconds = timerRemaining % 60;
 
-  lcd.fillRect(0, 80, LCD_HEIGHT, LCD_WIDTH, ST77XX_BLACK);
+  //lcd.fillRect(0, 70, 320, 25, ST77XX_BLACK); //this covers only extended text 
+  lcd.fillRect(0, 70, 320, 100, ST77XX_BLACK); //but we want to clear all for now so code below
   lcd.setTextSize(3);
   lcd.setTextColor(ST77XX_CYAN);
-  lcd.setCursor(15, 80);  // Position at the bottom row
+  lcd.setCursor(15, 75);  // Position at the bottom row
   lcd.print("(EXTENDED ");
   if (minutes < 10) lcd.print("0");
   lcd.print(minutes);
@@ -409,6 +410,8 @@ void adjustTimerInterval() {
   if (seconds < 10) lcd.print("0");
   lcd.print(seconds);
   lcd.print(")");
+
+  displayTimezones();
 
   Serial.print("-------- [ TIME EXTENDED ");
   if (minutes < 10) Serial.print("0");
@@ -472,7 +475,7 @@ void handleHoldDurations() {
 
     } else if (holdDuration >= 500 && !threshold500msReached) {
       tone(buzzerPin, 100);
-
+      lcd.fillRect(0, 0, LCD_HEIGHT, LCD_WIDTH, ST77XX_BLACK);
       lcd.setTextSize(2);
       lcd.setCursor(0, 45);  // Position at the bottom row
       lcd.setTextColor(ST77XX_RED);
@@ -518,7 +521,7 @@ void countdownTimer() {
   int minutes = timerRemaining / 60;
   int seconds = timerRemaining % 60;
 
-  lcd.fillRect(0, 0, 320, 80, ST77XX_BLACK);
+  lcd.fillRect(0, 0, 320, 70, ST77XX_BLACK);
   lcd.setCursor(16, 0);
   lcd.setTextColor(ST77XX_GREEN);
   lcd.setTextSize(10);
