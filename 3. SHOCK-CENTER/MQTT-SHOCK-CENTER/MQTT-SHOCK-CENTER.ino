@@ -302,3 +302,22 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
         delay(1000); // Small delay to prevent flooding the Serial Monitor
     }
 }
+
+
+/*
+First lets do MQTT.
+We will listen for a MQTT command from topic "CENTRAL-HUB"
+
+these are 2 examples of the format we will receive and we need to parse the follwoing into variables:
+
+1. "ClientID" (the esp name who published the MQTT to request arm or disarm)
+2. "ARMED" or "DISARMED"
+3. Date "MM/DD"
+4. 24 hour time "HH:MM:SS"
+
+Here are the examples:
+RESV-SHOCKER RCVD [CENTRAL-HUB]: ClientID ARMED at EST-5 | MM/DD | HH:MM:SS AM | HH:MM:SS 
+
+
+RESV-SHOCKER RCVD [CENTRAL-HUB]: ClientID DISARMED at EST-5 | 11/25 | HH:MM:SS AM | HH:MM:SS 
+/*
