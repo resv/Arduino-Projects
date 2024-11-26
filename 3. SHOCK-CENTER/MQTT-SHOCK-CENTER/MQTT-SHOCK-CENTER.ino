@@ -10,6 +10,8 @@
 //Vibration Sensor Pin
 #define VIBRATION_SENSOR_PIN 5  // Digital pin connected to SW-420 (change as needed)
 #define DEBOUNCE_DELAY 50        // Debounce time in milliseconds
+//Vibration Motor
+#define VIBRATION_MOTOR_PIN 12
 
               // LCD configuration
               #define LCD_WIDTH 170
@@ -37,6 +39,7 @@
               const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT-TIMER";
 const char* mqtt_topic_SHOCK_CENTER = "SHOCK-CENTER";
 const char* clientID = "RESV-SHOCKER";
+bool isArmed = true;
 
 // Root certificate
 const char* root_ca = R"EOF(
@@ -234,6 +237,8 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
                 Serial.begin(115200);
                 setup_wifi();
                 pinMode(VIBRATION_SENSOR_PIN, INPUT); // Configure pin as input
+                pinMode(VIBRATION_MOTOR_PIN, OUTPUT);
+                digitalWrite(VIBRATION_MOTOR_PIN, LOW); // Ensure motor is off initially
 
                 espClient.setCACert(root_ca);
                 client.setServer(mqtt_server, mqtt_port);
@@ -261,6 +266,11 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
                 displayTimezones();
               }
 
+
+
+
+
+
               // Loop function
               void loop() {
                 if (!client.connected()) {
@@ -283,27 +293,45 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
         }
     }
 
-    // Vibration Sensor Logic
-    if (digitalRead(VIBRATION_SENSOR_PIN) == HIGH) {
-        // Calculate the current time
-        time_t currentTime = internalTime + ((millis() - lastMillis) / 1000); // Add elapsed seconds
-        struct tm* timeInfo = gmtime(&currentTime);
+// Vibration Sensor Logic
+if (digitalRead(VIBRATION_SENSOR_PIN) == HIGH) {
+    // Calculate the current time
+    time_t currentTime = internalTime + ((millis() - lastMillis) / 1000); // Add elapsed seconds
+    time_t estTime = currentTime - (5 * 3600); // Adjust for EST (UTC-5)
+    struct tm* timeInfo = gmtime(&estTime);
 
-        // Format the time as MM/DD HH:MM:SS
-        char dateTimeBuffer[20];
-        snprintf(dateTimeBuffer, sizeof(dateTimeBuffer), "%02d/%02d %02d:%02d:%02d", 
-                 timeInfo->tm_mon + 1, timeInfo->tm_mday, // Month is 0-11; Day is 1-31
-                 timeInfo->tm_hour, timeInfo->tm_min, timeInfo->tm_sec);
+    // Format the time as MM/DD HH:MM:SS
+    char dateTimeBuffer[20];
+    snprintf(dateTimeBuffer, sizeof(dateTimeBuffer), "%02d/%02d %02d:%02d:%02d", 
+             timeInfo->tm_mon + 1, timeInfo->tm_mday, // Month is 0-11; Day is 1-31
+             timeInfo->tm_hour, timeInfo->tm_min, timeInfo->tm_sec);
 
-        // Print vibration detection message with timestamp
-        Serial.print("SHOCK DETECTED | ");
-        Serial.println(dateTimeBuffer);
-
-        delay(1000); // Small delay to prevent flooding the Serial Monitor
+    // Check if armed
+    if (isArmed) {
+        Serial.println(String(clientID) + " | DETECTED SHOCK | ARMED | " + dateTimeBuffer);
+        lcd.print(String(clientID) + " | DETECTED SHOCK | ARMED | " + dateTimeBuffer);
+        
+        // Retaliate if the system is armed
+        retaliate();
     }
+
+    // Check if disarmed
+    if (!isArmed) {
+        Serial.println(String(clientID) + " | DETECTED SHOCK | DISARMED | " + dateTimeBuffer);
+        lcd.print(String(clientID) + " | DETECTED SHOCK | DISARMED | " + dateTimeBuffer);
+    }
+
+    delay(1000); // Small delay to prevent flooding the Serial Monitor
+}
 }
 
-
+// Retaliate function
+void retaliate() {
+    digitalWrite(VIBRATION_MOTOR_PIN, HIGH); // Turn the motor on
+    delay(500);                         // Vibrate for 500ms
+    digitalWrite(VIBRATION_MOTOR_PIN, LOW);  // Turn the motor off
+    Serial.println("Retaliation: Coin motor vibrated!");
+}
 /*
 First lets do MQTT.
 We will listen for a MQTT command from topic "CENTRAL-HUB"
