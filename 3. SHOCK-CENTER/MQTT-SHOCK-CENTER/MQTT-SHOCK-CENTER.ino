@@ -13,6 +13,8 @@
 //Vibration Motor
 #define VIBRATION_MOTOR_PIN 12
 
+bool isArmed = false;
+
               // LCD configuration
               #define LCD_WIDTH 170
               #define LCD_HEIGHT 320
@@ -39,7 +41,7 @@
               const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT-TIMER";
 const char* mqtt_topic_SHOCK_CENTER = "SHOCK-CENTER";
 const char* clientID = "RESV-SHOCKER";
-bool isArmed = true;
+
 
 // Root certificate
 const char* root_ca = R"EOF(
@@ -330,7 +332,6 @@ void retaliate() {
     digitalWrite(VIBRATION_MOTOR_PIN, HIGH); // Turn the motor on
     delay(500);                         // Vibrate for 500ms
     digitalWrite(VIBRATION_MOTOR_PIN, LOW);  // Turn the motor off
-    Serial.println("Retaliation: Coin motor vibrated!");
 }
 /*
 First lets do MQTT.
