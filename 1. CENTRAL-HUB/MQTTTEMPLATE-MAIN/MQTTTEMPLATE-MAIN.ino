@@ -158,12 +158,12 @@ void displayTimezones() {
   char time24Buffer[10];
 
   // Display table headers
-  lcd.setTextSize(1);
+  lcd.setTextSize(2);
   lcd.fillRect(0, 100, 320, 70, ST77XX_YELLOW);
   lcd.setTextColor(ST77XX_BLACK);
-  lcd.setCursor(0, 100); // Start positioning on the bottom half of the screen
+  lcd.setCursor(3, 103); // Start positioning on the bottom half of the screen
   for (int i = 4; i >= 0; i--) {
-    lcd.setCursor(64 * (4 - i), 100); // Space out each zone label
+    lcd.setCursor(65 * (4 - i), 103); // Space out each zone label
     lcd.print(zones[i]);
   }
 
@@ -172,20 +172,20 @@ void displayTimezones() {
     time_t adjustedTime = internalTime + (offsets[i] * 3600);
     struct tm* timeInfo = gmtime(&adjustedTime);
 
-    strftime(dateBuffer, sizeof(dateBuffer), "%m-%d", timeInfo);
+    strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", timeInfo);
     strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", timeInfo);
     strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", timeInfo);
 
     // Print time in 12-hour format
-    lcd.setCursor(64 * (4 - i), 130);
+    lcd.setCursor(64 * (4 - i), 120);
     lcd.print(time12Buffer);
 
     // Print time in 24-hour format
-    lcd.setCursor(64 * (4 - i), 160);
+    lcd.setCursor(64 * (4 - i), 140);
     lcd.print(time24Buffer);
 
     // Print date
-    lcd.setCursor(64 * (4 - i), 190);
+    lcd.setCursor(64 * (4 - i), 156);
     lcd.print(dateBuffer);
   }
 }
