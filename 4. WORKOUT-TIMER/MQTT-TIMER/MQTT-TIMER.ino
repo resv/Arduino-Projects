@@ -17,6 +17,9 @@
 #define LCD_RST 4
 #define LCD_BLK 32
 
+// Pin for the TTP223 touch sensor
+#define TOUCH_PIN 2  // GND to GND// IO to PIN2 // VCC TO 3.3/5
+
 Adafruit_ST7789 lcd = Adafruit_ST7789(LCD_CS, LCD_DC, LCD_RST);
 
 //OPERATIONAL CODE
@@ -296,6 +299,7 @@ void setup() {
   lcd.println("TIMER");
 
   pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(TOUCH_PIN, INPUT);
   pinMode(ledPin, OUTPUT);
   pinMode(buzzerPin, OUTPUT);
 
@@ -332,7 +336,11 @@ void loop() {
   }  
 
   //OPERATIONAL CODE
-  int reading = digitalRead(buttonPin);
+  int arcadeButtonState = digitalRead(buttonPin);
+  int touchButtonState = digitalRead(TOUCH_PIN);
+
+  // Combine the button states using OR logic
+  int reading = arcadeButtonState == LOW || touchButtonState == HIGH ? LOW : HIGH;
 
   // Debounce logic
   if (reading != lastButtonState) {
