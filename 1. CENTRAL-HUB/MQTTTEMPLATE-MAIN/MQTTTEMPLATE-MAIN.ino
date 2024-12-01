@@ -75,7 +75,7 @@ String workoutTimer = "--:--";
 
 // Status line variables
 String statusDetection = "Listening"; // 
-String isArmed = "N/A";              // STATUS: ---
+String isArmed = "ARMED";              // STATUS: ---
 String lastRequestClientID = "N/A";     // LAST REQUEST: --- (CLIENTID)
 String lastRequestTime = "N/A";         // LAST REQUEST: --- (DATE / TIME)
 String lastDetectionTime = "N/A";       // LAST DETECTION: ---
@@ -106,8 +106,8 @@ void setup_wifi() {
 
 // Function to update the timer on the LCD
 void updateWorkoutTimerLCD(const String& timerValue) {
-  lcd.fillRect(260, 0, 70, 14, ST77XX_BLACK); // Clear timer area
-  lcd.setCursor(260, 0);                           // Set cursor position for timer
+  lcd.fillRect(200, 0, 70, 14, ST77XX_BLACK); // Clear timer area
+  lcd.setCursor(200, 0);                           // Set cursor position for timer
   lcd.setTextSize(2);                               // Set text size for timer
   lcd.setTextColor(ST77XX_WHITE);
   lcd.println(timerValue);              // Display the timer
@@ -119,7 +119,7 @@ bool fetchAndSetNTPTime() {
   int retryCount = 0;
   
   lcd.fillRect(0, 100, 320, 70, ST77XX_BLACK);
-  lcd.setCursor(40, 120);
+  lcd.setCursor(30, 120);
   lcd.setTextSize(3);
   lcd.setTextColor(ST77XX_WHITE);
   lcd.println("Fetching NTP...");
@@ -344,9 +344,9 @@ void setup() {
   updateStatusLine();
   updateIsArmedLine();
   updateLastRequestByLine();
-  updateLastRequestTimeLine();
+  //updateLastRequestTimeLine();
   updateLastDetectionLine();
-  updateTotalRetaliationLine();
+  // updateTotalRetaliationLine();
 }
 
 // Loop function
@@ -371,37 +371,37 @@ void loop() {
 }
 
 void updateStatusLine() {
-  lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
+  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
   lcd.setCursor(0, 0);                          
   lcd.setTextSize(3);
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("[ ");                                 
+  lcd.print("[");                                 
   lcd.setTextColor(ST77XX_YELLOW);
-  lcd.print(statusDetection);
+  lcd.print(statusDetection); // or DETECTED!
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print(" ]");  
+  lcd.print("]");  
 }
 
-void updateIsArmedLine() {
+void updateLastDetectionLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
   lcd.setCursor(0, 25);                          
   lcd.setTextSize(2);                               
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("SECURITY: ");
-  lcd.setTextColor(ST77XX_RED);
-  lcd.print(isArmed);         
+  lcd.print(totalRetaliationCount + " | (should be last log");
+  totalRetaliationCount++;
 }
 
 void updateLastRequestByLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 40);                          
+  lcd.setCursor(0, 85);                          
   lcd.setTextSize(2);                               
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("REQUEST BY: ");
+  lcd.print("REQUESTED BY: ");
   lcd.setTextColor(ST77XX_WHITE);
   lcd.print(lastRequestClientID);           
 }
 
+/*
 void updateLastRequestTimeLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
   lcd.setCursor(0, 55);                          
@@ -411,24 +411,29 @@ void updateLastRequestTimeLine() {
   lcd.setTextColor(ST77XX_WHITE);
   lcd.print(lastRequestTime);           
 }
+*/
 
-void updateLastDetectionLine() {
-  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 70);                          
-  lcd.setTextSize(2);                               
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("LAST DETECTION: ");
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.print(lastDetectionTime);     
-}
-
+/*
 void updateTotalRetaliationLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
   //lcd.setCursor(0, 72);                          
-  lcd.setCursor(0, 85);
+  lcd.setCursor(0, 70);
   lcd.setTextSize(2);                               
   lcd.setTextColor(ST77XX_WHITE);
   lcd.print("COUNT SINCE (DATE): ");
   lcd.setTextColor(ST77XX_WHITE);
   lcd.print(totalRetaliationCount);     
+}
+*/
+
+void updateIsArmedLine() {
+  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
+  lcd.setCursor(275, -5);                          
+  lcd.setTextSize(6);                               
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.setTextColor(ST77XX_RED);
+  lcd.write(0x18); // Prints the up arrow (↑)
+  lcd.setCursor(260, 38);  
+  lcd.setTextSize(2);    
+  lcd.print(isArmed);
 }
