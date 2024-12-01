@@ -372,14 +372,14 @@ void updateStatusLine() {
   lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
   lcd.setCursor(0, 0);                          
   lcd.setTextSize(2);                               
-  lcd.setTextColor(ST77XX_WHITE);
+  lcd.setTextColor(ST77XX_BLUE);
   lcd.print("Status: ");
   lcd.setTextColor(ST77XX_RED);
   lcd.print(statusLine);              
 }
 
 void updateLastRequestByLine() {
-  lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
+  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
   lcd.setCursor(0, 18);                          
   lcd.setTextSize(2);                               
   lcd.setTextColor(ST77XX_WHITE);
@@ -389,7 +389,7 @@ void updateLastRequestByLine() {
 }
 
 void updateLastRequestTimeLine() {
-  lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
+  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
   lcd.setCursor(0, 36);                          
   lcd.setTextSize(2);                               
   lcd.setTextColor(ST77XX_WHITE);
@@ -399,8 +399,8 @@ void updateLastRequestTimeLine() {
 }
 
 void updateLastDetectionLine() {
-  lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 44);                          
+  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
+  lcd.setCursor(0, 54);                          
   lcd.setTextSize(2);                               
   lcd.setTextColor(ST77XX_WHITE);
   lcd.print("LAST DETECTION: ");
@@ -409,8 +409,8 @@ void updateLastDetectionLine() {
 }
 
 void updateTotalRetaliationLine() {
-  lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 62);                          
+  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
+  lcd.setCursor(0, 72);                          
   lcd.setTextSize(2);                               
   lcd.setTextColor(ST77XX_WHITE);
   lcd.print("COUNT SINCE (DATE): ");
