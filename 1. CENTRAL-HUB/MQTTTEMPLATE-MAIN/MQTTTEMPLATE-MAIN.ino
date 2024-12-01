@@ -74,7 +74,8 @@ PubSubClient client(espClient);
 String workoutTimer = "--:--";
 
 // Status line variables
-String statusLine = "N/A";              // STATUS: ---
+String statusDetection = "Listening"; // 
+String isArmed = "N/A";              // STATUS: ---
 String lastRequestClientID = "N/A";     // LAST REQUEST: --- (CLIENTID)
 String lastRequestTime = "N/A";         // LAST REQUEST: --- (DATE / TIME)
 String lastDetectionTime = "N/A";       // LAST DETECTION: ---
@@ -153,7 +154,7 @@ bool fetchAndSetNTPTime() {
 void displayTimezones() {
   const int offsets[] = {0, -5, -6, -7, -8};
   const char* zones[] = {"UTC-0", "EST-5", "CST-6", "MST-7", "PST-8"};
-  const uint16_t zoneColors[] = {ST77XX_GREEN, ST77XX_WHITE, ST77XX_MAGENTA, ST77XX_ORANGE, ST77XX_CYAN};
+  const uint16_t zoneColors[] = {ST77XX_CYAN, ST77XX_GREEN, ST77XX_WHITE, ST77XX_ORANGE, ST77XX_MAGENTA};
   char dateBuffer[20];
   char time12Buffer[10];
   char time24Buffer[10];
@@ -341,6 +342,7 @@ void setup() {
 
   // Display Status Lines
   updateStatusLine();
+  updateIsArmedLine();
   updateLastRequestByLine();
   updateLastRequestTimeLine();
   updateLastDetectionLine();
@@ -371,16 +373,28 @@ void loop() {
 void updateStatusLine() {
   lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
   lcd.setCursor(0, 0);                          
+  lcd.setTextSize(3);
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.print("[ ");                                 
+  lcd.setTextColor(ST77XX_YELLOW);
+  lcd.print(statusDetection);
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.print(" ]");  
+}
+
+void updateIsArmedLine() {
+  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
+  lcd.setCursor(0, 25);                          
   lcd.setTextSize(2);                               
-  lcd.setTextColor(ST77XX_BLUE);
-  lcd.print("Status: ");
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.print("SECURITY: ");
   lcd.setTextColor(ST77XX_RED);
-  lcd.print(statusLine);              
+  lcd.print(isArmed);         
 }
 
 void updateLastRequestByLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 18);                          
+  lcd.setCursor(0, 40);                          
   lcd.setTextSize(2);                               
   lcd.setTextColor(ST77XX_WHITE);
   lcd.print("REQUEST BY: ");
@@ -390,7 +404,7 @@ void updateLastRequestByLine() {
 
 void updateLastRequestTimeLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 36);                          
+  lcd.setCursor(0, 55);                          
   lcd.setTextSize(2);                               
   lcd.setTextColor(ST77XX_WHITE);
   lcd.print("REQUEST ON: ");
@@ -400,7 +414,7 @@ void updateLastRequestTimeLine() {
 
 void updateLastDetectionLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 54);                          
+  lcd.setCursor(0, 70);                          
   lcd.setTextSize(2);                               
   lcd.setTextColor(ST77XX_WHITE);
   lcd.print("LAST DETECTION: ");
@@ -410,7 +424,8 @@ void updateLastDetectionLine() {
 
 void updateTotalRetaliationLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 72);                          
+  //lcd.setCursor(0, 72);                          
+  lcd.setCursor(0, 85);
   lcd.setTextSize(2);                               
   lcd.setTextColor(ST77XX_WHITE);
   lcd.print("COUNT SINCE (DATE): ");
