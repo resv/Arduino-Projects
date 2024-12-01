@@ -157,13 +157,14 @@ void displayTimezones() {
   char time12Buffer[10];
   char time24Buffer[10];
 
+  const int xOffset = 3; // Offset to shift all x-coordinates
+
   // Display table headers
   lcd.setTextSize(2);
   lcd.fillRect(0, 100, 320, 70, ST77XX_YELLOW);
   lcd.setTextColor(ST77XX_BLACK);
-  lcd.setCursor(3, 103); // Start positioning on the bottom half of the screen
   for (int i = 4; i >= 0; i--) {
-    lcd.setCursor(65 * (4 - i), 103); // Space out each zone label
+    lcd.setCursor((64 * (4 - i)) + xOffset, 102); // Add xOffset to x-coordinate
     lcd.print(zones[i]);
   }
 
@@ -173,22 +174,24 @@ void displayTimezones() {
     struct tm* timeInfo = gmtime(&adjustedTime);
 
     strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", timeInfo);
-    strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", timeInfo);
+    strftime(time12Buffer, sizeof(time12Buffer), "%I:%M", timeInfo); // 12-hour format without AM/PM
     strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", timeInfo);
 
-    // Print time in 12-hour format
-    lcd.setCursor(64 * (4 - i), 120);
+    // Print time in 12-hour format (without AM/PM)
+    lcd.setCursor((64 * (4 - i)) + xOffset, 120);
     lcd.print(time12Buffer);
 
     // Print time in 24-hour format
-    lcd.setCursor(64 * (4 - i), 140);
+    lcd.setCursor((64 * (4 - i)) + xOffset, 138);
     lcd.print(time24Buffer);
 
     // Print date
-    lcd.setCursor(64 * (4 - i), 156);
+    lcd.setCursor((64 * (4 - i)) + xOffset, 156);
     lcd.print(dateBuffer);
   }
 }
+
+
 
 
 // Publish timezone data to MQTT
