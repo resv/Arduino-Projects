@@ -161,12 +161,28 @@ void displayTimezones() {
 
   // Display table headers
   lcd.setTextSize(2);
-  lcd.fillRect(0, 100, 320, 70, ST77XX_YELLOW);
-  lcd.setTextColor(ST77XX_BLACK);
+  lcd.fillRect(0, 100, 320, 70, ST77XX_BLACK);
+
+  //Sketch lines for table for timezones:
+  lcd.fillRect(0, 100, 320, 1, ST77XX_YELLOW); //horizontal line
+  lcd.fillRect(64, 100, 1, 70, ST77XX_YELLOW); //vertical line
+  lcd.fillRect(128, 100, 1, 70, ST77XX_YELLOW); //vertical line
+  lcd.fillRect(192, 100, 1, 70, ST77XX_YELLOW); //vertical line
+  lcd.fillRect(256, 100, 1, 70, ST77XX_YELLOW); //vertical line
+
+  //Sketch fill in colors for table for timezones:
+  lcd.fillRect(0, 100, 64, 70, ST77XX_CYAN); //vertical line
+  lcd.fillRect(64, 100, 128, 70, ST77XX_MAGENTA); //vertical line
+  lcd.fillRect(128, 100, 192, 70, ST77XX_ORANGE); //vertical line
+  lcd.fillRect(192, 100, 256, 70, ST77XX_YELLOW); //vertical line
+  lcd.fillRect(256, 100, 320, 70, ST77XX_BLUE); //vertical line
+
   for (int i = 4; i >= 0; i--) {
     lcd.setCursor((64 * (4 - i)) + xOffset, 102); // Add xOffset to x-coordinate
     lcd.print(zones[i]);
   }
+
+  lcd.setTextColor(ST77XX_WHITE);
 
   // Display table rows for each timezone
   for (int i = 4; i >= 0; i--) {
