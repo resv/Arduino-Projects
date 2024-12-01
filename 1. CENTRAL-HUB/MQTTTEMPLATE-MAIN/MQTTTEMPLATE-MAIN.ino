@@ -20,8 +20,8 @@
 Adafruit_ST7789 lcd = Adafruit_ST7789(LCD_CS, LCD_DC, LCD_RST);
 
 // Wi-Fi credentials
-const char* ssid = "ICU";
-const char* password = "Emmajin6!";
+const char* ssid = "icup +1";
+const char* password = "aaaaaaaaa1";
 
 // MQTT broker credentials
 const char* mqtt_server = "9321cdfa0af34b83b77797a4488354cd.s1.eu.hivemq.cloud";
@@ -74,11 +74,11 @@ PubSubClient client(espClient);
 String workoutTimer = "--:--";
 
 // Status line variables
-String statusLine = "---";              // STATUS: ---
-String lastRequestClientID = "---";     // LAST REQUEST: --- (CLIENTID)
-String lastRequestTime = "---";         // LAST REQUEST: --- (DATE / TIME)
-String lastDetectionTime = "---";       // LAST DETECTION: ---
-String totalRetaliationStartTime = "---"; // TOTAL RETALIATION START TIME
+String statusLine = "N/A";              // STATUS: ---
+String lastRequestClientID = "N/A";     // LAST REQUEST: --- (CLIENTID)
+String lastRequestTime = "N/A";         // LAST REQUEST: --- (DATE / TIME)
+String lastDetectionTime = "N/A";       // LAST DETECTION: ---
+int totalRetaliationCount = 0; // TOTAL RETALIATION START TIME
 
 // NTP configuration
 WiFiUDP ntpUDP;
@@ -105,10 +105,10 @@ void setup_wifi() {
 
 // Function to update the timer on the LCD
 void updateWorkoutTimerLCD(const String& timerValue) {
-  lcd.fillRect(260, 0, 70, 14, ST77XX_YELLOW); // Clear timer area
+  lcd.fillRect(260, 0, 70, 14, ST77XX_BLACK); // Clear timer area
   lcd.setCursor(260, 0);                           // Set cursor position for timer
   lcd.setTextSize(2);                               // Set text size for timer
-  lcd.setTextColor(ST77XX_RED);
+  lcd.setTextColor(ST77XX_WHITE);
   lcd.println(timerValue);              // Display the timer
 }
 
@@ -117,10 +117,10 @@ void updateWorkoutTimerLCD(const String& timerValue) {
 bool fetchAndSetNTPTime() {
   int retryCount = 0;
   
-  lcd.fillRect(0, 100, 320, 70, ST77XX_WHITE);
+  lcd.fillRect(0, 100, 320, 70, ST77XX_BLACK);
   lcd.setCursor(40, 120);
   lcd.setTextSize(3);
-  lcd.setTextColor(ST77XX_YELLOW);
+  lcd.setTextColor(ST77XX_WHITE);
   lcd.println("Fetching NTP...");
 
   while (!timeClient.update() && retryCount < MAX_NTP_RETRIES) {
@@ -132,7 +132,7 @@ bool fetchAndSetNTPTime() {
   if (retryCount == MAX_NTP_RETRIES) {
     Serial.println("Failed to fetch NTP time after retries.");
     
-    lcd.fillRect(0, 100, 320, 70, ST77XX_WHITE);
+    lcd.fillRect(0, 100, 320, 70, ST77XX_BLACK);
     lcd.setCursor(40, 120);
     lcd.setTextSize(3);
     lcd.setTextColor(ST77XX_YELLOW);
@@ -153,6 +153,7 @@ bool fetchAndSetNTPTime() {
 void displayTimezones() {
   const int offsets[] = {0, -5, -6, -7, -8};
   const char* zones[] = {"UTC-0", "EST-5", "CST-6", "MST-7", "PST-8"};
+  const uint16_t zoneColors[] = {ST77XX_GREEN, ST77XX_WHITE, ST77XX_MAGENTA, ST77XX_ORANGE, ST77XX_CYAN};
   char dateBuffer[20];
   char time12Buffer[10];
   char time24Buffer[10];
@@ -163,29 +164,31 @@ void displayTimezones() {
   lcd.setTextSize(2);
   lcd.fillRect(0, 100, 320, 70, ST77XX_BLACK);
 
-  //Sketch lines for table for timezones:
-  lcd.fillRect(0, 100, 320, 1, ST77XX_YELLOW); //horizontal line
-  lcd.fillRect(64, 100, 1, 70, ST77XX_YELLOW); //vertical line
-  lcd.fillRect(128, 100, 1, 70, ST77XX_YELLOW); //vertical line
-  lcd.fillRect(192, 100, 1, 70, ST77XX_YELLOW); //vertical line
-  lcd.fillRect(256, 100, 1, 70, ST77XX_YELLOW); //vertical line
+  // Sketch lines for table for timezones:
+  lcd.fillRect(0, 100, 320, 1, ST77XX_YELLOW);  // horizontal line
+  lcd.fillRect(64, 100, 1, 70, ST77XX_YELLOW);  // vertical line
+  lcd.fillRect(128, 100, 1, 70, ST77XX_YELLOW); // vertical line
+  lcd.fillRect(192, 100, 1, 70, ST77XX_YELLOW); // vertical line
+  lcd.fillRect(256, 100, 1, 70, ST77XX_YELLOW); // vertical line
 
-  //Sketch fill in colors for table for timezones:
-  lcd.fillRect(0, 100, 64, 70, ST77XX_CYAN); //vertical line
-  lcd.fillRect(64, 100, 128, 70, ST77XX_MAGENTA); //vertical line
-  lcd.fillRect(128, 100, 192, 70, ST77XX_ORANGE); //vertical line
-  lcd.fillRect(192, 100, 256, 70, ST77XX_YELLOW); //vertical line
-  lcd.fillRect(256, 100, 320, 70, ST77XX_BLUE); //vertical line
+  // Sketch fill in colors for table for timezones:
+  //lcd.fillRect(0, 100, 64, 70, ST77XX_BLUE);      // PST CELL 
+  //lcd.fillRect(64, 100, 128, 70, ST77XX_RED);     // MST CELL
+  //lcd.fillRect(128, 100, 192, 70, ST77XX_ORANGE); // CST CELL
+  //lcd.fillRect(192, 100, 256, 70, ST77XX_GREEN);  // EST CELL
+  //lcd.fillRect(256, 100, 320, 70, ST77XX_WHITE);  // UTC CELL
 
+  // Loop through each timezone and display zone names and times
   for (int i = 4; i >= 0; i--) {
+    // Set text color for the current zone
+    lcd.setTextColor(zoneColors[i]);
+
+    // Print zone name
     lcd.setCursor((64 * (4 - i)) + xOffset, 102); // Add xOffset to x-coordinate
     lcd.print(zones[i]);
-  }
 
-  lcd.setTextColor(ST77XX_WHITE);
-
-  // Display table rows for each timezone
-  for (int i = 4; i >= 0; i--) {
+    //lcd.setTextColor(ST77XX_WHITE); //back to white for the rest
+    // Adjust time for the current timezone
     time_t adjustedTime = internalTime + (offsets[i] * 3600);
     struct tm* timeInfo = gmtime(&adjustedTime);
 
@@ -206,9 +209,6 @@ void displayTimezones() {
     lcd.print(dateBuffer);
   }
 }
-
-
-
 
 // Publish timezone data to MQTT
 void publishTimeData() {
@@ -320,8 +320,7 @@ void setup() {
 
   lcd.init(LCD_WIDTH, LCD_HEIGHT);
   lcd.setRotation(1);
-  lcd.fillScreen(ST77XX_ORANGE);
-  //lcd.fillRect(0, 0, 320, 100, ST77XX_BLUE);
+  lcd.fillRect(0, 0, 320, 100, ST77XX_BLACK);
   
 //  lcd.setCursor(40, 40);
 //  lcd.setTextSize(3);
@@ -342,7 +341,8 @@ void setup() {
 
   // Display Status Lines
   updateStatusLine();
-  updateLastRequestLine();
+  updateLastRequestByLine();
+  updateLastRequestTimeLine();
   updateLastDetectionLine();
   updateTotalRetaliationLine();
 }
@@ -369,22 +369,51 @@ void loop() {
 }
 
 void updateStatusLine() {
-  lcd.fillRect(0, 0, 70, 14, ST77XX_YELLOW);
+  lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
   lcd.setCursor(0, 0);                          
   lcd.setTextSize(2);                               
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.print("Status: ");
   lcd.setTextColor(ST77XX_RED);
-  lcd.println("Status: " + statusLine);              
+  lcd.print(statusLine);              
 }
 
-void updateLastRequestLine() {
-  //lastRequestClientID = clientID;
-  //lastRequestTime = requestTime;
+void updateLastRequestByLine() {
+  lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
+  lcd.setCursor(0, 18);                          
+  lcd.setTextSize(2);                               
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.print("REQUEST BY: ");
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.print(lastRequestClientID);           
+}
+
+void updateLastRequestTimeLine() {
+  lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
+  lcd.setCursor(0, 36);                          
+  lcd.setTextSize(2);                               
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.print("REQUEST ON: ");
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.print(lastRequestTime);           
 }
 
 void updateLastDetectionLine() {
-  //lastDetectionTime = detectionTime;
+  lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
+  lcd.setCursor(0, 44);                          
+  lcd.setTextSize(2);                               
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.print("LAST DETECTION: ");
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.print(lastDetectionTime);     
 }
 
 void updateTotalRetaliationLine() {
-  //totalRetaliationStartTime = retaliationStartTime;
+  lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
+  lcd.setCursor(0, 62);                          
+  lcd.setTextSize(2);                               
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.print("COUNT SINCE (DATE): ");
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.print(totalRetaliationCount);     
 }
