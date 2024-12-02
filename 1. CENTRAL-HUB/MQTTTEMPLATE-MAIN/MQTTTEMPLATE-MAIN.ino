@@ -75,28 +75,28 @@ PubSubClient client(espClient);
 String workoutTimer = "--:--";
 
 // Status line variables
-String statusDetection = "Listening"; // 
-String isArmed = "ARMED";              // STATUS: ---
-String lastRequestClientID = "N/A";     // LAST REQUEST: --- (CLIENTID)
-String lastRequestTime = "N/A";         // LAST REQUEST: --- (DATE / TIME)
+String statusDetection = "Listening";  //
+String isArmed = " N/A ";              // STATUS: ---
+String lastRequestClientID = "N/A";    // LAST REQUEST: --- (CLIENTID)
+String lastRequestTime = "N/A";        // LAST REQUEST: --- (DATE / TIME)
 
 // Define the log size and initialize the log
 const int logSize = 50;
 String lastDetectionLog[logSize];
 
-int totalRetaliationCount = 0; // TOTAL RETALIATION START TIME
+int totalRetaliationCount = 0;  // TOTAL RETALIATION START TIME
 
 // NTP configuration
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000); // UTC, sync every 60 seconds
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);  // UTC, sync every 60 seconds
 unsigned long lastNTPFetch = 0;
 #define SECONDS_IN_A_DAY 86400
 #define MAX_NTP_RETRIES 5
 int NTPReadyToPublish = 0;
 
 // Internal time tracking
-time_t internalTime = 0; // Tracks the current epoch time
-unsigned long lastMillis = 0; // Tracks the last time the display was updated
+time_t internalTime = 0;       // Tracks the current epoch time
+unsigned long lastMillis = 0;  // Tracks the last time the display was updated
 
 // Connect to Wi-Fi
 void setup_wifi() {
@@ -111,18 +111,18 @@ void setup_wifi() {
 
 // Function to update the timer on the LCD
 void updateWorkoutTimerLCD(const String& timerValue) {
-  lcd.fillRect(200, 0, 70, 14, ST77XX_BLACK); // Clear timer area
-  lcd.setCursor(200, 0);                           // Set cursor position for timer
-  lcd.setTextSize(2);                               // Set text size for timer
+  lcd.fillRect(205, 0, 70, 14, ST77XX_BLACK);  // Clear timer area
+  lcd.setCursor(205, 0);                       // Set cursor position for timer
+  lcd.setTextSize(2);                          // Set text size for timer
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.println(timerValue);              // Display the timer
+  lcd.println(timerValue);  // Display the timer
 }
 
 
 // Fetch NTP time and update internal time
 bool fetchAndSetNTPTime() {
   int retryCount = 0;
-  
+
   lcd.fillRect(0, 100, 320, 70, ST77XX_BLACK);
   lcd.setCursor(30, 120);
   lcd.setTextSize(3);
@@ -137,7 +137,7 @@ bool fetchAndSetNTPTime() {
 
   if (retryCount == MAX_NTP_RETRIES) {
     Serial.println("Failed to fetch NTP time after retries.");
-    
+
     lcd.fillRect(0, 100, 320, 70, ST77XX_BLACK);
     lcd.setCursor(40, 120);
     lcd.setTextSize(3);
@@ -157,28 +157,28 @@ bool fetchAndSetNTPTime() {
 
 // Display and format all timezone data
 void displayTimezones() {
-  const int offsets[] = {0, -5, -6, -7, -8};
-  const char* zones[] = {"UTC-0", "EST-5", "CST-6", "MST-7", "PST-8"};
-  const uint16_t zoneColors[] = {ST77XX_CYAN, ST77XX_GREEN, ST77XX_WHITE, ST77XX_ORANGE, ST77XX_MAGENTA};
+  const int offsets[] = { 0, -5, -6, -7, -8 };
+  const char* zones[] = { "UTC-0", "EST-5", "CST-6", "MST-7", "PST-8" };
+  const uint16_t zoneColors[] = { ST77XX_CYAN, ST77XX_GREEN, ST77XX_WHITE, ST77XX_ORANGE, ST77XX_MAGENTA };
   char dateBuffer[20];
   char time12Buffer[10];
   char time24Buffer[10];
 
-  const int xOffset = 3; // Offset to shift all x-coordinates
+  const int xOffset = 3;  // Offset to shift all x-coordinates
 
   // Display table headers
   lcd.setTextSize(2);
   lcd.fillRect(0, 100, 320, 70, ST77XX_BLACK);
 
   // Sketch lines for table for timezones:
-  lcd.fillRect(0, 100, 320, 1, ST77XX_YELLOW);  // horizontal line
-  lcd.fillRect(64, 100, 1, 70, ST77XX_YELLOW);  // vertical line
-  lcd.fillRect(128, 100, 1, 70, ST77XX_YELLOW); // vertical line
-  lcd.fillRect(192, 100, 1, 70, ST77XX_YELLOW); // vertical line
-  lcd.fillRect(256, 100, 1, 70, ST77XX_YELLOW); // vertical line
+  lcd.fillRect(0, 100, 320, 1, ST77XX_YELLOW);   // horizontal line
+  lcd.fillRect(64, 100, 1, 70, ST77XX_YELLOW);   // vertical line
+  lcd.fillRect(128, 100, 1, 70, ST77XX_YELLOW);  // vertical line
+  lcd.fillRect(192, 100, 1, 70, ST77XX_YELLOW);  // vertical line
+  lcd.fillRect(256, 100, 1, 70, ST77XX_YELLOW);  // vertical line
 
   // Sketch fill in colors for table for timezones:
-  //lcd.fillRect(0, 100, 64, 70, ST77XX_BLUE);      // PST CELL 
+  //lcd.fillRect(0, 100, 64, 70, ST77XX_BLUE);      // PST CELL
   //lcd.fillRect(64, 100, 128, 70, ST77XX_RED);     // MST CELL
   //lcd.fillRect(128, 100, 192, 70, ST77XX_ORANGE); // CST CELL
   //lcd.fillRect(192, 100, 256, 70, ST77XX_GREEN);  // EST CELL
@@ -190,7 +190,7 @@ void displayTimezones() {
     lcd.setTextColor(zoneColors[i]);
 
     // Print zone name
-    lcd.setCursor((64 * (4 - i)) + xOffset, 102); // Add xOffset to x-coordinate
+    lcd.setCursor((64 * (4 - i)) + xOffset, 102);  // Add xOffset to x-coordinate
     lcd.print(zones[i]);
 
     //lcd.setTextColor(ST77XX_WHITE); //back to white for the rest
@@ -199,7 +199,7 @@ void displayTimezones() {
     struct tm* timeInfo = gmtime(&adjustedTime);
 
     strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", timeInfo);
-    strftime(time12Buffer, sizeof(time12Buffer), "%I:%M", timeInfo); // 12-hour format without AM/PM
+    strftime(time12Buffer, sizeof(time12Buffer), "%I:%M", timeInfo);  // 12-hour format without AM/PM
     strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", timeInfo);
 
     // Print time in 12-hour format (without AM/PM)
@@ -218,8 +218,8 @@ void displayTimezones() {
 
 // Publish timezone data to MQTT
 void publishTimeData() {
-  const int offsets[] = {0, -5, -6, -7, -8};
-  const char* zones[] = {"UTC-0", "EST-5", "CST-6", "MST-7", "PST-8"};
+  const int offsets[] = { 0, -5, -6, -7, -8 };
+  const char* zones[] = { "UTC-0", "EST-5", "CST-6", "MST-7", "PST-8" };
   char dateBuffer[20];
   char time12Buffer[10];
   char time24Buffer[10];
@@ -234,15 +234,14 @@ void publishTimeData() {
     strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", timeInfo);
     strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", timeInfo);
 
-    payload += String(zones[i]) + " | " + String(dateBuffer) + " | " +
-               String(time12Buffer) + " | " + String(time24Buffer) + "\n";
+    payload += String(zones[i]) + " | " + String(dateBuffer) + " | " + String(time12Buffer) + " | " + String(time24Buffer) + "\n";
   }
 
   //client.publish(mqtt_topic_NTP, payload.c_str()); (DOESN"T WORK DUE TO HIVEMQ MQTT CHAR LIMIT?)
   Serial.println("----------- NTP TIME -----------\n" + payload);
-  
+
   // Publish only EST-5 row separately
-  int estIndex = 1; // Index of EST-5 in the offsets array
+  int estIndex = 1;  // Index of EST-5 in the offsets array
   time_t estTime = internalTime + (offsets[estIndex] * 3600);
   struct tm* estTimeInfo = gmtime(&estTime);
 
@@ -250,15 +249,14 @@ void publishTimeData() {
   strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", estTimeInfo);
   strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", estTimeInfo);
 
-  String estPayload = String(zones[estIndex]) + " | " + String(dateBuffer) + " | " +
-                      String(time12Buffer) + " | " + String(time24Buffer);
+  String estPayload = String(zones[estIndex]) + " | " + String(dateBuffer) + " | " + String(time12Buffer) + " | " + String(time24Buffer);
 
   Serial.println("Staged NTP Publish data:");
   Serial.println(estPayload + "\n");
 
-  if (NTPReadyToPublish == 1){
+  if (NTPReadyToPublish == 1) {
     //client.publish(mqtt_topic_NTP, estPayload.c_str());
-     client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED at " + estPayload).c_str());
+    client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED at " + estPayload).c_str());
   } else {
     Serial.println("Staged NTP could not publish, NTPReadyToPublish flag remains at 0\n");
   }
@@ -267,38 +265,39 @@ void publishTimeData() {
 // Update callback to handle WORKOUT-TIMER messages and CENTRAL-HUB logs
 // Updated callback function
 void callback(char* topic, byte* payload, unsigned int length) {
-    String message = "";
-    for (unsigned int i = 0; i < length; i++) {
-        message += (char)payload[i];
+  String message = "";
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+
+  Serial.println("RESV-MAIN RCVD [" + String(topic) + "]: " + message);
+
+  // Handle NTP requests
+  if (String(topic) == mqtt_topic_NTP && message.endsWith("| NTP REQUEST")) {
+    Serial.println("Processing NTP REQUEST...");
+    if (fetchAndSetNTPTime()) {
+      Serial.println("NTP updated and published.");
     }
+  }
 
-    Serial.println("RESV-MAIN RCVD [" + String(topic) + "]: " + message);
+  // Handle WORKOUT-TIMER updates
+  if (String(topic) == mqtt_topic_WORKOUT_TIMER) {
+    workoutTimer = message;
+    updateWorkoutTimerLCD(workoutTimer);
+  }
 
-    // Handle NTP requests
-    if (String(topic) == mqtt_topic_NTP && message.endsWith("| NTP REQUEST")) {
-        Serial.println("Processing NTP REQUEST...");
-        if (fetchAndSetNTPTime()) {
-            Serial.println("NTP updated and published.");
-        }
-    }
+  // Handle messages from SHOCK-CENTER with "DETECTED SHOCK"
+  if (String(topic) == mqtt_topic_SHOCK_CENTER && message.indexOf("DETECTED SHOCK") != -1) {
+    // Parse and format the message
+    String formattedMessage = parseAndFormatMQTTMessage(message);
 
-    // Handle WORKOUT-TIMER updates
-    if (String(topic) == mqtt_topic_WORKOUT_TIMER) {
-        workoutTimer = message;
-        updateWorkoutTimerLCD(workoutTimer);
-    }
-
-    // Handle messages from SHOCK-CENTER with "DETECTED SHOCK"
-    if (String(topic) == mqtt_topic_SHOCK_CENTER && message.indexOf("DETECTED SHOCK") != -1) {
-        // Parse and format the message
-        String formattedMessage = parseAndFormatMQTTMessage(message);
-
-        // Add the formatted message to the log
-        addToLog(formattedMessage);
-
-        // Update the LCD with the latest logs
-        updateLastDetectionLine();
-    }
+    // Add the formatted message to the log
+    addToLog(formattedMessage);
+    // Update the LCD with the latest logs
+    updateLastDetectionLine();
+    updateIsArmedLine();
+    totalRetaliationCount++;
+  }
 }
 
 
@@ -345,11 +344,11 @@ void setup() {
   lcd.init(LCD_WIDTH, LCD_HEIGHT);
   lcd.setRotation(1);
   lcd.fillRect(0, 0, 320, 100, ST77XX_BLACK);
-  
-//  lcd.setCursor(40, 40);
-//  lcd.setTextSize(3);
-//  lcd.setTextColor(ST77XX_WHITE);
-//  lcd.println("Fetching NTP...");
+
+  //  lcd.setCursor(40, 40);
+  //  lcd.setTextSize(3);
+  //  lcd.setTextColor(ST77XX_WHITE);
+  //  lcd.println("Fetching NTP...");
 
   timeClient.begin();
 
@@ -357,11 +356,11 @@ void setup() {
     lastNTPFetch = millis();
   } else {
     Serial.println("Using default time.");
-    internalTime = 0; // 11/11/11 11:11 UTC
+    internalTime = 0;  // 11/11/11 11:11 UTC
   }
 
   displayTimezones();
-  updateWorkoutTimerLCD(workoutTimer); // Display default timer value
+  updateWorkoutTimerLCD(workoutTimer);  // Display default timer value
 
   // Display Status Lines
   updateStatusLine();
@@ -395,45 +394,46 @@ void loop() {
 
 void updateStatusLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 0);                          
+  lcd.setCursor(0, 0);
   lcd.setTextSize(3);
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("[");                                 
+  lcd.print("[");
   lcd.setTextColor(ST77XX_YELLOW);
-  lcd.print(statusDetection); // or DETECTED!
+  lcd.print(statusDetection);  // or DETECTED!
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("]");  
+  lcd.print("]");
 }
 
 void updateLastDetectionLine() {
   // Clear the area on the LCD where the detection logs are displayed
-  lcd.fillRect(0, 25, 320, 200, ST77XX_BLACK);
+  lcd.fillRect(0, 25, 260, 145, ST77XX_YELLOW);
 
   // Display the most recent logs
   lcd.setTextSize(2);
   lcd.setTextColor(ST77XX_WHITE);
-  
+
   // Loop through the first few logs (e.g., the most recent 5 logs)
   for (int i = 0; i < 5 && i < 50; i++) {
-    if (lastDetectionLog[i] != "") { // Check if the log exists
-      lcd.setCursor(0, 25 + (i * 20)); // Adjust the Y-position for each log
-      lcd.print(String(totalRetaliationCount) + "|" + lastDetectionLog[i]); // Display the log
+    if (lastDetectionLog[i] != "") {    // Check if the log exists
+      lcd.setCursor(0, 25 + (i * 20));  // Adjust the Y-position for each log
+      lcd.print(lastDetectionLog[i]);   // Display the log
     }
+  lcd.fillRect(260, 25, 320, 145, ST77XX_BLUE); // clear the clientID only on LCD
+
   }
 
   // Optionally update the total retaliation count
-  totalRetaliationCount++;
 }
 
 
 void updateLastRequestByLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 85);                          
-  lcd.setTextSize(2);                               
+  lcd.setCursor(0, 85);
+  lcd.setTextSize(2);
   lcd.setTextColor(ST77XX_WHITE);
   lcd.print("REQUESTED BY: ");
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print(lastRequestClientID);           
+  lcd.print(lastRequestClientID);
 }
 
 /*
@@ -463,58 +463,83 @@ void updateTotalRetaliationLine() {
 
 void updateIsArmedLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(275, -5);                          
-  lcd.setTextSize(6);                               
+  lcd.setCursor(275, -5);
+  lcd.setTextSize(6);
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.setTextColor(ST77XX_RED);
-  lcd.write(0x18); // Prints the up arrow (↑)
-  lcd.setCursor(260, 38);  
-  lcd.setTextSize(2);    
+  lcd.write(0x3F);  // Prints the question mark (?)
+  lcd.setCursor(260, 38);
+  lcd.setTextSize(2);
   lcd.print(isArmed);
+
+  if (isArmed == "ARMED"){
+    lcd.fillRect(275, -5, 320, 52, ST77XX_BLACK);
+    lcd.setCursor(275, -5);
+    lcd.setTextSize(6);
+    lcd.setTextColor(ST77XX_RED);
+    lcd.write(0x18);  // Prints the up arrow (↑)
+    lcd.setCursor(260, 38);
+    lcd.setTextSize(2);
+    lcd.print(isArmed);
+  } else if (isArmed == "DISAR"){
+    lcd.fillRect(275, -5, 320, 52, ST77XX_BLACK);
+    lcd.setCursor(275, -5);
+    lcd.setTextSize(6);
+    lcd.setTextColor(ST77XX_CYAN);
+    lcd.write(0x58);  // Prints the X (X)
+    lcd.setCursor(260, 38);
+    lcd.setTextSize(2);
+    lcd.print(isArmed);
+  }
 }
 
 // Function to add a message to the log
 void addToLog(const String& message) {
-    // Shift existing logs down
-    for (int i = logSize - 1; i > 0; i--) {
-        lastDetectionLog[i] = lastDetectionLog[i - 1];
-    }
-    // Add the new message at the top
-    lastDetectionLog[0] = message;
+  // Shift existing logs down
+  for (int i = logSize - 1; i > 0; i--) {
+    lastDetectionLog[i] = lastDetectionLog[i - 1];
+  }
+  // Add the new message at the top
+  lastDetectionLog[0] = message;
 }
 
 // Function to parse and format the MQTT message
 String parseAndFormatMQTTMessage(const String& message) {
-    // Find the positions of the delimiters in the original message
-    int pos1 = message.indexOf('|');
-    int pos2 = message.indexOf('|', pos1 + 1);
-    int pos3 = message.indexOf('|', pos2 + 1);
+  // Find the positions of the delimiters in the original message
+  int pos1 = message.indexOf('|');
+  int pos2 = message.indexOf('|', pos1 + 1);
+  int pos3 = message.indexOf('|', pos2 + 1);
 
-    // Ensure the positions are valid
-    if (pos1 == -1 || pos2 == -1 || pos3 == -1) {
-        return "Parsing Error: Invalid Message Format";
-    }
+  // Ensure the positions are valid
+  if (pos1 == -1 || pos2 == -1 || pos3 == -1) {
+    return "Parsing Error: Invalid Message Format";
+  }
 
-    // Extract parts of the message
-    String clientID = message.substring(0, pos1); // substring returns a String
-    clientID.trim(); // Ensure no extra spaces
-    
-    String detectedStatus = message.substring(pos1 + 1, pos2);
-    detectedStatus.trim();
-    
-    String armedStatus = message.substring(pos2 + 1, pos3);
-    armedStatus.trim();
-    
-    String dateTime = message.substring(pos3 + 1);
-    dateTime.trim();
+  // Extract parts of the message
+  String clientID = message.substring(0, pos1);  // substring returns a String
+  clientID.trim();                               // Ensure no extra spaces
 
-    // Convert armed/disarmed status to shorthand
-    String armedShort = (armedStatus == "ARMED") ? "A" : "D";
+  String detectedStatus = message.substring(pos1 + 1, pos2);
+  detectedStatus.trim();
 
-    // Combine the reformatted string
-    String formattedMessage = dateTime + " " + armedShort + " " + clientID;
+  String armedStatus = message.substring(pos2 + 1, pos3);
+  armedStatus.trim();
 
-    return formattedMessage;
+  String dateTime = message.substring(pos3 + 1);
+  dateTime.trim();
+
+  // Convert armed/disarmed status to shorthand
+  String armedShort = (armedStatus == "ARMED") ? "A" : "D";
+
+  // Update isArmed here too
+  if (armedShort == "A"){
+    isArmed = "ARMED";
+  } else if (armedStatus == "D"){
+    isArmed = "DISAR";
+  } else {
+    isArmed = " N/A ";
+  }
+
+  // Combine the reformatted string
+  String formattedMessage = dateTime + " " + armedShort + " " + clientID;
+  return formattedMessage;
 }
-
-
