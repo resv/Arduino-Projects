@@ -450,14 +450,13 @@ void updateLastRequestTimeLine() {
 
 
 void updateTotalRetaliationLine() {
-  lcd.fillRect(192, 14, 64, 25, ST77XX_BLUE);
+  lcd.fillRect(199, 14, 64, 25, ST77XX_BLUE);
   //lcd.setCursor(0, 72);                          
-  lcd.setCursor(192, 14);
-  lcd.setTextSize(3);                               
-  lcd.setTextColor(ST77XX_WHITE);
+  lcd.setCursor(199, 14);
+  lcd.setTextSize(2);                               
+  lcd.setTextColor(ST77XX_YELLOW);
   lcd.print(totalRetaliationCount);
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.setTextSize(3);     
+  lcd.print("x");  
 }
 
 
