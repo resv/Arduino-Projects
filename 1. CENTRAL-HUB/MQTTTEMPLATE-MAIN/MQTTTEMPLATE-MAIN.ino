@@ -291,12 +291,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
     // Parse and format the message
     String formattedMessage = parseAndFormatMQTTMessage(message);
 
+    
+    
     // Add the formatted message to the log
     addToLog(formattedMessage);
     // Update the LCD with the latest logs
     updateLastDetectionLine();
     updateIsArmedLine();
     totalRetaliationCount++;
+    updateTotalRetaliationLine();
   }
 }
 
@@ -368,7 +371,7 @@ void setup() {
   updateLastRequestByLine();
   //updateLastRequestTimeLine();
   updateLastDetectionLine();
-  // updateTotalRetaliationLine();
+  updateTotalRetaliationLine();
 }
 
 // Loop function
@@ -406,8 +409,8 @@ void updateStatusLine() {
 
 void updateLastDetectionLine() {
   // Clear the area on the LCD where the detection logs are displayed
-  lcd.fillRect(0, 25, 260, 145, ST77XX_BLACK); // TOP LEFT CORNER TO SYMBOL AND DOWN CLEAR
-  lcd.fillRect(256, 100, 64, 70, ST77XX_BLACK); // BOTTOM RIGHT CORNER OF UTC CLEAR
+  lcd.fillRect(0, 25, 192, 145, ST77XX_BLACK); // TOP LEFT CORNER TO SYMBOL AND DOWN CLEAR
+  lcd.fillRect(192, 100, 128, 70, ST77XX_BLACK); // BOTTOM RIGHT CORNER OF UTC CLEAR
   
   // Display the most recent logs
   lcd.setTextSize(2);
@@ -445,18 +448,18 @@ void updateLastRequestTimeLine() {
 }
 */
 
-/*
+
 void updateTotalRetaliationLine() {
-  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
+  lcd.fillRect(192, 14, 64, 25, ST77XX_BLUE);
   //lcd.setCursor(0, 72);                          
-  lcd.setCursor(0, 70);
-  lcd.setTextSize(2);                               
+  lcd.setCursor(192, 14);
+  lcd.setTextSize(3);                               
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("COUNT SINCE (DATE): ");
+  lcd.print(totalRetaliationCount);
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print(totalRetaliationCount);     
+  lcd.setTextSize(3);     
 }
-*/
+
 
 void updateIsArmedLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
@@ -537,7 +540,7 @@ String parseAndFormatMQTTMessage(const String& message) {
   }
 
   // Combine the reformatted string
-  String formattedMessageLogging = dateTime + " " + armedShort + " " + clientID; // USED FOR EXTERNAL LOGGING IN THE FUTURE
+  String formattedMessageLogging = dateTime + " " + armedShort + " " + clientID + " " + totalRetaliationCount; // USED FOR EXTERNAL LOGGING IN THE FUTURE
   String formattedMessage = dateTime + " " + armedShort; // USED FOR LCD
   return formattedMessage;
 }
