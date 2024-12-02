@@ -8,7 +8,7 @@
               #include <time.h>
 
 //Vibration Sensor Pin
-#define VIBRATION_SENSOR_PIN 5  // Digital pin connected to SW-420 (change as needed)
+#define VIBRATION_SENSOR_PIN 13  // Digital pin connected to SW-420 (change as needed)
 #define DEBOUNCE_DELAY 50        // Debounce time in milliseconds
 //Vibration Motor
 #define VIBRATION_MOTOR_PIN 12
@@ -220,10 +220,9 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
                     client.subscribe(mqtt_topic_CENTRAL_HUB);
                     //client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED").c_str());
 
-      client.subscribe(mqtt_topic_SHOCK_CENTER);
-      NTPReadyToPublish = 1;
+                    NTPReadyToPublish = 1;
 
-      Serial.println(String(clientID) + " | FULLY SUBSCRIBED TO [" + mqtt_topic_CENTRAL_HUB + "] | [" + mqtt_topic_SHOCK_CENTER + "]");
+      Serial.println(String(clientID) + " | FULLY SUBSCRIBED TO [" + mqtt_topic_CENTRAL_HUB + "] | [" + mqtt_topic_SHOCK_CENTER + "] | [ ONLY PUBLISHING TO [" + mqtt_topic_SHOCK_CENTER + " ]");
 
                     publishTimeData();
 
@@ -308,23 +307,30 @@ if (digitalRead(VIBRATION_SENSOR_PIN) == HIGH) {
              timeInfo->tm_mon + 1, timeInfo->tm_mday, // Month is 0-11; Day is 1-31
              timeInfo->tm_hour, timeInfo->tm_min, timeInfo->tm_sec);
 
-    // Check if armed
-    if (isArmed) {
-        Serial.println(String(clientID) + " | DETECTED SHOCK | ARMED | " + dateTimeBuffer);
-        lcd.print(String(clientID) + " | DETECTED SHOCK | ARMED | " + dateTimeBuffer);
-        
-        // Retaliate if the system is armed
-        retaliate();
-    }
+    // Construct the message
+    String message = String(clientID) + " | DETECTED SHOCK | " + 
+                     (isArmed ? "ARMED" : "DISARMED") + " | " + dateTimeBuffer;
 
-    // Check if disarmed
-    if (!isArmed) {
-        Serial.println(String(clientID) + " | DETECTED SHOCK | DISARMED | " + dateTimeBuffer);
-        lcd.print(String(clientID) + " | DETECTED SHOCK | DISARMED | " + dateTimeBuffer);
+    // Print to Serial
+    Serial.println(message);
+
+    // Print to LCD
+    lcd.fillScreen(ST77XX_BLACK); // Clear the screen before displaying
+    lcd.setCursor(0, 0);
+    lcd.setTextSize(1); // Adjust text size if needed
+    lcd.print(message);
+
+    // Publish to MQTT
+    client.publish(mqtt_topic_SHOCK_CENTER, message.c_str());
+
+    // Retaliate if armed
+    if (isArmed) {
+        retaliate();
     }
 
     delay(1000); // Small delay to prevent flooding the Serial Monitor
 }
+
 }
 
 // Retaliate function
@@ -333,6 +339,9 @@ void retaliate() {
     delay(500);                         // Vibrate for 500ms
     digitalWrite(VIBRATION_MOTOR_PIN, LOW);  // Turn the motor off
 }
+
+
+
 /*
 First lets do MQTT.
 We will listen for a MQTT command from topic "CENTRAL-HUB"

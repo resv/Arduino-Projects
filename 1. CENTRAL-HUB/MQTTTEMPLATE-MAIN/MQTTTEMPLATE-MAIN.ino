@@ -31,6 +31,7 @@ const char* mqtt_password = "MasterA1";
 const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB";
 const char* mqtt_topic_NTP = "NTP";
 const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT-TIMER";
+const char* mqtt_topic_SHOCK_CENTER = "SHOCK-CENTER";
 const char* clientID = "RESV-MAIN";
 
 // Root certificate
@@ -78,7 +79,11 @@ String statusDetection = "Listening"; //
 String isArmed = "ARMED";              // STATUS: ---
 String lastRequestClientID = "N/A";     // LAST REQUEST: --- (CLIENTID)
 String lastRequestTime = "N/A";         // LAST REQUEST: --- (DATE / TIME)
-String lastDetectionTime = "N/A";       // LAST DETECTION: ---
+
+// Define the log size and initialize the log
+const int logSize = 50;
+String lastDetectionLog[logSize];
+
 int totalRetaliationCount = 0; // TOTAL RETALIATION START TIME
 
 // NTP configuration
@@ -259,28 +264,40 @@ void publishTimeData() {
   }
 }
 
-// Update callback to handle WORKOUT-TIMER messages
+// Update callback to handle WORKOUT-TIMER messages and CENTRAL-HUB logs
+// Updated callback function
 void callback(char* topic, byte* payload, unsigned int length) {
-  String message = "";
-  for (unsigned int i = 0; i < length; i++) {
-    message += (char)payload[i];
-  }
-
-  Serial.println("RESV-MAIN RCVD [" + String(topic) + "]: " + message);
-
-  // Handle NTP requests
-  if (String(topic) == mqtt_topic_NTP && message.endsWith("| NTP REQUEST")) {
-    Serial.println("Processing NTP REQUEST...");
-    if (fetchAndSetNTPTime()) {
-      Serial.println("NTP updated and published.");
+    String message = "";
+    for (unsigned int i = 0; i < length; i++) {
+        message += (char)payload[i];
     }
-  }
-  // Handle WORKOUT-TIMER updates
-  if (String(topic) == mqtt_topic_WORKOUT_TIMER) {
-    workoutTimer = message;  // Save the latest timer value
-    updateWorkoutTimerLCD(workoutTimer); // Update the LCD
-  }
+
+    Serial.println("RESV-MAIN RCVD [" + String(topic) + "]: " + message);
+
+    // Handle NTP requests
+    if (String(topic) == mqtt_topic_NTP && message.endsWith("| NTP REQUEST")) {
+        Serial.println("Processing NTP REQUEST...");
+        if (fetchAndSetNTPTime()) {
+            Serial.println("NTP updated and published.");
+        }
+    }
+
+    // Handle WORKOUT-TIMER updates
+    if (String(topic) == mqtt_topic_WORKOUT_TIMER) {
+        workoutTimer = message;
+        updateWorkoutTimerLCD(workoutTimer);
+    }
+
+    // Handle messages from SHOCK-CENTER with "DETECTED SHOCK"
+    if (String(topic) == mqtt_topic_SHOCK_CENTER && message.indexOf("DETECTED SHOCK") != -1) {
+        Serial.println("Detected shock message received. Adding to log...");
+        addToLog(message); // Add the message to the log
+        updateLastDetectionLine(); // Update the LCD with the latest logs
+    }
 }
+
+
+
 
 // Reconnect to MQTT broker
 void reconnect() {
@@ -290,7 +307,6 @@ void reconnect() {
       Serial.println(String(clientID) + " | CONNECTED TT MQTT BROKER!");
 
       client.subscribe(mqtt_topic_CENTRAL_HUB);
-      //client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED").c_str());
 
       client.subscribe(mqtt_topic_NTP);
       //client.publish(mqtt_topic_NTP, (String(clientID) + " CONNECTED").c_str());
@@ -299,7 +315,9 @@ void reconnect() {
       client.subscribe(mqtt_topic_WORKOUT_TIMER);
       //client.publish(mqtt_topic_WORKOUT_TIMER, (String(clientID) + " CONNECTED").c_str());
 
-      Serial.println(String(clientID) + " | FULLY SUBSCRIBED TO [" + mqtt_topic_CENTRAL_HUB + "] | [" + mqtt_topic_NTP + "] | [" + mqtt_topic_WORKOUT_TIMER + "]");
+      client.subscribe(mqtt_topic_SHOCK_CENTER);
+
+      Serial.println(String(clientID) + " | FULLY SUBSCRIBED TO [" + mqtt_topic_CENTRAL_HUB + "] | [" + mqtt_topic_NTP + "] | [" + mqtt_topic_WORKOUT_TIMER + "] | [" + mqtt_topic_SHOCK_CENTER + "]");
 
       publishTimeData();
 
@@ -383,13 +401,25 @@ void updateStatusLine() {
 }
 
 void updateLastDetectionLine() {
-  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 25);                          
-  lcd.setTextSize(2);                               
+  // Clear the area on the LCD where the detection logs are displayed
+  lcd.fillRect(0, 25, 320, 200, ST77XX_BLACK);
+
+  // Display the most recent logs
+  lcd.setTextSize(2);
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print(totalRetaliationCount + " | (should be last log");
+  
+  // Loop through the first few logs (e.g., the most recent 5 logs)
+  for (int i = 0; i < 5 && i < 50; i++) {
+    if (lastDetectionLog[i] != "") { // Check if the log exists
+      lcd.setCursor(0, 25 + (i * 20)); // Adjust the Y-position for each log
+      lcd.print(String(i + 1) + ": " + lastDetectionLog[i]); // Display the log
+    }
+  }
+
+  // Optionally update the total retaliation count
   totalRetaliationCount++;
 }
+
 
 void updateLastRequestByLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
@@ -437,3 +467,14 @@ void updateIsArmedLine() {
   lcd.setTextSize(2);    
   lcd.print(isArmed);
 }
+
+// Function to add a message to the log
+void addToLog(const String& message) {
+    // Shift existing logs down
+    for (int i = logSize - 1; i > 0; i--) {
+        lastDetectionLog[i] = lastDetectionLog[i - 1];
+    }
+    // Add the new message at the top
+    lastDetectionLog[0] = message;
+}
+
