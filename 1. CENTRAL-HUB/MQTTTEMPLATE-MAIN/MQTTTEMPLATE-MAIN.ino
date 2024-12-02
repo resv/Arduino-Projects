@@ -111,10 +111,10 @@ void setup_wifi() {
 
 // Function to update the timer on the LCD
 void updateWorkoutTimerLCD(const String& timerValue) {
-  lcd.fillRect(205, 0, 70, 14, ST77XX_BLACK);  // Clear timer area
-  lcd.setCursor(205, 0);                       // Set cursor position for timer
+  lcd.fillRect(199, 0, 70, 14, ST77XX_BLACK);  // Clear timer area
+  lcd.setCursor(199, 0);                       // Set cursor position for timer
   lcd.setTextSize(2);                          // Set text size for timer
-  lcd.setTextColor(ST77XX_WHITE);
+  lcd.setTextColor(ST77XX_GREEN);
   lcd.println(timerValue);  // Display the timer
 }
 
@@ -406,23 +406,20 @@ void updateStatusLine() {
 
 void updateLastDetectionLine() {
   // Clear the area on the LCD where the detection logs are displayed
-  lcd.fillRect(0, 25, 260, 145, ST77XX_YELLOW);
-
+  lcd.fillRect(0, 25, 260, 145, ST77XX_BLACK); // TOP LEFT CORNER TO SYMBOL AND DOWN CLEAR
+  lcd.fillRect(256, 100, 64, 70, ST77XX_BLACK); // BOTTOM RIGHT CORNER OF UTC CLEAR
+  
   // Display the most recent logs
   lcd.setTextSize(2);
   lcd.setTextColor(ST77XX_WHITE);
 
-  // Loop through the first few logs (e.g., the most recent 5 logs)
-  for (int i = 0; i < 5 && i < 50; i++) {
+  // Loop through the first few logs (e.g., the most recent 7 logs)
+  for (int i = 0; i < 7 && i < 50; i++) {
     if (lastDetectionLog[i] != "") {    // Check if the log exists
       lcd.setCursor(0, 25 + (i * 20));  // Adjust the Y-position for each log
       lcd.print(lastDetectionLog[i]);   // Display the log
     }
-  lcd.fillRect(260, 25, 320, 145, ST77XX_BLUE); // clear the clientID only on LCD
-
   }
-
-  // Optionally update the total retaliation count
 }
 
 
@@ -472,8 +469,8 @@ void updateIsArmedLine() {
   lcd.print(isArmed);
 
   if (isArmed == "ARMED"){
-    lcd.fillRect(275, -5, 320, 52, ST77XX_BLACK);
-    lcd.setCursor(275, -5);
+    lcd.fillRect(260, -5, 60, 57, ST77XX_BLACK);
+    lcd.setCursor(276, -5);
     lcd.setTextSize(6);
     lcd.setTextColor(ST77XX_RED);
     lcd.write(0x18);  // Prints the up arrow (↑)
@@ -481,8 +478,8 @@ void updateIsArmedLine() {
     lcd.setTextSize(2);
     lcd.print(isArmed);
   } else if (isArmed == "DISAR"){
-    lcd.fillRect(275, -5, 320, 52, ST77XX_BLACK);
-    lcd.setCursor(275, -5);
+    lcd.fillRect(260, -5, 60, 57, ST77XX_BLACK);
+    lcd.setCursor(276, -5);
     lcd.setTextSize(6);
     lcd.setTextColor(ST77XX_CYAN);
     lcd.write(0x58);  // Prints the X (X)
@@ -533,13 +530,14 @@ String parseAndFormatMQTTMessage(const String& message) {
   // Update isArmed here too
   if (armedShort == "A"){
     isArmed = "ARMED";
-  } else if (armedStatus == "D"){
+  } else if (armedShort == "D"){
     isArmed = "DISAR";
   } else {
     isArmed = " N/A ";
   }
 
   // Combine the reformatted string
-  String formattedMessage = dateTime + " " + armedShort + " " + clientID;
+  String formattedMessageLogging = dateTime + " " + armedShort + " " + clientID; // USED FOR EXTERNAL LOGGING IN THE FUTURE
+  String formattedMessage = dateTime + " " + armedShort; // USED FOR LCD
   return formattedMessage;
 }
