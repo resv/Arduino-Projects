@@ -290,9 +290,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
     // Handle messages from SHOCK-CENTER with "DETECTED SHOCK"
     if (String(topic) == mqtt_topic_SHOCK_CENTER && message.indexOf("DETECTED SHOCK") != -1) {
-        Serial.println("Detected shock message received. Adding to log...");
-        addToLog(message); // Add the message to the log
-        updateLastDetectionLine(); // Update the LCD with the latest logs
+        // Parse and format the message
+        String formattedMessage = parseAndFormatMQTTMessage(message);
+
+        // Add the formatted message to the log
+        addToLog(formattedMessage);
+
+        // Update the LCD with the latest logs
+        updateLastDetectionLine();
     }
 }
 
@@ -412,7 +417,7 @@ void updateLastDetectionLine() {
   for (int i = 0; i < 5 && i < 50; i++) {
     if (lastDetectionLog[i] != "") { // Check if the log exists
       lcd.setCursor(0, 25 + (i * 20)); // Adjust the Y-position for each log
-      lcd.print(String(i + 1) + ": " + lastDetectionLog[i]); // Display the log
+      lcd.print(String(totalRetaliationCount) + "|" + lastDetectionLog[i]); // Display the log
     }
   }
 
@@ -477,4 +482,39 @@ void addToLog(const String& message) {
     // Add the new message at the top
     lastDetectionLog[0] = message;
 }
+
+// Function to parse and format the MQTT message
+String parseAndFormatMQTTMessage(const String& message) {
+    // Find the positions of the delimiters in the original message
+    int pos1 = message.indexOf('|');
+    int pos2 = message.indexOf('|', pos1 + 1);
+    int pos3 = message.indexOf('|', pos2 + 1);
+
+    // Ensure the positions are valid
+    if (pos1 == -1 || pos2 == -1 || pos3 == -1) {
+        return "Parsing Error: Invalid Message Format";
+    }
+
+    // Extract parts of the message
+    String clientID = message.substring(0, pos1); // substring returns a String
+    clientID.trim(); // Ensure no extra spaces
+    
+    String detectedStatus = message.substring(pos1 + 1, pos2);
+    detectedStatus.trim();
+    
+    String armedStatus = message.substring(pos2 + 1, pos3);
+    armedStatus.trim();
+    
+    String dateTime = message.substring(pos3 + 1);
+    dateTime.trim();
+
+    // Convert armed/disarmed status to shorthand
+    String armedShort = (armedStatus == "ARMED") ? "A" : "D";
+
+    // Combine the reformatted string
+    String formattedMessage = dateTime + " " + armedShort + " " + clientID;
+
+    return formattedMessage;
+}
+
 
