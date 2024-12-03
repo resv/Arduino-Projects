@@ -74,6 +74,10 @@ PubSubClient client(espClient);
 // Default workout timer value
 String workoutTimer = "--:--";
 
+// Default date and time since boot
+String shockTimeSinceBoot = " --:--";
+String dateSinceBoot = "--/--";
+
 // Status line variables
 String statusDetection = "Listening";  //
 String isArmed = " N/A ";              // STATUS: ---
@@ -84,7 +88,7 @@ String lastRequestTime = "N/A";        // LAST REQUEST: --- (DATE / TIME)
 const int logSize = 50;
 String lastDetectionLog[logSize];
 
-int totalRetaliationCount = 100;  // TOTAL RETALIATION START TIME
+int totalRetaliationCount = 59;  // TOTAL RETALIATION START TIME
 
 // NTP configuration
 WiFiUDP ntpUDP;
@@ -213,6 +217,11 @@ void displayTimezones() {
     // Print date
     lcd.setCursor((64 * (4 - i)) + xOffset, 156);
     lcd.print(dateBuffer);
+    
+    // Update `dateSinceBoot` if processing EST
+    if (i == 1) { // Index 1 corresponds to EST
+        dateSinceBoot = String(dateBuffer); // Save the date in global variable
+    }
   }
 }
 
@@ -291,20 +300,17 @@ void callback(char* topic, byte* payload, unsigned int length) {
     // Parse and format the message
     String formattedMessage = parseAndFormatMQTTMessage(message);
 
-    
-    
     // Add the formatted message to the log
     addToLog(formattedMessage);
+
     // Update the LCD with the latest logs
-    updateLastDetectionLine();
-    updateIsArmedLine();
+    updateLastDetectionLine(); //log column
+    updateIsArmedLine();  //corner icon
     totalRetaliationCount++;
-    updateTotalRetaliationLine();
+    updateTotalRetaliationLine(); // Banner retaliation count
+    updateShockTimeSinceBoot();  // the top of the top, middle
   }
 }
-
-
-
 
 // Reconnect to MQTT broker
 void reconnect() {
@@ -366,12 +372,14 @@ void setup() {
   updateWorkoutTimerLCD(workoutTimer);  // Display default timer value
 
   // Display Status Lines
-  updateStatusLine();
-  updateIsArmedLine();
-  updateLastRequestByLine();
+  updateStatusLine(); // Banner Detection/listening
+  updateIsArmedLine(); //corner icon
+  //updateLastRequestByLine();
   //updateLastRequestTimeLine();
-  updateLastDetectionLine();
-  updateTotalRetaliationLine();
+  updateLastDetectionLine(); //log column
+  updateTotalRetaliationLine(); // Banner retaliation count
+  updateDateSinceBoot(); // the Bottom of the top, middle
+  updateShockTimeSinceBoot(); // the top of the top, middle
 }
 
 // Loop function
@@ -400,11 +408,11 @@ void updateStatusLine() {
   lcd.setCursor(0, 0);
   lcd.setTextSize(3);
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("(");
+  lcd.print("");
   lcd.setTextColor(ST77XX_YELLOW);
   lcd.print(statusDetection);  // or DETECTED!
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print(")");
+  lcd.print("");
 }
 
 void updateLastDetectionLine() {
@@ -431,7 +439,7 @@ void updateLastRequestByLine() {
   lcd.setCursor(0, 85);
   lcd.setTextSize(2);
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("REQUESTED BY: ");
+  lcd.print("XXXXXXX");
   lcd.setTextColor(ST77XX_WHITE);
   lcd.print(lastRequestClientID);
 }
@@ -475,61 +483,61 @@ void updateTotalRetaliationLine() {
     String formattedCount = formatNumberWithCommas(totalRetaliationCount);
 
     if (totalRetaliationCount <= 9) {                             //0-9
-        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
         lcd.setCursor(0, 0);
         lcd.setTextSize(3);
         lcd.setTextColor(ST77XX_YELLOW);
-        lcd.print("[   #");
+        lcd.print("    #");
         lcd.print(formattedCount);
-        lcd.print("   ]");
+        lcd.print("   ");
     } else if (totalRetaliationCount >= 10 && totalRetaliationCount <= 99) {    //10-99
-        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
         lcd.setCursor(0, 0);
         lcd.setTextSize(3);
-        lcd.setTextColor(ST77XX_RED);
-        lcd.print("[  #");
+        lcd.setTextColor(ST77XX_YELLOW);
+        lcd.print("   #");
         lcd.print(formattedCount);
-        lcd.print("   ]");
+        lcd.print("   ");
     } else if (totalRetaliationCount >= 100 && totalRetaliationCount <= 999) { //100-999
-        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
         lcd.setCursor(0, 0);
         lcd.setTextSize(3);
         lcd.setTextColor(ST77XX_YELLOW);
-        lcd.print("[  #");
+        lcd.print("   #");
         lcd.print(formattedCount);
-        lcd.print("  ]");
+        lcd.print("  ");
     } else if (totalRetaliationCount >= 1000 && totalRetaliationCount <= 9999) { //1,000-9,999
-        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
         lcd.setCursor(0, 0);
         lcd.setTextSize(3);
         lcd.setTextColor(ST77XX_YELLOW);
-        lcd.print("[ #");
+        lcd.print("  #");
         lcd.print(formattedCount);
-        lcd.print("  ]");
+        lcd.print("  ");
     } else if (totalRetaliationCount >= 10000 && totalRetaliationCount <= 99999) { //10,000-99,999
-        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
         lcd.setCursor(0, 0);
         lcd.setTextSize(3);
         lcd.setTextColor(ST77XX_YELLOW);
-        lcd.print("[ #");
+        lcd.print("  #");
         lcd.print(formattedCount);
-        lcd.print(" ]");
+        lcd.print(" ");
     } else if (totalRetaliationCount >= 100000 && totalRetaliationCount <= 999999) { //100,000-999,999
-        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.fillRect(0, -1, 187, 26, ST77XX_MAGENTA);
         lcd.setCursor(0, 0);
         lcd.setTextSize(3);
         lcd.setTextColor(ST77XX_YELLOW);
-        lcd.print("[#");
+        lcd.print(" #");
         lcd.print(formattedCount);
-        lcd.print(" ]");
+        lcd.print(" ");
     } else if (totalRetaliationCount >= 1000000 && totalRetaliationCount <= 9999999) { //1,000,000-9,999,999
-        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
         lcd.setCursor(0, 0);
         lcd.setTextSize(3);
         lcd.setTextColor(ST77XX_YELLOW);
-        lcd.print("[");
+        lcd.print("#");
         lcd.print(formattedCount);
-        lcd.print("]");
+        lcd.print("");
     }
 }
 
@@ -617,4 +625,37 @@ String parseAndFormatMQTTMessage(const String& message) {
   String formattedMessageLogging = dateTime + " " + armedShort + " " + clientID + " " + totalRetaliationCount; // USED FOR EXTERNAL LOGGING IN THE FUTURE
   String formattedMessage = dateTime + " " + armedShort; // USED FOR LCD
   return formattedMessage;
+}
+
+void updateShockTimeSinceBoot() {
+    // Convert t otalRetaliationCount (seconds) to HHH:MM format
+    long hours = totalRetaliationCount / 3600;
+    long minutes = (totalRetaliationCount % 3600) / 60;
+
+    // Determine format
+    char timeBuffer[10];
+    if (hours < 100) {
+        // For less than 100 hours, include a leading space and two leading zeros if needed
+        snprintf(timeBuffer, sizeof(timeBuffer), " %02ld:%02ld", hours, minutes);
+    } else {
+        // For 100 hours or more, display as 3 digits without a leading space
+        snprintf(timeBuffer, sizeof(timeBuffer), "%03ld:%02ld", hours, minutes);
+    }
+
+    String formattedTime = String(timeBuffer);
+
+    // Display the formatted time on the LCD
+    lcd.fillRect(190, 0, 70, 14, ST77XX_BLACK);  // Clear timer area
+    lcd.setCursor(190, 0);                       // Set cursor position for timer
+    lcd.setTextSize(2);                           // Set text size for timer
+    lcd.setTextColor(ST77XX_CYAN);
+    lcd.println(formattedTime);                   // Display the formatted time
+}
+
+void updateDateSinceBoot(){
+  lcd.fillRect(190, 14, 70, 14, ST77XX_BLACK) ;  // Clear timer area
+  lcd.setCursor(190, 14);                       // Set cursor position for timer
+  lcd.setTextSize(2);                          // Set text size for timer
+  lcd.setTextColor(ST77XX_CYAN);
+  lcd.println(" " + dateSinceBoot);  // Display the timer
 }
