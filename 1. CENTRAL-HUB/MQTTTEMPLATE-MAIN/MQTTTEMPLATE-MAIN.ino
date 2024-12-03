@@ -571,7 +571,7 @@ void updateIsArmedLine() {
 
     if (isArmed == " N/A ") {
         lcd.setTextColor(ST77XX_WHITE);
-        lcd.print("-");
+        lcd.print("?");
     } else if (isArmed == "ARMED") {
         lcd.setTextColor(ST77XX_RED);
         lcd.print("8");
@@ -730,10 +730,57 @@ void sendRequest() {
   // Publish MQTT message
   if (client.connected()) {
     client.publish(mqtt_topic_CENTRAL_HUB, mqttMessage.c_str());
-    Serial.println("Published: " + mqttMessage);
+    
+    // SENT ICON and text
+    lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
+    lcd.setTextColor(ST77XX_GREEN);
+    lcd.setCursor(274, -3);
+    lcd.setTextSize(6);
+    lcd.write(0x18);
+    lcd.setCursor(260, 43);
+    lcd.setTextSize(2);
+    lcd.print("SENT!");
+
+    Serial.println("SENT ARM/DISARM REQUEST TO SHOCK CENTER"); 
   } else {
-    Serial.println("Failed to publish: MQTT client not connected");
+    lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
+    lcd.setTextColor(ST77XX_RED);
+    lcd.setCursor(274, -3);
+    lcd.setTextSize(6);
+    lcd.write(0x21);
+    lcd.setCursor(260, 43);
+    lcd.setTextSize(2);
+    lcd.print("FAIL!");
+
+    Serial.println("SENT ARM/DISARM REQUEST TO SHOCK CENTER");
   }
+  delay(2500);
+  lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
+
+    // Common icon display settings
+    lcd.setCursor(276, 0);
+    lcd.setTextSize(6);
+
+    if (isArmed == " N/A ") {
+        lcd.setTextColor(ST77XX_WHITE);
+        lcd.print("?");
+    } else if (isArmed == "ARMED") {
+        lcd.setTextColor(ST77XX_RED);
+        lcd.print("8");
+        lcd.fillRect(273, 18, 36, 1, ST77XX_CYAN); // Divider
+        lcd.fillRect(273, 18, 36, 24, ST77XX_RED); // Bottom part of "8"
+    } else if (isArmed == "DISAR") {
+        lcd.setTextColor(ST77XX_CYAN);
+        lcd.print("8");
+        lcd.fillRect(298, 6, 24, 12, ST77XX_BLACK); // Clear top-right of "8"
+        lcd.fillRect(273, 18, 36, 24, ST77XX_CYAN); // Bottom part of "8"
+        lcd.fillRect(273, 18, 36, 1, ST77XX_BLACK); // Clear divider
+    }
+
+    // Display the state text below the icon
+    lcd.setCursor(260, 43);
+    lcd.setTextSize(2);
+    lcd.print(isArmed);
 }
 
 
@@ -744,4 +791,6 @@ void sendRequest() {
 //add touch sensor to either arm or disarm
 
 //add request mqtt
-//add external logging
+//add external logging/
+
+//cp437
