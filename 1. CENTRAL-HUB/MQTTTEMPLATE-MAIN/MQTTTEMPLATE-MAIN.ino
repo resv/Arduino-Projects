@@ -465,7 +465,8 @@ void updateIsArmedLine() {
   lcd.setCursor(275, -5);
   lcd.setTextSize(6);
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.write(0x3F);  // Prints the question mark (?)
+  lcd.print("?");
+  //lcd.write(0x3F);  // Prints the question mark (?)
   lcd.setCursor(260, 38);
   lcd.setTextSize(2);
   lcd.print(isArmed);
