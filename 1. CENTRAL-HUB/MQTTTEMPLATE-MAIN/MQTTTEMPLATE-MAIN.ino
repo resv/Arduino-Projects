@@ -88,7 +88,7 @@ String lastRequestTime = "N/A";        // LAST REQUEST: --- (DATE / TIME)
 const int logSize = 50;
 String lastDetectionLog[logSize];
 
-int totalRetaliationCount = 59;  // TOTAL RETALIATION START TIME
+int totalRetaliationCount = 0;  // TOTAL RETALIATION START TIME
 
 // NTP configuration
 WiFiUDP ntpUDP;
@@ -523,7 +523,7 @@ void updateTotalRetaliationLine() {
         lcd.print(formattedCount);
         lcd.print(" ");
     } else if (totalRetaliationCount >= 100000 && totalRetaliationCount <= 999999) { //100,000-999,999
-        lcd.fillRect(0, -1, 187, 26, ST77XX_MAGENTA);
+        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
         lcd.setCursor(0, 0);
         lcd.setTextSize(3);
         lcd.setTextColor(ST77XX_YELLOW);
@@ -554,21 +554,26 @@ void updateIsArmedLine() {
   lcd.print(isArmed);
 
   if (isArmed == "ARMED"){
-    lcd.fillRect(260, -5, 60, 57, ST77XX_BLACK);
-    lcd.setCursor(276, -5);
+    lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
+    lcd.setCursor(276, 0);
     lcd.setTextSize(6);
     lcd.setTextColor(ST77XX_RED);
-    lcd.write(0x18);  // Prints the up arrow (↑)
-    lcd.setCursor(260, 38);
+    lcd.print("8");  // Prints the LOCK/8 
+    lcd.fillRect(273, 18, 36, 1, ST77XX_CYAN); // the divider
+    lcd.fillRect(273, 18, 36, 24, ST77XX_RED); // the bottom of 8
+    lcd.setCursor(260, 43);
     lcd.setTextSize(2);
     lcd.print(isArmed);
   } else if (isArmed == "DISAR"){
-    lcd.fillRect(260, -5, 60, 57, ST77XX_BLACK);
-    lcd.setCursor(276, -5);
+    lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
+    lcd.setCursor(276, 0);
     lcd.setTextSize(6);
-    lcd.setTextColor(ST77XX_CYAN);
-    lcd.write(0x58);  // Prints the X (X)
-    lcd.setCursor(260, 38);
+    lcd.setTextColor(ST77XX_CYAN);       // the LOCK/8
+    lcd.print("8");  
+    lcd.fillRect(298, 6, 24, 12, ST77XX_BLACK); // the right top of 8
+    lcd.fillRect(273, 18, 36, 24, ST77XX_CYAN); // the bottom of 8
+    lcd.fillRect(273, 18, 36, 1, ST77XX_BLACK);   // the divider
+    lcd.setCursor(260, 43);
     lcd.setTextSize(2);
     lcd.print(isArmed);
   }
@@ -648,14 +653,14 @@ void updateShockTimeSinceBoot() {
     lcd.fillRect(190, 0, 70, 14, ST77XX_BLACK);  // Clear timer area
     lcd.setCursor(190, 0);                       // Set cursor position for timer
     lcd.setTextSize(2);                           // Set text size for timer
-    lcd.setTextColor(ST77XX_CYAN);
+    lcd.setTextColor(ST77XX_MAGENTA);
     lcd.println(formattedTime);                   // Display the formatted time
 }
 
 void updateDateSinceBoot(){
-  lcd.fillRect(190, 14, 70, 14, ST77XX_BLACK) ;  // Clear timer area
-  lcd.setCursor(190, 14);                       // Set cursor position for timer
+  lcd.fillRect(190, 15, 70, 15, ST77XX_BLACK) ;  // Clear timer area
+  lcd.setCursor(190, 15);                       // Set cursor position for timer
   lcd.setTextSize(2);                          // Set text size for timer
-  lcd.setTextColor(ST77XX_CYAN);
+  lcd.setTextColor(ST77XX_MAGENTA);
   lcd.println(" " + dateSinceBoot);  // Display the timer
 }
