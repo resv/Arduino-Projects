@@ -374,8 +374,7 @@ void setup() {
   // Display Status Lines
   updateStatusLine(); // Banner Detection/listening
   updateIsArmedLine(); //corner icon
-  //updateLastRequestByLine();
-  //updateLastRequestTimeLine();
+  updateLastRequest();
   updateLastDetectionLine(); //log column
   updateTotalRetaliationLine(); // Banner retaliation count
   updateDateSinceBoot(); // the Bottom of the top, middle
@@ -434,7 +433,7 @@ void updateLastDetectionLine() {
 }
 
 
-void updateLastRequestByLine() {
+void updateLastRequest() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
   lcd.setCursor(0, 85);
   lcd.setTextSize(2);
@@ -543,40 +542,41 @@ void updateTotalRetaliationLine() {
 
 
 void updateIsArmedLine() {
-  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(275, -5);
-  lcd.setTextSize(6);
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("?");
-  //lcd.write(0x3F);  // Prints the question mark (?)
-  lcd.setCursor(260, 38);
-  lcd.setTextSize(2);
-  lcd.print(isArmed);
+    static String lastIsArmed = ""; // Track the last state
 
-  if (isArmed == "ARMED"){
+    if (isArmed == lastIsArmed) {
+        return; // Exit if the state hasn't changed
+    }
+
+    // Clear the area for the icon and text
     lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
+
+    // Common icon display settings
     lcd.setCursor(276, 0);
     lcd.setTextSize(6);
-    lcd.setTextColor(ST77XX_RED);
-    lcd.print("8");  // Prints the LOCK/8 
-    lcd.fillRect(273, 18, 36, 1, ST77XX_CYAN); // the divider
-    lcd.fillRect(273, 18, 36, 24, ST77XX_RED); // the bottom of 8
+
+    if (isArmed == " N/A ") {
+        lcd.setTextColor(ST77XX_WHITE);
+        lcd.print("-");
+    } else if (isArmed == "ARMED") {
+        lcd.setTextColor(ST77XX_RED);
+        lcd.print("8");
+        lcd.fillRect(273, 18, 36, 1, ST77XX_CYAN); // Divider
+        lcd.fillRect(273, 18, 36, 24, ST77XX_RED); // Bottom part of "8"
+    } else if (isArmed == "DISAR") {
+        lcd.setTextColor(ST77XX_CYAN);
+        lcd.print("8");
+        lcd.fillRect(298, 6, 24, 12, ST77XX_BLACK); // Clear top-right of "8"
+        lcd.fillRect(273, 18, 36, 24, ST77XX_CYAN); // Bottom part of "8"
+        lcd.fillRect(273, 18, 36, 1, ST77XX_BLACK); // Clear divider
+    }
+
+    // Display the state text below the icon
     lcd.setCursor(260, 43);
     lcd.setTextSize(2);
     lcd.print(isArmed);
-  } else if (isArmed == "DISAR"){
-    lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
-    lcd.setCursor(276, 0);
-    lcd.setTextSize(6);
-    lcd.setTextColor(ST77XX_CYAN);       // the LOCK/8
-    lcd.print("8");  
-    lcd.fillRect(298, 6, 24, 12, ST77XX_BLACK); // the right top of 8
-    lcd.fillRect(273, 18, 36, 24, ST77XX_CYAN); // the bottom of 8
-    lcd.fillRect(273, 18, 36, 1, ST77XX_BLACK);   // the divider
-    lcd.setCursor(260, 43);
-    lcd.setTextSize(2);
-    lcd.print(isArmed);
-  }
+
+    lastIsArmed = isArmed; // Update the last state
 }
 
 // Function to add a message to the log
@@ -633,7 +633,9 @@ String parseAndFormatMQTTMessage(const String& message) {
 }
 
 void updateShockTimeSinceBoot() {
-    // Convert t otalRetaliationCount (seconds) to HHH:MM format
+    static String lastFormattedTime = ""; // Track the last displayed time
+
+    // Convert totalRetaliationCount (seconds) to HHH:MM format
     long hours = totalRetaliationCount / 3600;
     long minutes = (totalRetaliationCount % 3600) / 60;
 
@@ -649,12 +651,19 @@ void updateShockTimeSinceBoot() {
 
     String formattedTime = String(timeBuffer);
 
-    // Display the formatted time on the LCD
+    // Check if the time has changed
+    if (formattedTime == lastFormattedTime) {
+        return; // Exit if the time has not changed
+    }
+
+    // Update the display
     lcd.fillRect(190, 0, 70, 14, ST77XX_BLACK);  // Clear timer area
     lcd.setCursor(190, 0);                       // Set cursor position for timer
-    lcd.setTextSize(2);                           // Set text size for timer
+    lcd.setTextSize(2);                          // Set text size for timer
     lcd.setTextColor(ST77XX_MAGENTA);
-    lcd.println(formattedTime);                   // Display the formatted time
+    lcd.println(formattedTime);                  // Display the formatted time
+
+    lastFormattedTime = formattedTime; // Update the last displayed time
 }
 
 void updateDateSinceBoot(){
