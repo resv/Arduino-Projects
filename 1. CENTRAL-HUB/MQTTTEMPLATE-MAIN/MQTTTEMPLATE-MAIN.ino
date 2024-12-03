@@ -17,6 +17,10 @@
 #define LCD_RST 4
 #define LCD_BLK 32
 
+#define EXTERNAL_BUTTON_PIN 5  // GPIO pin for the external button
+#define ONBOARD_BUTTON_PIN 0   // GPIO pin for the onboard button
+
+
 Adafruit_ST7789 lcd = Adafruit_ST7789(LCD_CS, LCD_DC, LCD_RST);
 
 // Wi-Fi credentials
@@ -354,6 +358,10 @@ void setup() {
   lcd.setRotation(1);
   lcd.fillRect(0, 0, 320, 100, ST77XX_BLACK);
 
+  pinMode(EXTERNAL_BUTTON_PIN, INPUT_PULLUP);  // External button as input with pull-up
+  pinMode(ONBOARD_BUTTON_PIN, INPUT_PULLUP);   // Onboard button as input with pull-up
+
+
   //  lcd.setCursor(40, 40);
   //  lcd.setTextSize(3);
   //  lcd.setTextColor(ST77XX_WHITE);
@@ -381,26 +389,32 @@ void setup() {
   updateShockTimeSinceBoot(); // the top of the top, middle
 }
 
-// Loop function
 void loop() {
+  // Reconnect to MQTT if disconnected
   if (!client.connected()) {
     reconnect();
   }
-  client.loop();
+  client.loop();  // Process MQTT messages
 
   unsigned long currentMillis = millis();
+  
+  // Update the displayed time every 60 seconds
   if (currentMillis - lastMillis >= 60000) {
-    internalTime += 60;
-    displayTimezones();
+    internalTime += 60;       // Increment internal time by 60 seconds
+    displayTimezones();       // Update time zones on LCD
     lastMillis = currentMillis;
   }
 
+  // Refresh NTP time once a day
   if (millis() - lastNTPFetch >= SECONDS_IN_A_DAY * 1000) {
     if (fetchAndSetNTPTime()) {
-      lastNTPFetch = millis();
+      lastNTPFetch = millis();  // Reset NTP fetch timer
     }
   }
+  // Check for button presses
+  buttonPressToggle();
 }
+
 
 void updateStatusLine() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
@@ -673,6 +687,56 @@ void updateDateSinceBoot(){
   lcd.setTextColor(ST77XX_MAGENTA);
   lcd.println(" " + dateSinceBoot);  // Display the timer
 }
+
+void buttonPressToggle() {
+  static bool lastExternalButtonState = HIGH;  // Previous state of the external button
+  static bool lastOnboardButtonState = HIGH;   // Previous state of the onboard button
+
+  // Read the current state of both buttons
+  bool currentExternalButtonState = digitalRead(EXTERNAL_BUTTON_PIN);
+  bool currentOnboardButtonState = digitalRead(ONBOARD_BUTTON_PIN);
+
+  // Check for external button press (HIGH -> LOW transition)
+  if (lastExternalButtonState == HIGH && currentExternalButtonState == LOW) {
+    sendRequest();
+  }
+
+  // Check for onboard button press (HIGH -> LOW transition)
+  if (lastOnboardButtonState == HIGH && currentOnboardButtonState == LOW) {
+    sendRequest();
+  }
+
+  // Update button states
+  lastExternalButtonState = currentExternalButtonState;
+  lastOnboardButtonState = currentOnboardButtonState;
+}
+
+void sendRequest() {
+  // Use the already calculated EST time and date
+  const int estOffset = -5 * 3600;  // Offset for EST (UTC-5)
+  time_t estTime = internalTime + estOffset;  // Adjusted time for EST
+  struct tm* estTimeInfo = gmtime(&estTime);
+
+  // Format the date and time
+  char dateBuffer[20];
+  char time24Buffer[10];
+  strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", estTimeInfo);       // MM/DD
+  strftime(time24Buffer, sizeof(time24Buffer), "%H:%M:%S", estTimeInfo); // HH:MM:SS (24-hour format)
+
+  // Format MQTT message without the extra "[CENTRAL-HUB]:"
+  String action = (isArmed == "DISAR") ? "REQUESTED ARM" : "REQUESTED DISARM";
+  String mqttMessage = String(clientID) + " | " + action + " | " + String(dateBuffer) + " " + String(time24Buffer);
+
+  // Publish MQTT message
+  if (client.connected()) {
+    client.publish(mqtt_topic_CENTRAL_HUB, mqttMessage.c_str());
+    Serial.println("Published: " + mqttMessage);
+  } else {
+    Serial.println("Failed to publish: MQTT client not connected");
+  }
+}
+
+
 
 //show last request client / time / disarm/arm
 //onboard button to either arm or disarm
