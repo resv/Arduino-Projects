@@ -84,7 +84,7 @@ String lastRequestTime = "N/A";        // LAST REQUEST: --- (DATE / TIME)
 const int logSize = 50;
 String lastDetectionLog[logSize];
 
-int totalRetaliationCount = 0;  // TOTAL RETALIATION START TIME
+int totalRetaliationCount = 100;  // TOTAL RETALIATION START TIME
 
 // NTP configuration
 WiFiUDP ntpUDP;
@@ -400,11 +400,11 @@ void updateStatusLine() {
   lcd.setCursor(0, 0);
   lcd.setTextSize(3);
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("[");
+  lcd.print("(");
   lcd.setTextColor(ST77XX_YELLOW);
   lcd.print(statusDetection);  // or DETECTED!
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("]");
+  lcd.print(")");
 }
 
 void updateLastDetectionLine() {
@@ -450,13 +450,87 @@ void updateLastRequestTimeLine() {
 
 
 void updateTotalRetaliationLine() {
-  lcd.fillRect(199, 14, 64, 25, ST77XX_BLUE);
-  //lcd.setCursor(0, 72);                          
-  lcd.setCursor(199, 14);
-  lcd.setTextSize(2);                               
-  lcd.setTextColor(ST77XX_YELLOW);
-  lcd.print(totalRetaliationCount);
-  lcd.print("x");  
+    // Lambda function for formatting numbers with commas
+    auto formatNumberWithCommas = [](long number) -> String {
+        String result = "";
+        int count = 0;
+
+        if (number == 0) {
+            return "0";
+        }
+
+        while (number > 0) {
+            result = (char)((number % 10) + '0') + result; // Add the digit
+            count++;
+            if (count % 3 == 0 && number / 10 > 0) {
+                result = ',' + result; // Add comma every three digits
+            }
+            number /= 10;
+        }
+
+        return result;
+    };
+
+    // Format the count with commas
+    String formattedCount = formatNumberWithCommas(totalRetaliationCount);
+
+    if (totalRetaliationCount <= 9) {                             //0-9
+        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.setCursor(0, 0);
+        lcd.setTextSize(3);
+        lcd.setTextColor(ST77XX_YELLOW);
+        lcd.print("[   #");
+        lcd.print(formattedCount);
+        lcd.print("   ]");
+    } else if (totalRetaliationCount >= 10 && totalRetaliationCount <= 99) {    //10-99
+        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.setCursor(0, 0);
+        lcd.setTextSize(3);
+        lcd.setTextColor(ST77XX_RED);
+        lcd.print("[  #");
+        lcd.print(formattedCount);
+        lcd.print("   ]");
+    } else if (totalRetaliationCount >= 100 && totalRetaliationCount <= 999) { //100-999
+        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.setCursor(0, 0);
+        lcd.setTextSize(3);
+        lcd.setTextColor(ST77XX_YELLOW);
+        lcd.print("[  #");
+        lcd.print(formattedCount);
+        lcd.print("  ]");
+    } else if (totalRetaliationCount >= 1000 && totalRetaliationCount <= 9999) { //1,000-9,999
+        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.setCursor(0, 0);
+        lcd.setTextSize(3);
+        lcd.setTextColor(ST77XX_YELLOW);
+        lcd.print("[ #");
+        lcd.print(formattedCount);
+        lcd.print("  ]");
+    } else if (totalRetaliationCount >= 10000 && totalRetaliationCount <= 99999) { //10,000-99,999
+        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.setCursor(0, 0);
+        lcd.setTextSize(3);
+        lcd.setTextColor(ST77XX_YELLOW);
+        lcd.print("[ #");
+        lcd.print(formattedCount);
+        lcd.print(" ]");
+    } else if (totalRetaliationCount >= 100000 && totalRetaliationCount <= 999999) { //100,000-999,999
+        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.setCursor(0, 0);
+        lcd.setTextSize(3);
+        lcd.setTextColor(ST77XX_YELLOW);
+        lcd.print("[#");
+        lcd.print(formattedCount);
+        lcd.print(" ]");
+    } else if (totalRetaliationCount >= 1000000 && totalRetaliationCount <= 9999999) { //1,000,000-9,999,999
+        lcd.fillRect(0, -1, 197, 26, ST77XX_BLACK);
+        lcd.setCursor(0, 0);
+        lcd.setTextSize(3);
+        lcd.setTextColor(ST77XX_YELLOW);
+        lcd.print("[");
+        lcd.print(formattedCount);
+        lcd.print("]");
+    }
 }
 
 
