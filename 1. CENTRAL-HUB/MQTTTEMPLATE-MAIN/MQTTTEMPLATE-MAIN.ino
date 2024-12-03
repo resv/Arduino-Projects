@@ -674,7 +674,7 @@ void updateDateSinceBoot(){
   lcd.println(" " + dateSinceBoot);  // Display the timer
 }
 
-
+//show last request client / time / disarm/arm
 //onboard button to either arm or disarm
 //onboard button to shutdown lcd or not
 //add touch sensor to either arm or disarm
