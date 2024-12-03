@@ -354,8 +354,15 @@ these are 2 examples of the format we will receive and we need to parse the foll
 4. 24 hour time "HH:MM:SS"
 
 Here are the examples:
-RESV-SHOCKER RCVD [CENTRAL-HUB]: ClientID ARMED at EST-5 | MM/DD | HH:MM:SS AM | HH:MM:SS 
+RESV-SHOCKER RCVD [CENTRAL-HUB]: ClientID | REQUESTED ARM | EST-5 | MM/DD | HH:MM:SS AM | HH:MM:SS 
 
 
-RESV-SHOCKER RCVD [CENTRAL-HUB]: ClientID DISARMED at EST-5 | 11/25 | HH:MM:SS AM | HH:MM:SS 
+RESV-SHOCKER RCVD [CENTRAL-HUB]: ClientID | REQUESTED DISARM | EST-5 | 11/25 | HH:MM:SS AM | HH:MM:SS 
 */
+
+//onboard button to either arm or disarm
+//onboard button to shutdown lcd or not
+//add touch sensor to either arm or disarm
+
+//add request mqtt
+//add external logging

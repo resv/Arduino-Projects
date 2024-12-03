@@ -673,3 +673,11 @@ void updateDateSinceBoot(){
   lcd.setTextColor(ST77XX_MAGENTA);
   lcd.println(" " + dateSinceBoot);  // Display the timer
 }
+
+
+//onboard button to either arm or disarm
+//onboard button to shutdown lcd or not
+//add touch sensor to either arm or disarm
+
+//add request mqtt
+//add external logging
