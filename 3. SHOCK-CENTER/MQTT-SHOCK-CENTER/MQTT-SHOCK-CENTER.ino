@@ -417,27 +417,8 @@ void respondToCentralHub() {
     }
 }
 
-/*
-First lets do MQTT.
-We will listen for a MQTT command from topic "CENTRAL-HUB"
-
-these are 2 examples of the format we will receive and we need to parse the follwoing into variables:
-
-1. "ClientID" (the esp name who published the MQTT to request arm or disarm)
-2. "ARMED" or "DISARMED"
-3. Date "MM/DD"
-4. 24 hour time "HH:MM:SS"
-
-Here are the examples:
-RESV-SHOCKER RCVD [CENTRAL-HUB]: ClientID | REQUESTED ARM | EST-5 | MM/DD | HH:MM:SS AM | HH:MM:SS 
-
-
-RESV-SHOCKER RCVD [CENTRAL-HUB]: ClientID | REQUESTED DISARM | EST-5 | 11/25 | HH:MM:SS AM | HH:MM:SS 
-*/
 
 //onboard button to either arm or disarm
 //onboard button to shutdown lcd or not
 //add touch sensor to either arm or disarm
 
-//add request mqtt
-//add external logging
