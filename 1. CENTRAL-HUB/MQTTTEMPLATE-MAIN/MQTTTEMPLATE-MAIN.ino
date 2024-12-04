@@ -449,10 +449,10 @@ void updateLastDetectionLine() {
 
 void updateLastRequest() {
   //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 85);
+  lcd.setCursor(200, 85);
   lcd.setTextSize(2);
   lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("XXXXXXX");
+  lcd.print("updateLastRequest()");
   lcd.setTextColor(ST77XX_WHITE);
   lcd.print(lastRequestClientID);
 }
@@ -754,33 +754,6 @@ void sendRequest() {
 
     Serial.println("SENT ARM/DISARM REQUEST TO SHOCK CENTER");
   }
-  delay(2500);
-  lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
-
-    // Common icon display settings
-    lcd.setCursor(276, 0);
-    lcd.setTextSize(6);
-
-    if (isArmed == " N/A ") {
-        lcd.setTextColor(ST77XX_WHITE);
-        lcd.print("?");
-    } else if (isArmed == "ARMED") {
-        lcd.setTextColor(ST77XX_RED);
-        lcd.print("8");
-        lcd.fillRect(273, 18, 36, 1, ST77XX_CYAN); // Divider
-        lcd.fillRect(273, 18, 36, 24, ST77XX_RED); // Bottom part of "8"
-    } else if (isArmed == "DISAR") {
-        lcd.setTextColor(ST77XX_CYAN);
-        lcd.print("8");
-        lcd.fillRect(298, 6, 24, 12, ST77XX_BLACK); // Clear top-right of "8"
-        lcd.fillRect(273, 18, 36, 24, ST77XX_CYAN); // Bottom part of "8"
-        lcd.fillRect(273, 18, 36, 1, ST77XX_BLACK); // Clear divider
-    }
-
-    // Display the state text below the icon
-    lcd.setCursor(260, 43);
-    lcd.setTextSize(2);
-    lcd.print(isArmed);
 }
 
 

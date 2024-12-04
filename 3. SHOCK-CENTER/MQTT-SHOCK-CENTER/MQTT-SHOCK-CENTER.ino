@@ -42,6 +42,11 @@ bool isArmed = false;
 const char* mqtt_topic_SHOCK_CENTER = "SHOCK-CENTER";
 const char* clientID = "RESV-SHOCKER";
 
+String requestedClientID = "";
+String requestedTime = "";
+String requestedStatus = "";
+
+
 
 // Root certificate
 const char* root_ca = R"EOF(
@@ -200,15 +205,68 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
                 }
               }
 
-              // Update callback to handle WORKOUT-TIMER messages
-              void callback(char* topic, byte* payload, unsigned int length) {
-                String message = "";
-                for (unsigned int i = 0; i < length; i++) {
-                  message += (char)payload[i];
-                }
+void callback(char* topic, byte* payload, unsigned int length) {
+    // Convert payload to a string
+    String message = "";
+    for (unsigned int i = 0; i < length; i++) {
+        message += (char)payload[i];
+    }
+    message.trim(); // Remove leading/trailing whitespace
 
-  Serial.println("RESV-SHOCKER RCVD [" + String(topic) + "]: " + message);
+    // Debug: Print raw message and topic
+    Serial.println("RESV-SHOCKER RCVD [" + String(topic) + "]: " + message);
+
+    // Ensure we are processing CENTRAL-HUB messages
+    if (String(topic) != mqtt_topic_CENTRAL_HUB) {
+        Serial.println("Ignored: Not from CENTRAL-HUB.");
+        return;
+    }
+
+    // Validate the message contains "REQUESTED ARM" or "REQUESTED DISARM"
+    if (message.indexOf("REQUESTED ARM") == -1 && message.indexOf("REQUESTED DISARM") == -1) {
+        Serial.println("Ignored: No valid REQUESTED ARM or REQUESTED DISARM command.");
+        return;
+    }
+
+    // Debug: Check message delimiters
+    int pos1 = message.indexOf('|');
+    int pos2 = message.indexOf('|', pos1 + 1);
+
+    // Validate positions of the delimiters
+    if (pos1 == -1 || pos2 == -1) {
+        Serial.println("Error: Invalid message format");
+        return;
+    }
+
+    // Extract ClientID
+    requestedClientID = message.substring(0, pos1);
+    requestedClientID.trim();
+    Serial.println("Parsed ClientID: " + requestedClientID);
+
+    // Extract Status (REQUESTED ARM or REQUESTED DISARM)
+    requestedStatus = message.substring(pos1 + 1, pos2);
+    requestedStatus.trim();
+    Serial.println("Parsed Status: " + requestedStatus);
+
+    // Extract Date and Time (after the second delimiter)
+    requestedTime = message.substring(pos2 + 1);
+    requestedTime.trim();
+    Serial.println("Parsed Time: " + requestedTime);
+
+    // Update isArmed based on the requested status
+    if (requestedStatus == "REQUESTED ARM") {
+        isArmed = true;
+        Serial.println("System armed by " + requestedClientID + " at " + requestedTime);
+    } else if (requestedStatus == "REQUESTED DISARM") {
+        isArmed = false;
+        Serial.println("System disarmed by " + requestedClientID + " at " + requestedTime);
+    } else {
+        Serial.println("Error: Unknown status");
+    }
 }
+
+
+
 
               // Reconnect to MQTT broker
               void reconnect() {
