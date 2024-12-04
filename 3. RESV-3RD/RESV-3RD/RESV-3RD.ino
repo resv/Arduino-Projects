@@ -17,7 +17,7 @@
 #define LCD_RST 4
 #define LCD_BLK 32
 
-#define EXTERNAL_BUTTON_PIN 5  // GPIO pin for the external button
+#define EXTERNAL_BUTTON_PIN 22  // GPIO pin for the external button
 #define ONBOARD_BUTTON_PIN 0   // GPIO pin for the onboard button
 
 
@@ -36,7 +36,7 @@ const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB";
 const char* mqtt_topic_NTP = "NTP";
 const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT-TIMER";
 const char* mqtt_topic_SHOCK_CENTER = "SHOCK-CENTER";
-const char* clientID = "RESV-MAIN";
+const char* clientID = "RESV-3RD";
 
 // Root certificate
 const char* root_ca = R"EOF(
@@ -285,7 +285,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     message += (char)payload[i];
   }
 
-  Serial.println("RESV-MAIN RCVD [" + String(topic) + "]: " + message);
+  Serial.println("RESV-3RD RCVD [" + String(topic) + "]: " + message);
 
   // Handle NTP requests
   if (String(topic) == mqtt_topic_NTP && message.endsWith("| NTP REQUEST")) {
