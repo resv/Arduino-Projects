@@ -224,7 +224,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
     // Validate the message contains "REQUESTED ARM" or "REQUESTED DISARM"
     if (message.indexOf("REQUESTED ARM") == -1 && message.indexOf("REQUESTED DISARM") == -1) {
-        Serial.println("Ignored: No valid REQUESTED ARM or REQUESTED DISARM command.");
         return;
     }
 
@@ -262,11 +261,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
         Serial.println("System disarmed by " + requestedClientID + " at " + requestedTime);
     } else {
         Serial.println("Error: Unknown status");
+        return; // Exit if status is invalid
     }
+
+    // Send a confirmation response
+    respondToCentralHub();
 }
-
-
-
 
               // Reconnect to MQTT broker
               void reconnect() {
@@ -398,7 +398,24 @@ void retaliate() {
     digitalWrite(VIBRATION_MOTOR_PIN, LOW);  // Turn the motor off
 }
 
+void respondToCentralHub() {
+    if (requestedClientID.isEmpty() || requestedStatus.isEmpty() || requestedTime.isEmpty()) {
+        Serial.println("Debug: Missing data for response. Skipping publish.");
+        return;
+    }
 
+    // Prepare the confirmation message
+    String action = requestedStatus.indexOf("ARM") != -1 ? "ARM" : "DISARM";
+    String confirmationMessage = requestedClientID + " | " + action + " CONFIRMED | " + requestedTime;
+
+    // Publish the confirmation to the CENTRAL-HUB topic
+    if (client.connected()) {
+        client.publish(mqtt_topic_CENTRAL_HUB, confirmationMessage.c_str());
+        Serial.println("Published confirmation to CENTRAL-HUB: " + confirmationMessage);
+    } else {
+        Serial.println("Error: MQTT client not connected. Failed to publish confirmation.");
+    }
+}
 
 /*
 First lets do MQTT.
