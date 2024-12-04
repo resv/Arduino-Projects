@@ -84,9 +84,11 @@ String dateSinceBoot = "--/--";
 
 // Status line variables
 String statusDetection = "Listening";  //
-String isArmed = " N/A ";              // STATUS: ---
-String lastRequestClientID = "N/A";    // LAST REQUEST: --- (CLIENTID)
-String lastRequestTime = "N/A";        // LAST REQUEST: --- (DATE / TIME)
+String isArmed = "";              // STATUS: ---
+String lastRequestClientID = "";    // LAST REQUEST: --- (CLIENTID)
+String lastRequestStatus = "";      // LAST REQUEST: --- ARM/DISARM REQUESTED
+String lastRequestDate = "";        // LAST REQUEST: --- (DATE)
+String lastRequestTime = "";        // LAST REQUEST: --- (DATE / TIME)
 
 // Define the log size and initialize the log
 const int logSize = 50;
@@ -314,6 +316,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
     updateTotalRetaliationLine(); // Banner retaliation count
     updateShockTimeSinceBoot();  // the top of the top, middle
   }
+  
+   if (String(topic) == mqtt_topic_CENTRAL_HUB) {
+    if (message.indexOf("ARM CONFIRMED") != -1 || message.indexOf("DISARM CONFIRMED") != -1) {
+      // Parse and format the message
+      String formattedMessage = parseAndFormatCentralHubMessage(message);
+      // Update the LCD
+      updateLastRequest();
+    }
+  }
+
 }
 
 // Reconnect to MQTT broker
@@ -446,29 +458,26 @@ void updateLastDetectionLine() {
   }
 }
 
-
 void updateLastRequest() {
-  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(200, 85);
-  lcd.setTextSize(2);
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("updateLastRequest()");
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.print(lastRequestClientID);
+    lcd.fillRect(189, 42, 70, 17, ST77XX_BLACK); // LAST word clear
+    lcd.fillRect(190, 59, 130, 40, ST77XX_BLACK); // Variables word clear
+    if (isArmed == "ARMED"){
+      lcd.setTextColor(ST77XX_ORANGE);
+    } else if (isArmed == "DISAR"){
+      lcd.setTextColor(ST77XX_CYAN);    
+    } else {
+      lcd.setTextColor(ST77XX_GREEN);  
+    }
+      lcd.setCursor(190, 43);
+      lcd.setTextSize(2);
+      lcd.print(" LAST");
+      lcd.setCursor(195, 60);
+      lcd.print(lastRequestClientID);
+      lcd.setCursor(192, 77);
+      lcd.print(lastRequestDate);
+      lcd.setCursor(259, 77);
+      lcd.print(lastRequestTime);
 }
-
-/*
-void updateLastRequestTimeLine() {
-  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 55);                          
-  lcd.setTextSize(2);                               
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("REQUEST ON: ");
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.print(lastRequestTime);           
-}
-*/
-
 
 void updateTotalRetaliationLine() {
     // Lambda function for formatting numbers with commas
@@ -756,12 +765,76 @@ void sendRequest() {
   }
 }
 
+// Function to parse and format CENTRAL-HUB messages
+String parseAndFormatCentralHubMessage(const String& message) {
+  // Find the positions of the delimiters in the original message
+  int pos1 = message.indexOf('|');
+  int pos2 = message.indexOf('|', pos1 + 1);
+  int pos3 = message.lastIndexOf('|');
+
+  // Ensure the positions are valid
+  if (pos1 == -1 || pos2 == -1 || pos3 == -1) {
+    return "Parsing Error: Invalid Message Format";
+  }
+
+  // Extract parts of the message
+  String clientID = message.substring(0, pos1);      // Extract the Client ID
+  clientID.trim();                                   // Trim whitespace
+
+  String status = message.substring(pos1 + 1, pos2); // Extract the status
+  status.trim();                                     // Trim whitespace
+
+  String dateTime = message.substring(pos3 + 1);     // Extract the timestamp
+  dateTime.trim();                                   // Trim whitespace
+
+  // Parse the status for shorthand notation
+  if (status == "ARM CONFIRMED") {
+    status = "A"; // Short for Armed
+  } else if (status == "DISARM CONFIRMED") {
+    status = "D"; // Short for Disarmed
+  }
+
+  // Split date and time from the dateTime string
+  int spacePos = dateTime.indexOf(' ');
+  String date = "N/A";
+  String time = "N/A";
+  if (spacePos != -1) {
+    date = dateTime.substring(0, spacePos);  // Extract full date
+    String fullTime = dateTime.substring(spacePos + 1); // Extract time with seconds
+
+    // Extract HH:MM from the full time (keeping logic for seconds)
+    int colonPos = fullTime.indexOf(':');
+    if (colonPos != -1) {
+      int secondColonPos = fullTime.indexOf(':', colonPos + 1);
+      if (secondColonPos != -1) {
+        time = fullTime.substring(0, secondColonPos); // For HH:MM:SS
+      } else {
+        time = fullTime.substring(0, colonPos + 3); // For HH:MM
+      }
+    }
+
+    // Reformat the date to exclude the year, keeping only MM/DD
+    int slashPos = date.indexOf('/');
+    if (slashPos != -1) {
+      int secondSlashPos = date.indexOf('/', slashPos + 1);
+      if (secondSlashPos != -1) {
+        date = date.substring(0, secondSlashPos); // Trim to MM/DD
+      }
+    }
+  }
+
+  // Update global variables for LCD display
+  lastRequestClientID = clientID;
+  lastRequestStatus = status;
+  lastRequestDate = date;
+  lastRequestTime = time; // HH:MM format
+
+  // Combine the formatted string
+  return date + " " + time + " | " + status + " | " + clientID;
+}
 
 
-//show last request client / time / disarm/arm
 //onboard button to shutdown lcd or not
 //add touch sensor to either arm or disarm
-
 //add external logging/
-
 //cp437
