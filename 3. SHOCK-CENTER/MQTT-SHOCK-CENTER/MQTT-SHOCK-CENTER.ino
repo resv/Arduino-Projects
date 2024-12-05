@@ -14,6 +14,7 @@
 #define VIBRATION_MOTOR_PIN 12
 
 bool isArmed = false;
+bool sensorEnabled = true; // Flag to control sensor detection
 
               // LCD configuration
               #define LCD_WIDTH 170
@@ -327,14 +328,13 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 
 
-              // Loop function
-              void loop() {
-                if (!client.connected()) {
-                  reconnect();
-                }
-                client.loop();
+void loop() {
+    if (!client.connected()) {
+        reconnect();
+    }
+    client.loop();
 
-// Increment `internalTime` every 60 seconds
+    // Increment `internalTime` every 60 seconds
     unsigned long currentMillis = millis();
     if (currentMillis - lastMillis >= 60000) {
         internalTime += 60; // Increment by 60 seconds
@@ -349,50 +349,60 @@ void callback(char* topic, byte* payload, unsigned int length) {
         }
     }
 
-// Vibration Sensor Logic
-if (digitalRead(VIBRATION_SENSOR_PIN) == HIGH) {
-    // Calculate the current time
-    time_t currentTime = internalTime + ((millis() - lastMillis) / 1000); // Add elapsed seconds
-    time_t estTime = currentTime - (5 * 3600); // Adjust for EST (UTC-5)
-    struct tm* timeInfo = gmtime(&estTime);
+    // Check if the sensor detects a vibration
+    if (sensorEnabled && digitalRead(VIBRATION_SENSOR_PIN) == HIGH) {
+        // Calculate the current time
+        time_t currentTime = internalTime + ((millis() - lastMillis) / 1000); // Add elapsed seconds
+        time_t estTime = currentTime - (5 * 3600); // Adjust for EST (UTC-5)
+        struct tm* timeInfo = gmtime(&estTime);
 
-    // Format the time as MM/DD HH:MM:SS
-    char dateTimeBuffer[20];
-    snprintf(dateTimeBuffer, sizeof(dateTimeBuffer), "%02d/%02d %02d:%02d:%02d", 
-             timeInfo->tm_mon + 1, timeInfo->tm_mday, // Month is 0-11; Day is 1-31
-             timeInfo->tm_hour, timeInfo->tm_min, timeInfo->tm_sec);
+        // Format the time as MM/DD HH:MM:SS
+        char dateTimeBuffer[20];
+        snprintf(dateTimeBuffer, sizeof(dateTimeBuffer), "%02d/%02d %02d:%02d:%02d", 
+                 timeInfo->tm_mon + 1, timeInfo->tm_mday, // Month is 0-11; Day is 1-31
+                 timeInfo->tm_hour, timeInfo->tm_min, timeInfo->tm_sec);
 
-    // Construct the message
-    String message = String(clientID) + " | DETECTED SHOCK | " + 
-                     (isArmed ? "ARMED" : "DISARMED") + " | " + dateTimeBuffer;
+        // Construct the message
+        String message = String(clientID) + " | DETECTED SHOCK | " + 
+                         (isArmed ? "ARMED" : "DISARMED") + " | " + dateTimeBuffer;
 
-    // Print to Serial
-    Serial.println(message);
+        // Print to Serial
+        Serial.println(message);
 
-    // Print to LCD
-    lcd.fillScreen(ST77XX_BLACK); // Clear the screen before displaying
-    lcd.setCursor(0, 0);
-    lcd.setTextSize(1); // Adjust text size if needed
-    lcd.print(message);
+        // Print to LCD
+        lcd.fillScreen(ST77XX_BLACK); // Clear the screen before displaying
+        lcd.setCursor(0, 0);
+        lcd.setTextSize(1); // Adjust text size if needed
+        lcd.print(message);
 
-    // Publish to MQTT
-    client.publish(mqtt_topic_SHOCK_CENTER, message.c_str());
+        // Publish to MQTT
+        client.publish(mqtt_topic_SHOCK_CENTER, message.c_str());
 
-    // Retaliate if armed
-    if (isArmed) {
-        retaliate();
+        if (isArmed) {
+            // Temporarily disable the sensor and trigger the vibration motor
+            sensorEnabled = false;
+            retaliate(); // Vibrates for 3 seconds in 500ms on/off cadence
+            delay(3000); // Wait for 3 seconds (duration of retaliate)
+            sensorEnabled = true;
+        } else {
+            // If not armed, log the detection and keep the sensor active
+            Serial.println("Shock detected while disarmed. No action taken.");
+        }
     }
-
-    delay(1000); // Small delay to prevent flooding the Serial Monitor
 }
 
-}
 
-// Retaliate function
+
+
+
 void retaliate() {
-    digitalWrite(VIBRATION_MOTOR_PIN, HIGH); // Turn the motor on
-    delay(500);                         // Vibrate for 500ms
-    digitalWrite(VIBRATION_MOTOR_PIN, LOW);  // Turn the motor off
+    unsigned long startTime = millis();
+    while (millis() - startTime < 3000) { // Vibrate for 3 seconds
+        digitalWrite(VIBRATION_MOTOR_PIN, HIGH); // Turn the motor on
+        delay(200);                              // On for 200ms
+        digitalWrite(VIBRATION_MOTOR_PIN, LOW);  // Turn the motor off
+        delay(200);                              // Off for 200ms
+    }
 }
 
 void respondToCentralHub() {
