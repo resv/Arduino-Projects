@@ -92,7 +92,7 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
               NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000); // UTC, sync every 60 seconds
               unsigned long lastNTPFetch = 0;
               #define SECONDS_IN_A_DAY 86400
-              #define MAX_NTP_RETRIES 5
+              #define MAX_NTP_RETRIES  6307200
               int NTPReadyToPublish = 0;
 
               // Internal time tracking
@@ -349,8 +349,11 @@ void loop() {
         }
     }
 
-    // Check if the sensor detects a vibration
+    // Check if the sensor is enabled and detects a vibration
     if (sensorEnabled && digitalRead(VIBRATION_SENSOR_PIN) == HIGH) {
+        // Disable the sensor temporarily
+        sensorEnabled = false;
+
         // Calculate the current time
         time_t currentTime = internalTime + ((millis() - lastMillis) / 1000); // Add elapsed seconds
         time_t estTime = currentTime - (5 * 3600); // Adjust for EST (UTC-5)
@@ -378,19 +381,16 @@ void loop() {
         // Publish to MQTT
         client.publish(mqtt_topic_SHOCK_CENTER, message.c_str());
 
+        // Trigger the vibration motor
         if (isArmed) {
-            // Temporarily disable the sensor and trigger the vibration motor
-            sensorEnabled = false;
             retaliate(); // Vibrates for 3 seconds in 500ms on/off cadence
-            delay(3000); // Wait for 3 seconds (duration of retaliate)
-            sensorEnabled = true;
-        } else {
-            // If not armed, log the detection and keep the sensor active
-            Serial.println("Shock detected while disarmed. No action taken.");
         }
+
+        // Re-enable the sensor after the vibration operation
+        delay(3000); // Wait for 3 seconds (duration of retaliate)
+        sensorEnabled = true;
     }
 }
-
 
 
 
@@ -399,7 +399,7 @@ void retaliate() {
     unsigned long startTime = millis();
     while (millis() - startTime < 3000) { // Vibrate for 3 seconds
         digitalWrite(VIBRATION_MOTOR_PIN, HIGH); // Turn the motor on
-        delay(200);                              // On for 200ms
+        delay(200);                              // On for 500ms
         digitalWrite(VIBRATION_MOTOR_PIN, LOW);  // Turn the motor off
         delay(200);                              // Off for 200ms
     }
@@ -435,4 +435,6 @@ void respondToCentralHub() {
 //onboard button to either arm or disarm
 //onboard button to shutdown lcd or not
 //add touch sensor to either arm or disarm
-
+//fix non armed reading delay,
+//fix wifi failure
+// fix armed clock time shift.

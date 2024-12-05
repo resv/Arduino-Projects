@@ -101,7 +101,7 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);  // UTC, sync every 60 seconds
 unsigned long lastNTPFetch = 0;
 #define SECONDS_IN_A_DAY 86400
-#define MAX_NTP_RETRIES 5
+#define MAX_NTP_RETRIES 6307200
 int NTPReadyToPublish = 0;
 
 // Internal time tracking
