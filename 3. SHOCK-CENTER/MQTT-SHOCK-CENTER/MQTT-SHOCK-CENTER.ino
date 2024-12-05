@@ -401,8 +401,16 @@ void respondToCentralHub() {
         return;
     }
 
+    String action = "N/A";
+
+    if (isArmed == true){
+      action = "ARM";
+    } else if (isArmed == false){
+      action = "DISARM";
+    }
+
     // Prepare the confirmation message
-    String action = requestedStatus.indexOf("ARM") != -1 ? "ARM" : "DISARM";
+    //String action = requestedStatus.indexOf("ARM") != -1 ? "ARM" : "DISARM";
     String confirmationMessage = requestedClientID + " | " + action + " CONFIRMED | " + requestedTime;
 
     // Publish the confirmation to the CENTRAL-HUB topic

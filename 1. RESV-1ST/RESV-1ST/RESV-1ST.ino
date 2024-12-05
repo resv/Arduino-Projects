@@ -750,7 +750,6 @@ void sendRequest() {
     lcd.setTextSize(2);
     lcd.print("SENT!");
 
-    Serial.println("SENT ARM/DISARM REQUEST TO SHOCK CENTER"); 
   } else {
     lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
     lcd.setTextColor(ST77XX_RED);
