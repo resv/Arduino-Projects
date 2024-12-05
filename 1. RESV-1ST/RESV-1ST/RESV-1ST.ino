@@ -740,9 +740,6 @@ void sendRequest() {
     // Construct MQTT message
     String mqttMessage = String(clientID) + " | " + action + " | " + String(dateBuffer) + " " + String(time24Buffer);
 
-    // Debug print
-    Serial.println("MQTT Message: " + mqttMessage);
-
     // Publish MQTT message
     if (client.connected()) {
         client.publish(mqtt_topic_CENTRAL_HUB, mqttMessage.c_str());
