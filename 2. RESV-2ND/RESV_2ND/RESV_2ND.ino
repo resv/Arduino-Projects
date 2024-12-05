@@ -36,7 +36,7 @@ const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB";
 const char* mqtt_topic_NTP = "NTP";
 const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT-TIMER";
 const char* mqtt_topic_SHOCK_CENTER = "SHOCK-CENTER";
-const char* clientID = "RESV-1ST";
+const char* clientID = "RESV-2ND";
 
 // Root certificate
 const char* root_ca = R"EOF(
@@ -285,7 +285,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     message += (char)payload[i];
   }
 
-  Serial.println("RESV-1ST RCVD [" + String(topic) + "]: " + message);
+  Serial.println("RESV-2ND RCVD [" + String(topic) + "]: " + message);
 
   // Handle NTP requests
   if (String(topic) == mqtt_topic_NTP && message.endsWith("| NTP REQUEST")) {
@@ -323,7 +323,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
       String formattedMessage = parseAndFormatCentralHubMessage(message);
       // Update the LCD
       updateLastRequest();
-      updateIsArmedLine();
     }
   }
 
@@ -722,53 +721,46 @@ void buttonPressToggle() {
 }
 
 void sendRequest() {
-    // Recalculate the current time using elapsed millis
-    time_t currentTime = internalTime + (millis() - lastMillis) / 1000; // Add elapsed seconds
-    const int estOffset = -5 * 3600;  // Offset for EST (UTC-5)
-    time_t estTime = currentTime + estOffset;  // Adjusted time for EST
-    struct tm* estTimeInfo = gmtime(&estTime);
+  // Use the already calculated EST time and date
+  const int estOffset = -5 * 3600;  // Offset for EST (UTC-5)
+  time_t estTime = internalTime + estOffset;  // Adjusted time for EST
+  struct tm* estTimeInfo = gmtime(&estTime);
 
-    // Format the date and time
-    char dateBuffer[20];
-    char time24Buffer[10];
-    strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", estTimeInfo);       // MM/DD
-    strftime(time24Buffer, sizeof(time24Buffer), "%H:%M:%S", estTimeInfo); // HH:MM:SS (24-hour format)
+  // Format the date and time
+  char dateBuffer[20];
+  char time24Buffer[10];
+  strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", estTimeInfo);       // MM/DD
+  strftime(time24Buffer, sizeof(time24Buffer), "%H:%M:%S", estTimeInfo); // HH:MM:SS (24-hour format)
 
-    // Determine action
-    String action = (isArmed == "DISAR") ? "REQUESTED ARM" : "REQUESTED DISARM";
+  // Format MQTT message without the extra "[CENTRAL-HUB]:"
+  String action = (isArmed == "DISAR") ? "REQUESTED ARM" : "REQUESTED DISARM";
+  String mqttMessage = String(clientID) + " | " + action + " | " + String(dateBuffer) + " " + String(time24Buffer);
 
-    // Construct MQTT message
-    String mqttMessage = String(clientID) + " | " + action + " | " + String(dateBuffer) + " " + String(time24Buffer);
+  // Publish MQTT message
+  if (client.connected()) {
+    client.publish(mqtt_topic_CENTRAL_HUB, mqttMessage.c_str());
+    
+    // SENT ICON and text
+    lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
+    lcd.setTextColor(ST77XX_GREEN);
+    lcd.setCursor(274, -3);
+    lcd.setTextSize(6);
+    lcd.write(0x18);
+    lcd.setCursor(260, 43);
+    lcd.setTextSize(2);
+    lcd.print("SENT!");
 
-    // Debug print
-    Serial.println("MQTT Message: " + mqttMessage);
-
-    // Publish MQTT message
-    if (client.connected()) {
-        client.publish(mqtt_topic_CENTRAL_HUB, mqttMessage.c_str());
-        
-        // Display success indicator on LCD
-        lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
-        lcd.setTextColor(ST77XX_GREEN);
-        lcd.setCursor(274, -3);
-        lcd.setTextSize(6);
-        lcd.write(0x18); // Success icon
-        lcd.setCursor(260, 43);
-        lcd.setTextSize(2);
-        lcd.print("SENT!");
-    } else {
-        // Display failure indicator on LCD
-        lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
-        lcd.setTextColor(ST77XX_RED);
-        lcd.setCursor(274, -3);
-        lcd.setTextSize(6);
-        lcd.write(0x21); // Failure icon
-        lcd.setCursor(260, 43);
-        lcd.setTextSize(2);
-        lcd.print("FAIL!");
-    }
+  } else {
+    lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
+    lcd.setTextColor(ST77XX_RED);
+    lcd.setCursor(274, -3);
+    lcd.setTextSize(6);
+    lcd.write(0x21);
+    lcd.setCursor(260, 43);
+    lcd.setTextSize(2);
+    lcd.print("FAIL!");
+  }
 }
-
 
 // Function to parse and format CENTRAL-HUB messages
 String parseAndFormatCentralHubMessage(const String& message) {
@@ -795,10 +787,8 @@ String parseAndFormatCentralHubMessage(const String& message) {
   // Parse the status for shorthand notation
   if (status == "ARM CONFIRMED") {
     status = "A"; // Short for Armed
-    isArmed = "ARMED";
   } else if (status == "DISARM CONFIRMED") {
     status = "D"; // Short for Disarmed
-    isArmed = "DISAR";
   }
 
   // Split date and time from the dateTime string

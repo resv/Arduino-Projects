@@ -101,7 +101,7 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);  // UTC, sync every 60 seconds
 unsigned long lastNTPFetch = 0;
 #define SECONDS_IN_A_DAY 86400
-#define MAX_NTP_RETRIES 5
+#define MAX_NTP_RETRIES 6307200
 int NTPReadyToPublish = 0;
 
 // Internal time tracking
@@ -750,7 +750,6 @@ void sendRequest() {
     lcd.setTextSize(2);
     lcd.print("SENT!");
 
-    Serial.println("SENT ARM/DISARM REQUEST TO SHOCK CENTER"); 
   } else {
     lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
     lcd.setTextColor(ST77XX_RED);
@@ -760,8 +759,6 @@ void sendRequest() {
     lcd.setCursor(260, 43);
     lcd.setTextSize(2);
     lcd.print("FAIL!");
-
-    Serial.println("SENT ARM/DISARM REQUEST TO SHOCK CENTER");
   }
 }
 
