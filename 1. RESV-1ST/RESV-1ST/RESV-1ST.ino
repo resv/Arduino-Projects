@@ -760,8 +760,6 @@ void sendRequest() {
     lcd.setCursor(260, 43);
     lcd.setTextSize(2);
     lcd.print("FAIL!");
-
-    Serial.println("SENT ARM/DISARM REQUEST TO SHOCK CENTER");
   }
 }
 

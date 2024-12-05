@@ -240,17 +240,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
     // Extract ClientID
     requestedClientID = message.substring(0, pos1);
     requestedClientID.trim();
-    Serial.println("Parsed ClientID: " + requestedClientID);
 
     // Extract Status (REQUESTED ARM or REQUESTED DISARM)
     requestedStatus = message.substring(pos1 + 1, pos2);
     requestedStatus.trim();
-    Serial.println("Parsed Status: " + requestedStatus);
 
     // Extract Date and Time (after the second delimiter)
     requestedTime = message.substring(pos2 + 1);
     requestedTime.trim();
-    Serial.println("Parsed Time: " + requestedTime);
 
     // Update isArmed based on the requested status
     if (requestedStatus == "REQUESTED ARM") {
@@ -411,7 +408,6 @@ void respondToCentralHub() {
     // Publish the confirmation to the CENTRAL-HUB topic
     if (client.connected()) {
         client.publish(mqtt_topic_CENTRAL_HUB, confirmationMessage.c_str());
-        Serial.println("Published confirmation to CENTRAL-HUB: " + confirmationMessage);
     } else {
         Serial.println("Error: MQTT client not connected. Failed to publish confirmation.");
     }
