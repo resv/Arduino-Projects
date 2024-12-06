@@ -323,6 +323,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       String formattedMessage = parseAndFormatCentralHubMessage(message);
       // Update the LCD
       updateLastRequest();
+      updateIsArmedLine();
     }
   }
 
@@ -721,46 +722,50 @@ void buttonPressToggle() {
 }
 
 void sendRequest() {
-  // Use the already calculated EST time and date
-  const int estOffset = -5 * 3600;  // Offset for EST (UTC-5)
-  time_t estTime = internalTime + estOffset;  // Adjusted time for EST
-  struct tm* estTimeInfo = gmtime(&estTime);
+    // Recalculate the current time using elapsed millis
+    time_t currentTime = internalTime + (millis() - lastMillis) / 1000; // Add elapsed seconds
+    const int estOffset = -5 * 3600;  // Offset for EST (UTC-5)
+    time_t estTime = currentTime + estOffset;  // Adjusted time for EST
+    struct tm* estTimeInfo = gmtime(&estTime);
 
-  // Format the date and time
-  char dateBuffer[20];
-  char time24Buffer[10];
-  strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", estTimeInfo);       // MM/DD
-  strftime(time24Buffer, sizeof(time24Buffer), "%H:%M:%S", estTimeInfo); // HH:MM:SS (24-hour format)
+    // Format the date and time
+    char dateBuffer[20];
+    char time24Buffer[10];
+    strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", estTimeInfo);       // MM/DD
+    strftime(time24Buffer, sizeof(time24Buffer), "%H:%M:%S", estTimeInfo); // HH:MM:SS (24-hour format)
 
-  // Format MQTT message without the extra "[CENTRAL-HUB]:"
-  String action = (isArmed == "DISAR") ? "REQUESTED ARM" : "REQUESTED DISARM";
-  String mqttMessage = String(clientID) + " | " + action + " | " + String(dateBuffer) + " " + String(time24Buffer);
+    // Determine action
+    String action = (isArmed == "DISAR") ? "REQUESTED ARM" : "REQUESTED DISARM";
 
-  // Publish MQTT message
-  if (client.connected()) {
-    client.publish(mqtt_topic_CENTRAL_HUB, mqttMessage.c_str());
-    
-    // SENT ICON and text
-    lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
-    lcd.setTextColor(ST77XX_GREEN);
-    lcd.setCursor(274, -3);
-    lcd.setTextSize(6);
-    lcd.write(0x18);
-    lcd.setCursor(260, 43);
-    lcd.setTextSize(2);
-    lcd.print("SENT!");
+    // Construct MQTT message
+    String mqttMessage = String(clientID) + " | " + action + " | " + String(dateBuffer) + " " + String(time24Buffer);
 
-  } else {
-    lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
-    lcd.setTextColor(ST77XX_RED);
-    lcd.setCursor(274, -3);
-    lcd.setTextSize(6);
-    lcd.write(0x21);
-    lcd.setCursor(260, 43);
-    lcd.setTextSize(2);
-    lcd.print("FAIL!");
-  }
+    // Publish MQTT message
+    if (client.connected()) {
+        client.publish(mqtt_topic_CENTRAL_HUB, mqttMessage.c_str());
+        
+        // Display success indicator on LCD
+        lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
+        lcd.setTextColor(ST77XX_GREEN);
+        lcd.setCursor(274, -3);
+        lcd.setTextSize(6);
+        lcd.write(0x18); // Success icon
+        lcd.setCursor(260, 43);
+        lcd.setTextSize(2);
+        lcd.print("SENT!");
+    } else {
+        // Display failure indicator on LCD
+        lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
+        lcd.setTextColor(ST77XX_RED);
+        lcd.setCursor(274, -3);
+        lcd.setTextSize(6);
+        lcd.write(0x21); // Failure icon
+        lcd.setCursor(260, 43);
+        lcd.setTextSize(2);
+        lcd.print("FAIL!");
+    }
 }
+
 
 // Function to parse and format CENTRAL-HUB messages
 String parseAndFormatCentralHubMessage(const String& message) {
@@ -787,8 +792,10 @@ String parseAndFormatCentralHubMessage(const String& message) {
   // Parse the status for shorthand notation
   if (status == "ARM CONFIRMED") {
     status = "A"; // Short for Armed
+    isArmed = "ARMED";
   } else if (status == "DISARM CONFIRMED") {
     status = "D"; // Short for Disarmed
+    isArmed = "DISAR";
   }
 
   // Split date and time from the dateTime string
