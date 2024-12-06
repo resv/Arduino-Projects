@@ -9,12 +9,20 @@
 
 //Vibration Sensor Pin
 #define VIBRATION_SENSOR_PIN 13  // Digital pin connected to SW-420 (change as needed)
-#define DEBOUNCE_DELAY 50        // Debounce time in milliseconds
+#define DEBOUNCE_DELAY 100        // Debounce time in milliseconds
 //Vibration Motor
 #define VIBRATION_MOTOR_PIN 12
 
 bool isArmed = false;
 bool sensorEnabled = true; // Flag to control sensor detection
+
+unsigned long lastVibrationTime = 0; // Tracks the last vibration event
+unsigned long motorToggleTime = 0;  // Tracks motor on/off toggle time
+bool motorActive = false;           // Indicates whether motor is active
+unsigned long vibrationDelay = 4000; // Delay between detections when armed
+unsigned long motorOnTime = 200;    // Motor ON duration in milliseconds
+unsigned long motorOffTime = 200;   // Motor OFF duration in milliseconds
+
 
               // LCD configuration
               #define LCD_WIDTH 170
@@ -256,6 +264,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
         Serial.println("System armed by " + requestedClientID + " at " + requestedTime);
     } else if (requestedStatus == "REQUESTED DISARM") {
         isArmed = false;
+
+        // Disable motor immediately
+        motorActive = false;
+        digitalWrite(VIBRATION_MOTOR_PIN, LOW);
+
         Serial.println("System disarmed by " + requestedClientID + " at " + requestedTime);
     } else {
         Serial.println("Error: Unknown status");
@@ -265,6 +278,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     // Send a confirmation response
     respondToCentralHub();
 }
+
 
               // Reconnect to MQTT broker
               void reconnect() {
@@ -291,105 +305,70 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
               // Setup function
               void setup() {
-                Serial.begin(115200);
-                setup_wifi();
-                pinMode(VIBRATION_SENSOR_PIN, INPUT); // Configure pin as input
-                pinMode(VIBRATION_MOTOR_PIN, OUTPUT);
-                digitalWrite(VIBRATION_MOTOR_PIN, LOW); // Ensure motor is off initially
+    Serial.begin(115200);
+    setup_wifi();
+    pinMode(VIBRATION_SENSOR_PIN, INPUT);
+    pinMode(VIBRATION_MOTOR_PIN, OUTPUT);
+    digitalWrite(VIBRATION_MOTOR_PIN, LOW); // Ensure motor is off initially
 
-                espClient.setCACert(root_ca);
-                client.setServer(mqtt_server, mqtt_port);
-                client.setCallback(callback);
+    lastVibrationTime = millis();
+    motorActive = false;
 
-                lcd.init(LCD_WIDTH, LCD_HEIGHT);
-                lcd.setRotation(1);
-                lcd.fillScreen(ST77XX_BLACK);
+    espClient.setCACert(root_ca);
+    client.setServer(mqtt_server, mqtt_port);
+    client.setCallback(callback);
 
-                lcd.setCursor(0, 0);
-                lcd.setTextSize(2);
-                lcd.setTextColor(ST77XX_WHITE);
-                lcd.println("Fetching NTP...");
-                lcd.println("Please wait...");
+    lcd.init(LCD_WIDTH, LCD_HEIGHT);
+    lcd.setRotation(1);
+    lcd.fillScreen(ST77XX_BLACK);
 
-                timeClient.begin();
+    lcd.setCursor(0, 0);
+    lcd.setTextSize(2);
+    lcd.setTextColor(ST77XX_WHITE);
+    lcd.println("Fetching NTP...");
+    lcd.println("Please wait...");
 
-                if (fetchAndSetNTPTime()) {
-                  lastNTPFetch = millis();
-                } else {
-                  Serial.println("Using default time.");
-                  internalTime = 1321019471; // 11/11/11 11:11 UTC
-                }
+    timeClient.begin();
 
-                displayTimezones();
-              }
+    if (fetchAndSetNTPTime()) {
+        lastNTPFetch = millis();
+    } else {
+        Serial.println("Using default time.");
+        internalTime = 1321019471; // 11/11/11 11:11 UTC
+    }
 
+    displayTimezones();
+}
 
 
 
 
 
 void loop() {
+    // Ensure MQTT client is connected
     if (!client.connected()) {
         reconnect();
     }
-    client.loop();
+    client.loop(); // Process MQTT messages
+
+    unsigned long currentMillis = millis();
 
     // Increment `internalTime` every 60 seconds
-    unsigned long currentMillis = millis();
     if (currentMillis - lastMillis >= 60000) {
         internalTime += 60; // Increment by 60 seconds
-        displayTimezones();
+        displayTimezones(); // Update LCD display
         lastMillis = currentMillis;
     }
 
-    // Update time from NTP once a day
-    if (millis() - lastNTPFetch >= SECONDS_IN_A_DAY * 1000) {
+    // Update NTP time once a day
+    if (currentMillis - lastNTPFetch >= SECONDS_IN_A_DAY * 1000) {
         if (fetchAndSetNTPTime()) {
-            lastNTPFetch = millis();
+            lastNTPFetch = currentMillis;
         }
     }
 
-    // Check if the sensor is enabled and detects a vibration
-    if (sensorEnabled && digitalRead(VIBRATION_SENSOR_PIN) == HIGH) {
-        // Disable the sensor temporarily
-        sensorEnabled = false;
-
-        // Calculate the current time
-        time_t currentTime = internalTime + ((millis() - lastMillis) / 1000); // Add elapsed seconds
-        time_t estTime = currentTime - (5 * 3600); // Adjust for EST (UTC-5)
-        struct tm* timeInfo = gmtime(&estTime);
-
-        // Format the time as MM/DD HH:MM:SS
-        char dateTimeBuffer[20];
-        snprintf(dateTimeBuffer, sizeof(dateTimeBuffer), "%02d/%02d %02d:%02d:%02d", 
-                 timeInfo->tm_mon + 1, timeInfo->tm_mday, // Month is 0-11; Day is 1-31
-                 timeInfo->tm_hour, timeInfo->tm_min, timeInfo->tm_sec);
-
-        // Construct the message
-        String message = String(clientID) + " | DETECTED SHOCK | " + 
-                         (isArmed ? "ARMED" : "DISARMED") + " | " + dateTimeBuffer;
-
-        // Print to Serial
-        Serial.println(message);
-
-        // Print to LCD
-        lcd.fillScreen(ST77XX_BLACK); // Clear the screen before displaying
-        lcd.setCursor(0, 0);
-        lcd.setTextSize(1); // Adjust text size if needed
-        lcd.print(message);
-
-        // Publish to MQTT
-        client.publish(mqtt_topic_SHOCK_CENTER, message.c_str());
-
-        // Trigger the vibration motor
-        if (isArmed) {
-            retaliate(); // Vibrates for 3 seconds in 500ms on/off cadence
-        }
-
-        // Re-enable the sensor after the vibration operation
-        delay(3000); // Wait for 3 seconds (duration of retaliate)
-        sensorEnabled = true;
-    }
+    // Vibration handling logic
+    handleVibration();
 }
 
 
@@ -430,6 +409,66 @@ void respondToCentralHub() {
         Serial.println("Error: MQTT client not connected. Failed to publish confirmation.");
     }
 }
+
+void handleVibration() {
+    unsigned long currentMillis = millis();
+    unsigned long detectionDelay = isArmed ? vibrationDelay : 1000; // 1 sec delay when disarmed
+
+    // Check for vibration detection
+    if (digitalRead(VIBRATION_SENSOR_PIN) == HIGH) {
+        if (currentMillis - lastVibrationTime >= detectionDelay) {
+            // Log shock event
+            time_t currentTime = internalTime + ((currentMillis - lastMillis) / 1000);
+            time_t estTime = currentTime - (5 * 3600); // Adjust for EST
+            struct tm* timeInfo = gmtime(&estTime);
+
+            char dateTimeBuffer[20];
+            snprintf(dateTimeBuffer, sizeof(dateTimeBuffer), "%02d/%02d %02d:%02d:%02d", 
+                     timeInfo->tm_mon + 1, timeInfo->tm_mday,
+                     timeInfo->tm_hour, timeInfo->tm_min, timeInfo->tm_sec);
+
+            String message = String(clientID) + " | DETECTED SHOCK | " +
+                             (isArmed ? "ARMED" : "DISARMED") + " | " + dateTimeBuffer;
+
+            // Print to Serial and LCD
+            Serial.println(message);
+            lcd.fillScreen(ST77XX_BLACK);
+            lcd.setCursor(0, 0);
+            lcd.setTextSize(1);
+            lcd.print(message);
+
+            // Publish to MQTT
+            client.publish(mqtt_topic_SHOCK_CENTER, message.c_str());
+
+            lastVibrationTime = currentMillis;
+
+            // Activate motor if armed
+            if (isArmed) {
+                motorActive = true;
+                motorToggleTime = currentMillis;
+                digitalWrite(VIBRATION_MOTOR_PIN, HIGH);
+            }
+        }
+    }
+
+    // Handle motor toggle if active
+    if (motorActive) {
+        if ((currentMillis - motorToggleTime >= motorOnTime) && digitalRead(VIBRATION_MOTOR_PIN) == HIGH) {
+            digitalWrite(VIBRATION_MOTOR_PIN, LOW); // Turn motor off
+            motorToggleTime = currentMillis;       // Reset toggle timer
+        } else if ((currentMillis - motorToggleTime >= motorOffTime) && digitalRead(VIBRATION_MOTOR_PIN) == LOW) {
+            digitalWrite(VIBRATION_MOTOR_PIN, HIGH); // Turn motor on
+            motorToggleTime = currentMillis;        // Reset toggle timer
+        }
+
+        // Stop motor after vibration delay
+        if (currentMillis - lastVibrationTime >= vibrationDelay) {
+            motorActive = false;
+            digitalWrite(VIBRATION_MOTOR_PIN, LOW); // Ensure motor is off
+        }
+    }
+}
+
 
 
 //onboard button to either arm or disarm
