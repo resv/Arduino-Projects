@@ -331,18 +331,24 @@ void callback(char* topic, byte* payload, unsigned int length) {
     lcd.setTextSize(2);
     lcd.setTextColor(ST77XX_WHITE);
     lcd.println("Fetching NTP...");
-    lcd.println("Please wait...");
 
     timeClient.begin();
 
     if (fetchAndSetNTPTime()) {
         lastNTPFetch = millis();
+        lcd.fillRect(0, 0, 320, 25, ST77XX_BLACK);
+
     } else {
         Serial.println("Using default time.");
         internalTime = 1321019471; // 11/11/11 11:11 UTC
     }
 
-    displayTimezones();
+            lcd.fillRect(25, 70, 295, 100, ST77XX_BLACK);
+            lcd.setCursor(25, 70);
+            lcd.setTextSize(5);
+            lcd.setTextColor(ST77XX_GREEN);
+            lcd.println("LISTENING");
+    //displayTimezones();
 }
 
 
@@ -361,7 +367,7 @@ void loop() {
     // Increment `internalTime` every 60 seconds
     if (currentMillis - lastMillis >= 60000) {
         internalTime += 60; // Increment by 60 seconds
-        displayTimezones(); // Update LCD display
+        //displayTimezones(); // Update LCD display
         lastMillis = currentMillis;
     }
 
@@ -437,10 +443,29 @@ void handleVibration() {
 
             // Print to Serial and LCD
             Serial.println(message);
-            lcd.fillScreen(ST77XX_BLACK);
+            lcd.fillRect(0, 0, 320, 35, ST77XX_BLACK);
             lcd.setCursor(0, 0);
-            lcd.setTextSize(1);
-            lcd.print(message);
+            lcd.setTextSize(2);
+            lcd.setTextColor(ST77XX_WHITE);
+            lcd.println(String(clientID) + "     " + String(isArmed ? "ARMED" : "DISARMED"));
+            lcd.setCursor(80, 17);
+            lcd.println(dateTimeBuffer);
+
+            if (isArmed == true){
+              lcd.fillRect(25, 70, 295, 100, ST77XX_BLACK);
+              lcd.setCursor(25, 70);
+              lcd.setTextSize(5);
+              lcd.setTextColor(ST77XX_RED);
+              lcd.println(" FIRING ");
+            } else if (isArmed == false){
+                lcd.fillRect(25, 70, 295, 100, ST77XX_BLACK);
+                lcd.setCursor(25, 70);
+                lcd.setTextSize(5);
+                lcd.setTextColor(ST77XX_WHITE);
+                lcd.println(" DETECTED ");
+            }
+
+           
 
             // Publish to MQTT
             client.publish(mqtt_topic_SHOCK_CENTER, message.c_str());
@@ -457,10 +482,19 @@ void handleVibration() {
                 digitalWrite(VIBRATION_MOTOR_PIN, HIGH);
             }
         }
+
+            lcd.fillRect(30, 70, 290, 100, ST77XX_BLACK);
+            lcd.setCursor(30, 70);
+            lcd.setTextSize(5);
+            lcd.setTextColor(ST77XX_GREEN);
+            lcd.println("LISTENING");
     }
 
     // Handle motor toggle if active
     if (motorActive) {
+
+                
+
         if ((currentMillis - motorToggleTime >= motorOnTime) && digitalRead(VIBRATION_MOTOR_PIN) == HIGH) {
             digitalWrite(VIBRATION_MOTOR_PIN, LOW); // Turn motor off
             motorToggleTime = currentMillis;       // Reset toggle timer
