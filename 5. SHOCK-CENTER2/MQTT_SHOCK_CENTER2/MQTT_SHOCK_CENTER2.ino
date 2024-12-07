@@ -238,10 +238,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
     // Validate the message contains "REQUESTED ARM" or "REQUESTED DISARM"
     if (message.indexOf("REQUESTED ARM") == -1 && message.indexOf("REQUESTED DISARM") == -1) {
+        Serial.println("Ignored: No ARM/DISARM request found.");
         return;
     }
 
-    // Debug: Check message delimiters
+    // Parse message content
     int pos1 = message.indexOf('|');
     int pos2 = message.indexOf('|', pos1 + 1);
 
@@ -279,6 +280,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
         Serial.println("Error: Unknown status");
         return; // Exit if status is invalid
     }
+
+    // Send data to Google Sheets
+    sendRequestsToSheets(requestedClientID, requestedStatus, isArmed ? "ARMED" : "DISARMED", requestedTime);
 
     // Send a confirmation response
     respondToCentralHub();
@@ -401,25 +405,28 @@ void respondToCentralHub() {
         return;
     }
 
-    String action = "N/A";
+    String action = isArmed ? "ARM" : "DISARM";
 
-    if (isArmed == true){
-      action = "ARM";
-    } else if (isArmed == false){
-      action = "DISARM";
-    }
-
-    // Prepare the confirmation message
-    //String action = requestedStatus.indexOf("ARM") != -1 ? "ARM" : "DISARM";
+    // Prepare the confirmation message for MQTT
     String confirmationMessage = requestedClientID + " | " + action + " CONFIRMED | " + requestedTime;
 
     // Publish the confirmation to the CENTRAL-HUB topic
     if (client.connected()) {
         client.publish(mqtt_topic_CENTRAL_HUB, confirmationMessage.c_str());
+        Serial.println("Published to CENTRAL-HUB: " + confirmationMessage);
+
+        // Correctly format status for Google Sheets
+        String status = requestedClientID + " " + action + " CONFIRMED";
+        String armed = isArmed ? "ARMED" : "DISARMED";
+
+        // Send confirmation to Google Sheets
+        sendConfirmationsToSheets(clientID, status, armed, requestedTime);
     } else {
         Serial.println("Error: MQTT client not connected. Failed to publish confirmation.");
     }
 }
+
+
 
 void handleVibration() {
     unsigned long currentMillis = millis();
@@ -471,7 +478,7 @@ void handleVibration() {
             client.publish(mqtt_topic_SHOCK_CENTER, message.c_str());
 
             // Send data to Google Sheets
-            sendDataToGoogleSheets(clientID, "DETECTED SHOCK", isArmed ? "ARMED" : "DISARMED", dateTimeBuffer);
+            sendDetectionsToSheets(clientID, "DETECTED SHOCK", isArmed ? "ARMED" : "DISARMED", dateTimeBuffer);
 
             lastVibrationTime = currentMillis;
 
@@ -511,7 +518,7 @@ void handleVibration() {
     }
 }
 
-void sendDataToGoogleSheets(String clientID, String status, String armed, String dateTimeBuffer) {
+void sendDetectionsToSheets(String clientID, String status, String armed, String dateTimeBuffer) {
     if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
 
@@ -536,6 +543,74 @@ void sendDataToGoogleSheets(String clientID, String status, String armed, String
         Serial.println("WiFi Disconnected");
     }
 }
+
+void sendRequestsToSheets(String requestedClientID, String status, String armed, String fullTimestamp) {
+    if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+
+        http.begin(googleSheetURL);
+        http.addHeader("Content-Type", "application/json");
+
+        // Create JSON payload with the specified format
+        String payload = "{\n";
+        payload += "  \"clientID\": \"" + String(clientID) + "\",\n";  // Ensure clientID is treated as String
+        payload += "  \"status\": \"" + requestedClientID + " " + status + "\",\n";
+        payload += "  \"armed\": \"" + armed + "\",\n";
+        payload += "  \"dateTime\": \"" + fullTimestamp + "\"\n";
+        payload += "}";
+
+        // Print the payload for debugging
+        Serial.println("Payload:\n" + payload);
+
+        // Send HTTP POST request
+        int httpResponseCode = http.POST(payload);
+
+        if (httpResponseCode > 0) {
+            Serial.println("POST Response Code: " + String(httpResponseCode));
+        } else {
+            Serial.println("Error Sending Request Data");
+        }
+
+        http.end(); // Close connection
+    } else {
+        Serial.println("WiFi Disconnected");
+    }
+}
+
+void sendConfirmationsToSheets(String ClientID, String status, String armed, String fullTimestamp) {
+    if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+
+        http.begin(googleSheetURL);
+        http.addHeader("Content-Type", "application/json");
+
+        // Create JSON payload with the specified format
+        String payload = "{\n";
+        payload += "  \"clientID\": \"" + String(clientID) + "\",\n";
+        payload += "  \"status\": \"" + status + "\",\n";
+        payload += "  \"armed\": \"" + armed + "\",\n";
+        payload += "  \"dateTime\": \"" + fullTimestamp + "\"\n";
+        payload += "}";
+
+        // Print the payload for debugging
+        Serial.println("Payload:\n" + payload);
+
+        // Send HTTP POST request
+        int httpResponseCode = http.POST(payload);
+
+        if (httpResponseCode > 0) {
+            Serial.println("POST Response Code: " + String(httpResponseCode));
+        } else {
+            Serial.println("Error Sending Confirmation Data");
+        }
+
+        http.end(); // Close connection
+    } else {
+        Serial.println("WiFi Disconnected");
+    }
+}
+
+
 
 //onboard button to either arm or disarm
 //onboard button to shutdown lcd or not
