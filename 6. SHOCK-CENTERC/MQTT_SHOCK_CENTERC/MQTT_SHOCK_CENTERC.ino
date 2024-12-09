@@ -9,10 +9,10 @@
               #include <HTTPClient.h>
 
 //Vibration Sensor Pin
-#define VIBRATION_SENSOR_PIN 13  // Digital pin connected to SW-420 (change as needed)
+#define VIBRATION_SENSOR_PIN 6  // Digital pin connected to SW-420 (change as needed)
 #define DEBOUNCE_DELAY 100        // Debounce time in milliseconds
 //Vibration Motor
-#define VIBRATION_MOTOR_PIN 12
+#define VIBRATION_MOTOR_PIN 8
 
 bool isArmed = false;
 bool sensorEnabled = true; // Flag to control sensor detection
@@ -25,18 +25,7 @@ unsigned long motorOnTime = 200;    // Motor ON duration in milliseconds
 unsigned long motorOffTime = 200;   // Motor OFF duration in milliseconds
 
 
-              // LCD configuration
-              #define LCD_WIDTH 170
-              #define LCD_HEIGHT 320
-              #define LCD_MOSI 23
-              #define LCD_SCLK 18
-              #define LCD_CS 15
-              #define LCD_DC 2
-              #define LCD_RST 4
-              #define LCD_BLK 32
-
-              Adafruit_ST7789 lcd = Adafruit_ST7789(LCD_CS, LCD_DC, LCD_RST);
-
+       
               // Wi-Fi credentials
               const char* ssid = "icup +1";
               const char* password = "aaaaaaaaa1";
@@ -50,7 +39,7 @@ unsigned long motorOffTime = 200;   // Motor OFF duration in milliseconds
               const char* mqtt_topic_NTP = "NTP";
               const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT-TIMER";
 const char* mqtt_topic_SHOCK_CENTER = "SHOCK-CENTER";
-const char* clientID = "RESV-SHOCKER";
+const char* clientID = "RESV-SHOCKERC";
 
 // Your Google Apps Script Web App URL
 const char* googleSheetURL = "https://script.google.com/macros/s/AKfycbzKXvDaj58CzF-1lKAhrHYrmOnBWA6omiKfFka9gppet9IrAt5zJSLdjh_7r1e9YjU-eQ/exec";
@@ -118,7 +107,7 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
                 WiFi.begin(ssid, password);
                 while (WiFi.status() != WL_CONNECTED) {
                   delay(1000);
-                  Serial.print(".");
+                  Serial.print(".test1");
                 }
                 Serial.println("\nWi-Fi connected! IP: " + WiFi.localIP().toString());
               }
@@ -147,7 +136,7 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
               }
 
               // Display and format all timezone data
-              void displayTimezones() {
+          /*    void displayTimezones() {
                 const int offsets[] = {0, -5, -6, -7, -8};
                 const char* zones[] = {"UTC-0", "EST-5", "CST-6", "MST-7", "PST-8"};
                 char dateBuffer[20];
@@ -170,7 +159,9 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
                   lcd.println(String(zones[i]) + " | " + String(dateBuffer) + " | " +
                               String(time12Buffer) + " | " + String(time24Buffer));
                 }
-              }
+              }  
+
+              */
 
               // Publish timezone data to MQTT
               void publishTimeData() {
@@ -228,7 +219,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     message.trim(); // Remove leading/trailing whitespace
 
     // Debug: Print raw message and topic
-    Serial.println("RESV-SHOCKER RCVD [" + String(topic) + "]: " + message);
+    Serial.println("RESV-SHOCKERC RCVD [" + String(topic) + "]: " + message);
 
     // Ensure we are processing CENTRAL-HUB messages
     if (String(topic) != mqtt_topic_CENTRAL_HUB) {
@@ -316,7 +307,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
               void setup() {
     Serial.begin(115200);
     setup_wifi();
-    pinMode(VIBRATION_SENSOR_PIN, INPUT);
+    //pinMode(VIBRATION_SENSOR_PIN, INPUT);
+    pinMode(VIBRATION_SENSOR_PIN, INPUT_PULLDOWN);
     pinMode(VIBRATION_MOTOR_PIN, OUTPUT);
     digitalWrite(VIBRATION_MOTOR_PIN, LOW); // Ensure motor is off initially
 
@@ -326,8 +318,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
     espClient.setCACert(root_ca);
     client.setServer(mqtt_server, mqtt_port);
     client.setCallback(callback);
-
-    lcd.init(LCD_WIDTH, LCD_HEIGHT);
+ /* 
+  lcd.init(LCD_WIDTH, LCD_HEIGHT);
     lcd.setRotation(1);
     lcd.fillScreen(ST77XX_BLACK);
 
@@ -335,23 +327,27 @@ void callback(char* topic, byte* payload, unsigned int length) {
     lcd.setTextSize(2);
     lcd.setTextColor(ST77XX_WHITE);
     lcd.println("Fetching NTP...");
-
+*/
     timeClient.begin();
 
     if (fetchAndSetNTPTime()) {
         lastNTPFetch = millis();
-        lcd.fillRect(0, 0, 320, 25, ST77XX_BLACK);
+     /*    
+     lcd.fillRect(0, 0, 320, 25, ST77XX_BLACK);
+     */
 
     } else {
         Serial.println("Using default time.");
         internalTime = 1321019471; // 11/11/11 11:11 UTC
     }
-
+        /* 
             lcd.fillRect(25, 70, 295, 100, ST77XX_BLACK);
             lcd.setCursor(25, 70);
             lcd.setTextSize(5);
             lcd.setTextColor(ST77XX_GREEN);
             lcd.println("LISTENING");
+
+          */
     //displayTimezones();
 }
 
@@ -450,6 +446,7 @@ void handleVibration() {
 
             // Print to Serial and LCD
             Serial.println(message);
+            /* 
             lcd.fillRect(0, 0, 320, 35, ST77XX_BLACK);
             lcd.setCursor(0, 0);
             lcd.setTextSize(2);
@@ -457,19 +454,23 @@ void handleVibration() {
             lcd.println(String(clientID) + "     " + String(isArmed ? "ARMED" : "DISARMED"));
             lcd.setCursor(80, 17);
             lcd.println(dateTimeBuffer);
-
+            */
             if (isArmed == true){
+              /* 
               lcd.fillRect(25, 70, 295, 100, ST77XX_BLACK);
               lcd.setCursor(25, 70);
               lcd.setTextSize(5);
               lcd.setTextColor(ST77XX_RED);
               lcd.println(" FIRING ");
+              */
             } else if (isArmed == false){
+             /* 
                 lcd.fillRect(25, 70, 295, 100, ST77XX_BLACK);
                 lcd.setCursor(25, 70);
                 lcd.setTextSize(5);
                 lcd.setTextColor(ST77XX_WHITE);
                 lcd.println(" DETECTED ");
+                */
             }
 
            
@@ -489,12 +490,13 @@ void handleVibration() {
                 digitalWrite(VIBRATION_MOTOR_PIN, HIGH);
             }
         }
-
+            /* 
             lcd.fillRect(30, 70, 290, 100, ST77XX_BLACK);
             lcd.setCursor(30, 70);
             lcd.setTextSize(5);
             lcd.setTextColor(ST77XX_GREEN);
             lcd.println("LISTENING");
+            */
     }
 
     // Handle motor toggle if active
