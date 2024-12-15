@@ -9,10 +9,10 @@
               #include <HTTPClient.h>
 
 //Vibration Sensor Pin
-#define VIBRATION_SENSOR_PIN 6  // Digital pin connected to SW-420 (change as needed)
+#define VIBRATION_SENSOR_PIN 0  // Digital pin connected to SW-420 (change as needed)
 #define DEBOUNCE_DELAY 100        // Debounce time in milliseconds
 //Vibration Motor
-#define VIBRATION_MOTOR_PIN 8
+#define VIBRATION_MOTOR_PIN 4
 
 bool isArmed = false;
 bool sensorEnabled = true; // Flag to control sensor detection
