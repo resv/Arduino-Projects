@@ -107,9 +107,9 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
                 WiFi.begin(ssid, password);
                 while (WiFi.status() != WL_CONNECTED) {
                   delay(1000);
-                  Serial.print(".test1");
+                  Serial.println("Failed to connect to SSID:\"" + String(ssid) + "\", trying another SSID...");
                 }
-                Serial.println("\nWi-Fi connected! IP: " + WiFi.localIP().toString());
+                Serial.println("WIFI CONNECTED! to SSID:\"" + String(ssid) + "\" IP: " + WiFi.localIP().toString());
               }
 
               // Fetch NTP time and update internal time
@@ -127,10 +127,7 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
                 }
 
                 internalTime = timeClient.getEpochTime();
-                Serial.println("NTP Time fetched: " + String(ctime(&internalTime)));
-
-                // Publish updated times after fetch
-                publishTimeData();
+                Serial.println("\nNTP Time fetched: " + String(ctime(&internalTime)));
 
                 return true;
               }
@@ -185,7 +182,7 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
                             String(time12Buffer) + " | " + String(time24Buffer) + "\n";
                 }
 
-                Serial.println("----------- NTP TIME -----------\n" + payload);
+                Serial.println("\n----------- NTP TIME -----------\n" + payload);
                 
                 // Publish only EST-5 row separately
                 int estIndex = 1; // Index of EST-5 in the offsets array
@@ -198,9 +195,6 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
 
                 String estPayload = String(zones[estIndex]) + " | " + String(dateBuffer) + " | " +
                                     String(time12Buffer) + " | " + String(time24Buffer);
-
-                Serial.println("Staged NTP Publish data:");
-                Serial.println(estPayload + "\n");
 
                 if (NTPReadyToPublish == 1){
                   //client.publish(mqtt_topic_NTP, estPayload.c_str());
@@ -283,16 +277,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
               // Reconnect to MQTT broker
               void reconnect() {
                 while (!client.connected()) {
-                  Serial.println("Connecting to MQTT broker...");
+                  Serial.print("Connecting to MQTT broker...");
                   if (client.connect(clientID, mqtt_user, mqtt_password)) {
-                    Serial.println(String(clientID) + " | CONNECTED TT MQTT BROKER!");
+                    Serial.print("CONNECTED!\n\n");
 
                     client.subscribe(mqtt_topic_CENTRAL_HUB);
                     //client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED").c_str());
 
                     NTPReadyToPublish = 1;
 
-      Serial.println(String(clientID) + " | FULLY SUBSCRIBED TO [" + mqtt_topic_CENTRAL_HUB + "] | [" + mqtt_topic_SHOCK_CENTER + "] | [ ONLY PUBLISHING TO [" + mqtt_topic_SHOCK_CENTER + " ]");
+      Serial.println(String(clientID) + " | FULLY SUBSCRIBED TO [" + mqtt_topic_CENTRAL_HUB + "] | [ ONLY PUBLISHING TO [" + mqtt_topic_SHOCK_CENTER + " ]");
 
                     publishTimeData();
 
@@ -305,7 +299,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
               // Setup function
               void setup() {
-    Serial.begin(115200);
+    Serial.begin(921600);
     setup_wifi();
     //pinMode(VIBRATION_SENSOR_PIN, INPUT);
     pinMode(VIBRATION_SENSOR_PIN, INPUT_PULLDOWN);
@@ -337,7 +331,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
      */
 
     } else {
-        Serial.println("Using default time.");
+        Serial.println("WARNING NTP COULD NOT CONNECT, USING DEFAULT TIME 11/11/11 11:11 UTC");
         internalTime = 1321019471; // 11/11/11 11:11 UTC
     }
         /* 
