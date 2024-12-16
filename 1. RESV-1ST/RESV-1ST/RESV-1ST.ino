@@ -23,9 +23,19 @@
 
 Adafruit_ST7789 lcd = Adafruit_ST7789(LCD_CS, LCD_DC, LCD_RST);
 
-// Wi-Fi credentials
-const char* ssid = "icup +1";
-const char* password = "aaaaaaaaa1";
+// Wi-Fi credentials (multiple SSIDs)
+const char* wifi_credentials[][2] = {
+    {"OP9", "aaaaaaaaa1"},
+    {"icup +1", "aaaaaaaaa1"},
+    {"ICU", "Emmajin6!"}
+};
+const int num_wifi_credentials = sizeof(wifi_credentials) / sizeof(wifi_credentials[0]);
+
+// Other configurations and variables
+unsigned long lastWiFiCheck = 0;  // Track last Wi-Fi check time
+const unsigned long wifiCheckInterval = 5000;  // Interval for Wi-Fi check (5 seconds)
+int currentWiFiIndex = 0;  // Index for cycling through SSIDs
+bool mqttReconnectBlocked = false;  // Block MQTT reconnect spam
 
 // MQTT broker credentials
 const char* mqtt_server = "9321cdfa0af34b83b77797a4488354cd.s1.eu.hivemq.cloud";
@@ -110,13 +120,35 @@ unsigned long lastMillis = 0;  // Tracks the last time the display was updated
 
 // Connect to Wi-Fi
 void setup_wifi() {
-  Serial.println("Connecting to Wi-Fi...");
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.print(".");
-  }
-  Serial.println("\nWi-Fi connected! IP: " + WiFi.localIP().toString());
+    Serial.println("Connecting to Wi-Fi...");
+
+    for (int i = 0; i < num_wifi_credentials; i++) {
+        const char* ssid = wifi_credentials[i][0];
+        const char* password = wifi_credentials[i][1];
+
+        Serial.println("Trying SSID: " + String(ssid));
+
+        WiFi.disconnect();  // Ensure any ongoing connection is terminated
+        delay(100);         // Allow some time for the disconnect to take effect
+        WiFi.begin(ssid, password);
+
+        // Wait for connection or timeout (5 seconds)
+        unsigned long startAttemptTime = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 5000) {
+            delay(500);
+            Serial.print(".");
+        }
+
+        if (WiFi.status() == WL_CONNECTED) {
+            Serial.println("\nWi-Fi connected! SSID: \"" + String(ssid) + "\", IP: " + WiFi.localIP().toString());
+            return; // Exit once connected
+        } else {
+            Serial.println("\nFailed to connect to SSID: \"" + String(ssid) + "\". Trying next...");
+        }
+    }
+
+    Serial.println("ERROR: Unable to connect to any Wi-Fi network!");
+    // Optionally: Trigger a fallback behavior here (e.g., retry loop, enter AP mode, etc.)
 }
 
 // Function to update the timer on the LCD
@@ -403,30 +435,79 @@ void setup() {
 }
 
 void loop() {
-  // Reconnect to MQTT if disconnected
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();  // Process MQTT messages
+    static unsigned long lastWiFiCheck = 0;  // Tracks the last time Wi-Fi status was checked
+    const unsigned long wifiCheckInterval = 5000;  // Check Wi-Fi every 5 seconds
+    static int currentWiFiIndex = 0;  // Tracks which Wi-Fi SSID to try next
+    static bool wifiDisconnected = false;  // Tracks if Wi-Fi is currently disconnected
 
-  unsigned long currentMillis = millis();
-  
-  // Update the displayed time every 60 seconds
-  if (currentMillis - lastMillis >= 60000) {
-    internalTime += 60;       // Increment internal time by 60 seconds
-    displayTimezones();       // Update time zones on LCD
-    lastMillis = currentMillis;
-  }
+    unsigned long currentMillis = millis();
 
-  // Refresh NTP time once a day
-  if (millis() - lastNTPFetch >= SECONDS_IN_A_DAY * 1000) {
-    if (fetchAndSetNTPTime()) {
-      lastNTPFetch = millis();  // Reset NTP fetch timer
+    // Periodic Wi-Fi status check
+    if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
+        lastWiFiCheck = currentMillis;
+
+        if (WiFi.status() != WL_CONNECTED) {
+            if (!wifiDisconnected) {
+                Serial.println("Wi-Fi disconnected! Attempting to reconnect...");
+                wifiDisconnected = true;  // Set the disconnected flag
+            }
+
+            // Disconnect and move to the next Wi-Fi SSID
+            WiFi.disconnect();
+            delay(100);  // Allow disconnect to take effect
+            currentWiFiIndex = (currentWiFiIndex + 1) % num_wifi_credentials;  // Loop through SSIDs
+
+            const char* ssid = wifi_credentials[currentWiFiIndex][0];
+            const char* password = wifi_credentials[currentWiFiIndex][1];
+
+            Serial.println("Trying SSID: " + String(ssid));
+            WiFi.begin(ssid, password);
+
+            // Wait for connection or timeout (5 seconds)
+            unsigned long startAttemptTime = millis();
+            while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 5000) {
+                delay(500);
+                Serial.print(".");
+            }
+
+            if (WiFi.status() == WL_CONNECTED) {
+                Serial.println("\nWi-Fi reconnected! SSID: \"" + String(ssid) + "\", IP: " + WiFi.localIP().toString());
+                wifiDisconnected = false;  // Reset the disconnected flag
+            } else {
+                Serial.println("\nFailed to reconnect to SSID: \"" + String(ssid) + "\". Will try next...");
+            }
+        }
     }
-  }
-  // Check for button presses
-  buttonPressToggle();
+
+    // Ensure Wi-Fi is connected before attempting MQTT reconnection
+    if (WiFi.status() == WL_CONNECTED) {
+        if (!client.connected()) {
+            reconnect();  // Reconnect to MQTT if disconnected
+        }
+        client.loop();  // Process MQTT messages
+    } else if (!wifiDisconnected) {
+        Serial.println("Skipping MQTT reconnect as Wi-Fi is not connected.");
+        wifiDisconnected = true;  // Avoid repeated disconnect messages
+    }
+
+    // Update the displayed time every 60 seconds
+    if (currentMillis - lastMillis >= 60000) {
+        internalTime += 60;         // Increment internal time by 60 seconds
+        displayTimezones();         // Update time zones on LCD
+        lastMillis = currentMillis; // Reset last time display was updated
+    }
+
+    // Refresh NTP time once a day
+    if (currentMillis - lastNTPFetch >= SECONDS_IN_A_DAY * 1000) {
+        if (fetchAndSetNTPTime()) {
+            lastNTPFetch = currentMillis;  // Reset NTP fetch timer
+        }
+    }
+
+    // Check for button presses
+    buttonPressToggle();
 }
+
 
 
 void updateStatusLine() {
