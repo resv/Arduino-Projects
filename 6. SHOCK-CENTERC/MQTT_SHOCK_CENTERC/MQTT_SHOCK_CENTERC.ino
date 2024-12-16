@@ -26,9 +26,14 @@ unsigned long motorOffTime = 200;   // Motor OFF duration in milliseconds
 
 
        
-              // Wi-Fi credentials
-              const char* ssid = "icup +1";
-              const char* password = "aaaaaaaaa1";
+              // Wi-Fi credentials (multiple SSIDs)
+              const char* wifi_credentials[][2] = {
+                  {"OP9", "aaaaaaaaa1"},
+                  {"icup +1", "aaaaaaaaa1"},
+                  {"ICU", "Emmajin6!"}
+              };
+
+              const int num_wifi_credentials = sizeof(wifi_credentials) / sizeof(wifi_credentials[0]);
 
               // MQTT broker credentials
               const char* mqtt_server = "9321cdfa0af34b83b77797a4488354cd.s1.eu.hivemq.cloud";
@@ -101,16 +106,39 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
               time_t internalTime = 0; // Tracks the current epoch time
               unsigned long lastMillis = 0; // Tracks the last time the display was updated
 
-              // Connect to Wi-Fi
-              void setup_wifi() {
-                Serial.println("Connecting to Wi-Fi...");
-                WiFi.begin(ssid, password);
-                while (WiFi.status() != WL_CONNECTED) {
-                  delay(1000);
-                  Serial.println("Failed to connect to SSID:\"" + String(ssid) + "\", trying another SSID...");
-                }
-                Serial.println("WIFI CONNECTED! to SSID:\"" + String(ssid) + "\" IP: " + WiFi.localIP().toString());
-              }
+// Connect to Wi-Fi
+void setup_wifi() {
+    Serial.println("Connecting to Wi-Fi...");
+
+    for (int i = 0; i < num_wifi_credentials; i++) {
+        const char* ssid = wifi_credentials[i][0];
+        const char* password = wifi_credentials[i][1];
+
+        Serial.println("Trying SSID: " + String(ssid));
+
+        WiFi.disconnect();  // Ensure any ongoing connection is terminated
+        delay(100);         // Allow some time for the disconnect to take effect
+        WiFi.begin(ssid, password);
+
+        // Wait for connection or timeout (5 seconds)
+        unsigned long startAttemptTime = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 5000) { // 5s timeout
+            delay(500);
+            Serial.print(".");
+        }
+
+        if (WiFi.status() == WL_CONNECTED) {
+            Serial.println("\nWIFI CONNECTED! SSID: \"" + String(ssid) + "\", IP: " + WiFi.localIP().toString());
+            return; // Exit once connected
+        } else {
+            Serial.println("\nFailed to connect to SSID: \"" + String(ssid) + "\". Trying next...");
+        }
+    }
+
+    Serial.println("ERROR: Unable to connect to any Wi-Fi network!");
+    // Optionally: Trigger a fallback behavior here (e.g., retry loop, enter AP mode, etc.)
+}
+
 
               // Fetch NTP time and update internal time
               bool fetchAndSetNTPTime() {
@@ -345,23 +373,66 @@ void callback(char* topic, byte* payload, unsigned int length) {
     //displayTimezones();
 }
 
-
-
-
-
 void loop() {
-    // Ensure MQTT client is connected
-    if (!client.connected()) {
-        reconnect();
-    }
-    client.loop(); // Process MQTT messages
+    static unsigned long lastWiFiCheck = 0;  // Tracks the last time Wi-Fi status was checked
+    const unsigned long wifiCheckInterval = 5000;  // Check Wi-Fi every 5 seconds
+    static int currentWiFiIndex = 0;  // Tracks which Wi-Fi SSID to try next
+    static bool wifiDisconnected = false;  // Tracks if Wi-Fi is currently disconnected
 
     unsigned long currentMillis = millis();
 
+    // Periodic Wi-Fi status check
+    if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
+        lastWiFiCheck = currentMillis;
+
+        if (WiFi.status() != WL_CONNECTED) {
+            if (!wifiDisconnected) {
+                Serial.println("Wi-Fi disconnected! Attempting to reconnect...");
+                wifiDisconnected = true;  // Set the disconnected flag
+            }
+
+            // Disconnect and move to the next Wi-Fi SSID
+            WiFi.disconnect();
+            delay(100);  // Allow disconnect to take effect
+            currentWiFiIndex = (currentWiFiIndex + 1) % num_wifi_credentials;  // Loop through SSIDs
+
+            const char* ssid = wifi_credentials[currentWiFiIndex][0];
+            const char* password = wifi_credentials[currentWiFiIndex][1];
+
+            Serial.println("Trying SSID: " + String(ssid));
+            WiFi.begin(ssid, password);
+
+            // Wait for connection or timeout (5 seconds)
+            unsigned long startAttemptTime = millis();
+            while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 5000) {
+                delay(500);
+                Serial.print(".");
+            }
+
+            if (WiFi.status() == WL_CONNECTED) {
+                Serial.println("\nWi-Fi reconnected! SSID: \"" + String(ssid) + "\", IP: " + WiFi.localIP().toString());
+                wifiDisconnected = false;  // Reset the disconnected flag
+            } else {
+                Serial.println("\nFailed to reconnect to SSID: \"" + String(ssid) + "\". Will try next...");
+            }
+        }
+    }
+
+    // Ensure Wi-Fi is connected before attempting MQTT reconnection
+    if (WiFi.status() == WL_CONNECTED) {
+        // Ensure MQTT client is connected
+        if (!client.connected()) {
+            reconnect();
+        }
+        client.loop();  // Process MQTT messages
+    } else if (!wifiDisconnected) {
+        Serial.println("Skipping MQTT reconnect as Wi-Fi is not connected.");
+        wifiDisconnected = true;  // Set the disconnected flag to avoid repeated messages
+    }
+
     // Increment `internalTime` every 60 seconds
     if (currentMillis - lastMillis >= 60000) {
-        internalTime += 60; // Increment by 60 seconds
-        //displayTimezones(); // Update LCD display
+        internalTime += 60;  // Increment by 60 seconds
         lastMillis = currentMillis;
     }
 
@@ -375,7 +446,6 @@ void loop() {
     // Vibration handling logic
     handleVibration();
 }
-
 
 
 
