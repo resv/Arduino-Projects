@@ -625,9 +625,6 @@ void sendRequestsToSheets(String requestedClientID, String status, String armed,
         payload += "  \"dateTime\": \"" + fullTimestamp + "\"\n";
         payload += "}";
 
-        // Print the payload for debugging
-        Serial.println("Payload:\n" + payload);
-
         // Send HTTP POST request
         int httpResponseCode = http.POST(payload);
 
@@ -657,9 +654,6 @@ void sendConfirmationsToSheets(String ClientID, String status, String armed, Str
         payload += "  \"armed\": \"" + armed + "\",\n";
         payload += "  \"dateTime\": \"" + fullTimestamp + "\"\n";
         payload += "}";
-
-        // Print the payload for debugging
-        Serial.println("Payload:\n" + payload);
 
         // Send HTTP POST request
         int httpResponseCode = http.POST(payload);
