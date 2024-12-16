@@ -280,7 +280,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
     // Update isArmed based on the requested status
     if (requestedStatus == "REQUESTED ARM") {
         isArmed = true;
-        Serial.println("System armed by " + requestedClientID + " at " + requestedTime);
     } else if (requestedStatus == "REQUESTED DISARM") {
         isArmed = false;
 
