@@ -1,12 +1,10 @@
-              #include <Adafruit_GFX.h>
-              #include <Adafruit_ST7789.h>
-              #include <WiFi.h>
-              #include <WiFiClientSecure.h>
-              #include <PubSubClient.h>
-              #include <WiFiUdp.h>
-              #include <NTPClient.h>
-              #include <time.h>
-              #include <HTTPClient.h>
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <PubSubClient.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+#include <time.h>
+#include <HTTPClient.h>
 
 //Vibration Sensor Pin
 #define VIBRATION_SENSOR_PIN 0  // Digital pin connected to SW-420 (change as needed)
@@ -26,23 +24,23 @@ unsigned long motorOffTime = 200;   // Motor OFF duration in milliseconds
 
 
        
-              // Wi-Fi credentials (multiple SSIDs)
-              const char* wifi_credentials[][2] = {
-                  {"OP9", "aaaaaaaaa1"},
-                  {"icup +1", "aaaaaaaaa1"},
-                  {"ICU", "Emmajin6!"}
-              };
+// Wi-Fi credentials (multiple SSIDs)
+const char* wifi_credentials[][2] = {
+    {"OP9", "aaaaaaaaa1"},
+    {"icup +1", "aaaaaaaaa1"},
+    {"ICU", "Emmajin6!"}
+};
 
-              const int num_wifi_credentials = sizeof(wifi_credentials) / sizeof(wifi_credentials[0]);
+const int num_wifi_credentials = sizeof(wifi_credentials) / sizeof(wifi_credentials[0]);
 
-              // MQTT broker credentials
-              const char* mqtt_server = "9321cdfa0af34b83b77797a4488354cd.s1.eu.hivemq.cloud";
-              const int mqtt_port = 8883;
-              const char* mqtt_user = "MasterA";
-              const char* mqtt_password = "MasterA1";
-              const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB";
-              const char* mqtt_topic_NTP = "NTP";
-              const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT-TIMER";
+// MQTT broker credentials
+const char* mqtt_server = "9321cdfa0af34b83b77797a4488354cd.s1.eu.hivemq.cloud";
+const int mqtt_port = 8883;
+const char* mqtt_user = "MasterA";
+const char* mqtt_password = "MasterA1";
+const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB";
+const char* mqtt_topic_NTP = "NTP";
+const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT-TIMER";
 const char* mqtt_topic_SHOCK_CENTER = "SHOCK-CENTER";
 const char* clientID = "RESV-SHOCKERC";
 
@@ -89,22 +87,22 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
 -----END CERTIFICATE-----
 )EOF";
 
-              // WiFi and MQTT clients
-              WiFiClientSecure espClient;
-              PubSubClient client(espClient);
+// WiFi and MQTT clients
+WiFiClientSecure espClient;
+PubSubClient client(espClient);
 
 
-              // NTP configuration
-              WiFiUDP ntpUDP;
-              NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000); // UTC, sync every 60 seconds
-              unsigned long lastNTPFetch = 0;
-              #define SECONDS_IN_A_DAY 86400
-              #define MAX_NTP_RETRIES  6307200
-              int NTPReadyToPublish = 0;
+// NTP configuration
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000); // UTC, sync every 60 seconds
+unsigned long lastNTPFetch = 0;
+#define SECONDS_IN_A_DAY 86400
+#define MAX_NTP_RETRIES  6307200
+int NTPReadyToPublish = 0;
 
-              // Internal time tracking
-              time_t internalTime = 0; // Tracks the current epoch time
-              unsigned long lastMillis = 0; // Tracks the last time the display was updated
+// Internal time tracking
+time_t internalTime = 0; // Tracks the current epoch time
+unsigned long lastMillis = 0; // Tracks the last time the display was updated
 
 // Connect to Wi-Fi
 void setup_wifi() {
@@ -140,53 +138,25 @@ void setup_wifi() {
 }
 
 
-              // Fetch NTP time and update internal time
-              bool fetchAndSetNTPTime() {
-                int retryCount = 0;
-                while (!timeClient.update() && retryCount < MAX_NTP_RETRIES) {
-                  retryCount++;
-                  Serial.println("Retrying NTP fetch...");
-                  delay(2000);
-                }
+// Fetch NTP time and update internal time
+bool fetchAndSetNTPTime() {
+  int retryCount = 0;
+  while (!timeClient.update() && retryCount < MAX_NTP_RETRIES) {
+    retryCount++;
+    Serial.println("Retrying NTP fetch...");
+    delay(2000);
+  }
 
-                if (retryCount == MAX_NTP_RETRIES) {
-                  Serial.println("Failed to fetch NTP time after retries.");
-                  return false;
-                }
+  if (retryCount == MAX_NTP_RETRIES) {
+    Serial.println("Failed to fetch NTP time after retries.");
+    return false;
+  }
 
-                internalTime = timeClient.getEpochTime();
-                Serial.println("\nNTP Time fetched: " + String(ctime(&internalTime)));
+  internalTime = timeClient.getEpochTime();
+  Serial.println("\nNTP Time fetched: " + String(ctime(&internalTime)));
 
-                return true;
-              }
-
-              // Display and format all timezone data
-          /*    void displayTimezones() {
-                const int offsets[] = {0, -5, -6, -7, -8};
-                const char* zones[] = {"UTC-0", "EST-5", "CST-6", "MST-7", "PST-8"};
-                char dateBuffer[20];
-                char time12Buffer[10];
-                char time24Buffer[10];
-
-                lcd.fillScreen(ST77XX_BLACK);
-                lcd.setCursor(0, 0);
-                lcd.setTextSize(2);
-                lcd.setTextColor(ST77XX_WHITE);
-
-                for (int i = 0; i < 5; i++) {
-                  time_t adjustedTime = internalTime + (offsets[i] * 3600);
-                  struct tm* timeInfo = gmtime(&adjustedTime);
-
-                  strftime(dateBuffer, sizeof(dateBuffer), "%m-%d", timeInfo);
-                  strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", timeInfo);
-                  strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", timeInfo);
-
-                  lcd.println(String(zones[i]) + " | " + String(dateBuffer) + " | " +
-                              String(time12Buffer) + " | " + String(time24Buffer));
-                }
-              }  
-
-              */
+  return true;
+}
 
               // Publish timezone data to MQTT
               void publishTimeData() {
@@ -309,11 +279,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
                     Serial.print("CONNECTED!\n\n");
 
                     client.subscribe(mqtt_topic_CENTRAL_HUB);
-                    //client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED").c_str());
+                    client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED").c_str());
 
                     NTPReadyToPublish = 1;
 
-      Serial.println(String(clientID) + " | FULLY SUBSCRIBED TO [" + mqtt_topic_CENTRAL_HUB + "] | [ ONLY PUBLISHING TO [" + mqtt_topic_SHOCK_CENTER + " ]");
+                    Serial.println(String(clientID) + " | FULLY SUBSCRIBED TO [" + mqtt_topic_CENTRAL_HUB + "] | [ ONLY PUBLISHING TO [" + mqtt_topic_SHOCK_CENTER + " ]");
 
                     publishTimeData();
 
@@ -339,37 +309,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
     espClient.setCACert(root_ca);
     client.setServer(mqtt_server, mqtt_port);
     client.setCallback(callback);
- /* 
-  lcd.init(LCD_WIDTH, LCD_HEIGHT);
-    lcd.setRotation(1);
-    lcd.fillScreen(ST77XX_BLACK);
 
-    lcd.setCursor(0, 0);
-    lcd.setTextSize(2);
-    lcd.setTextColor(ST77XX_WHITE);
-    lcd.println("Fetching NTP...");
-*/
     timeClient.begin();
 
     if (fetchAndSetNTPTime()) {
         lastNTPFetch = millis();
-     /*    
-     lcd.fillRect(0, 0, 320, 25, ST77XX_BLACK);
-     */
-
     } else {
         Serial.println("WARNING NTP COULD NOT CONNECT, USING DEFAULT TIME 11/11/11 11:11 UTC");
         internalTime = 1321019471; // 11/11/11 11:11 UTC
     }
-        /* 
-            lcd.fillRect(25, 70, 295, 100, ST77XX_BLACK);
-            lcd.setCursor(25, 70);
-            lcd.setTextSize(5);
-            lcd.setTextColor(ST77XX_GREEN);
-            lcd.println("LISTENING");
-
-          */
-    //displayTimezones();
 }
 
 void loop() {
@@ -507,42 +455,14 @@ void handleVibration() {
             String message = String(clientID) + " | DETECTED SHOCK | " +
                              (isArmed ? "ARMED" : "DISARMED") + " | " + dateTimeBuffer;
 
-            // Print to Serial and LCD
+            // Print to Serial
             Serial.println(message);
-            /* 
-            lcd.fillRect(0, 0, 320, 35, ST77XX_BLACK);
-            lcd.setCursor(0, 0);
-            lcd.setTextSize(2);
-            lcd.setTextColor(ST77XX_WHITE);
-            lcd.println(String(clientID) + "     " + String(isArmed ? "ARMED" : "DISARMED"));
-            lcd.setCursor(80, 17);
-            lcd.println(dateTimeBuffer);
-            */
-            if (isArmed == true){
-              /* 
-              lcd.fillRect(25, 70, 295, 100, ST77XX_BLACK);
-              lcd.setCursor(25, 70);
-              lcd.setTextSize(5);
-              lcd.setTextColor(ST77XX_RED);
-              lcd.println(" FIRING ");
-              */
-            } else if (isArmed == false){
-             /* 
-                lcd.fillRect(25, 70, 295, 100, ST77XX_BLACK);
-                lcd.setCursor(25, 70);
-                lcd.setTextSize(5);
-                lcd.setTextColor(ST77XX_WHITE);
-                lcd.println(" DETECTED ");
-                */
-            }
-
            
-
             // Publish to MQTT
             client.publish(mqtt_topic_SHOCK_CENTER, message.c_str());
 
             // Send data to Google Sheets
-            sendDetectionsToSheets(clientID, "DETECTED SHOCK", isArmed ? "ARMED" : "DISARMED", dateTimeBuffer);
+            //sendDetectionsToSheets(clientID, "DETECTED SHOCK", isArmed ? "ARMED" : "DISARMED", dateTimeBuffer);
 
             lastVibrationTime = currentMillis;
 
@@ -553,20 +473,10 @@ void handleVibration() {
                 digitalWrite(VIBRATION_MOTOR_PIN, HIGH);
             }
         }
-            /* 
-            lcd.fillRect(30, 70, 290, 100, ST77XX_BLACK);
-            lcd.setCursor(30, 70);
-            lcd.setTextSize(5);
-            lcd.setTextColor(ST77XX_GREEN);
-            lcd.println("LISTENING");
-            */
     }
 
     // Handle motor toggle if active
     if (motorActive) {
-
-                
-
         if ((currentMillis - motorToggleTime >= motorOnTime) && digitalRead(VIBRATION_MOTOR_PIN) == HIGH) {
             digitalWrite(VIBRATION_MOTOR_PIN, LOW); // Turn motor off
             motorToggleTime = currentMillis;       // Reset toggle timer
@@ -669,11 +579,3 @@ void sendConfirmationsToSheets(String ClientID, String status, String armed, Str
     }
 }
 
-
-
-//onboard button to either arm or disarm
-//onboard button to shutdown lcd or not
-//add touch sensor to either arm or disarm
-//fix non armed reading delay,
-//fix wifi failure
-// fix armed clock time shift.
