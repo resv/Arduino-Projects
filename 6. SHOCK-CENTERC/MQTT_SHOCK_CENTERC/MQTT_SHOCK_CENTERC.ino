@@ -203,14 +203,13 @@ bool fetchAndSetNTPTime() {
 
                 strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", estTimeInfo);
                 strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", estTimeInfo);
-                strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", estTimeInfo);
+                strftime(time24Buffer, sizeof(time24Buffer), "%H:%M:%S", estTimeInfo);
 
-                String estPayload = String(zones[estIndex]) + " | " + String(dateBuffer) + " | " +
-                                    String(time12Buffer) + " | " + String(time24Buffer);
+                String estPayload = String(dateBuffer) + " " + String(time24Buffer);
 
                 if (NTPReadyToPublish == 1){
                   //client.publish(mqtt_topic_NTP, estPayload.c_str());
-                  client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED at " + estPayload).c_str());
+                  client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " | CONNECTED | " + estPayload).c_str());
                 } else {
                   Serial.println("Staged NTP could not publish, NTPReadyToPublish flag remains at 0\n");
                 }
@@ -233,13 +232,56 @@ void callback(char* topic, byte* payload, unsigned int length) {
         return;
     }
 
+    // Check if the message contains "CONNECTED"
+    if (message.indexOf("CONNECTED") != -1) {
+        // Parse message content
+        int pos1 = message.indexOf(':');
+        int pos2 = message.indexOf('|');
+        int pos3 = message.lastIndexOf('|');
+
+        // Validate positions of the delimiters
+        if (pos1 == -1 || pos2 == -1 || pos3 == -1) {
+            Serial.println("Error: Invalid CONNECTED message format");
+            return;
+        }
+
+        // Extract Connected ClientID
+        String connectedClientID = message.substring(0, pos2); // Adjust for space after ':'
+        connectedClientID.trim();
+
+        // Extract Date and Time (after the last delimiter)
+        String dateTime = message.substring(pos3 + 1);
+        dateTime.trim();
+
+        // Create payload for Google Sheets
+        String payload = "{\n";
+        payload += "  \"clientID\": \"" + String(clientID) + "\",\n"; // Current ESP
+        payload += "  \"status\": \"" + connectedClientID + " CONNECTED\",\n"; // Connected client
+        payload += "  \"armed\": \"--\",\n";
+        payload += "  \"dateTime\": \"" + dateTime + "\"\n";
+        payload += "}";
+
+        if (payload.length() >= MAX_PAYLOAD_SIZE) {
+            Serial.println("ERROR: Payload exceeds maximum size");
+            return;
+        }
+
+        // Enqueue the payload for the RTOS task
+        if (xQueueSend(googleSheetsQueue, payload.c_str(), portMAX_DELAY) != pdPASS) {
+            Serial.println("ERROR: Failed to enqueue CONNECTED payload");
+        } else {
+            Serial.println("INFO: CONNECTED payload enqueued");
+        }
+        return;
+    }
+
     // Validate the message contains "REQUESTED ARM" or "REQUESTED DISARM"
     if (message.indexOf("REQUESTED ARM") == -1 && message.indexOf("REQUESTED DISARM") == -1) {
         Serial.println("Ignored: No ARM/DISARM request found.");
         return;
     }
 
-    // Parse message content
+    // Parse message content for ARM/DISARM
     int pos1 = message.indexOf('|');
     int pos2 = message.indexOf('|', pos1 + 1);
 
@@ -283,6 +325,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 
+
               // Reconnect to MQTT broker
               void reconnect() {
                 while (!client.connected()) {
@@ -291,7 +334,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
                     Serial.print("CONNECTED!\n\n");
 
                     client.subscribe(mqtt_topic_CENTRAL_HUB);
-                    client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED").c_str());
+                   // client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED").c_str());
 
                     NTPReadyToPublish = 1;
 

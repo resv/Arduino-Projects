@@ -294,16 +294,16 @@ void publishTimeData() {
 
   strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", estTimeInfo);
   strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", estTimeInfo);
-  strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", estTimeInfo);
+  strftime(time24Buffer, sizeof(time24Buffer), "%H:%M:%S", estTimeInfo);
 
-  String estPayload = String(zones[estIndex]) + " | " + String(dateBuffer) + " | " + String(time12Buffer) + " | " + String(time24Buffer);
+  String estPayload = String(dateBuffer) + " " + String(time24Buffer);
 
   Serial.println("Staged NTP Publish data:");
   Serial.println(estPayload + "\n");
 
   if (NTPReadyToPublish == 1) {
     //client.publish(mqtt_topic_NTP, estPayload.c_str());
-    client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " CONNECTED at " + estPayload).c_str());
+    client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " | CONNECTED | " + estPayload).c_str());
   } else {
     Serial.println("Staged NTP could not publish, NTPReadyToPublish flag remains at 0\n");
   }
