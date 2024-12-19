@@ -107,10 +107,11 @@ unsigned long lastMillis = 0; // Tracks the last time the display was updated
 // Connect to Wi-Fi
 void setup_wifi() {
     Serial.println("Connecting to Wi-Fi...");
+    int currentWiFiIndex = 0;
 
-    for (int i = 0; i < num_wifi_credentials; i++) {
-        const char* ssid = wifi_credentials[i][0];
-        const char* password = wifi_credentials[i][1];
+    while (WiFi.status() != WL_CONNECTED) {
+        const char* ssid = wifi_credentials[currentWiFiIndex][0];
+        const char* password = wifi_credentials[currentWiFiIndex][1];
 
         Serial.println("Trying SSID: " + String(ssid));
 
@@ -120,22 +121,27 @@ void setup_wifi() {
 
         // Wait for connection or timeout (5 seconds)
         unsigned long startAttemptTime = millis();
-        while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 5000) { // 5s timeout
+        while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 5000) {
             delay(500);
             Serial.print(".");
         }
 
         if (WiFi.status() == WL_CONNECTED) {
             Serial.println("\nWIFI CONNECTED! SSID: \"" + String(ssid) + "\", IP: " + WiFi.localIP().toString());
-            return; // Exit once connected
+            break; // Exit the loop once connected
         } else {
             Serial.println("\nFailed to connect to SSID: \"" + String(ssid) + "\". Trying next...");
+            currentWiFiIndex = (currentWiFiIndex + 1) % num_wifi_credentials; // Loop through SSIDs
         }
     }
 
-    Serial.println("ERROR: Unable to connect to any Wi-Fi network!");
-    // Optionally: Trigger a fallback behavior here (e.g., retry loop, enter AP mode, etc.)
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("ERROR: Unable to connect to any Wi-Fi network!");
+        // Optionally handle fallback scenarios (e.g., start AP mode)
+    }
 }
+
+
 
 
 // Fetch NTP time and update internal time
@@ -256,10 +262,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
         // Disable motor immediately
         motorActive = false;
         digitalWrite(VIBRATION_MOTOR_PIN, LOW);
-
-        Serial.println("System disarmed by " + requestedClientID + " at " + requestedTime);
     } else {
-        Serial.println("Error: Unknown status");
+        Serial.println("Error: MQTT value for STATUS is incorrect");
         return; // Exit if status is invalid
     }
 
@@ -412,7 +416,6 @@ void respondToCentralHub() {
     // Publish the confirmation to the CENTRAL-HUB topic
     if (client.connected()) {
         client.publish(mqtt_topic_CENTRAL_HUB, confirmationMessage.c_str());
-        Serial.println("Published to CENTRAL-HUB: " + confirmationMessage);
 
         // Correctly format status for Google Sheets
         String status = requestedClientID + " " + action + " CONFIRMED";
@@ -425,11 +428,11 @@ void respondToCentralHub() {
     }
 }
 
-
-
 void handleVibration() {
     unsigned long currentMillis = millis();
-    unsigned long detectionDelay = isArmed ? vibrationDelay : 1000; // 1 sec delay when disarmed
+
+    // Always use the same delay (vibrationDelay) for subsequent shocks
+    unsigned long detectionDelay = vibrationDelay;
 
     // Check for vibration detection
     if (digitalRead(VIBRATION_SENSOR_PIN) == HIGH) {
@@ -453,8 +456,7 @@ void handleVibration() {
             // Publish to MQTT
             client.publish(mqtt_topic_SHOCK_CENTER, message.c_str());
 
-            // Send data to Google Sheets
-            //sendDetectionsToSheets(clientID, "DETECTED SHOCK", isArmed ? "ARMED" : "DISARMED", dateTimeBuffer);
+            
 
             lastVibrationTime = currentMillis;
 
@@ -464,6 +466,8 @@ void handleVibration() {
                 motorToggleTime = currentMillis;
                 digitalWrite(VIBRATION_MOTOR_PIN, HIGH);
             }
+            // Send data to Google Sheets
+            sendDetectionsToSheets(clientID, "DETECTED SHOCK", isArmed ? "ARMED" : "DISARMED", dateTimeBuffer);
         }
     }
 
@@ -485,6 +489,7 @@ void handleVibration() {
     }
 }
 
+
 void sendDetectionsToSheets(String clientID, String status, String armed, String dateTimeBuffer) {
     if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
@@ -500,9 +505,9 @@ void sendDetectionsToSheets(String clientID, String status, String armed, String
         int httpResponseCode = http.POST(payload);
 
         if (httpResponseCode > 0) {
-            Serial.println("POST Response Code: " + String(httpResponseCode));
+            Serial.println("POST RESPONSE [DETECTED] CODE: [" + String(httpResponseCode) + "]");
         } else {
-            Serial.println("Error Sending DETECTED DATA, CODE:" + String(httpResponseCode));
+            Serial.println("ERROR SENDING [DETECTED] CODE: [" + String(httpResponseCode) + "]");
         }
 
         http.end(); // Close connection
@@ -530,12 +535,12 @@ void sendRequestsToSheets(String requestedClientID, String status, String armed,
         int httpResponseCode = http.POST(payload);
 
         if (httpResponseCode > 0) {
-            Serial.println("POST Response Code: " + String(httpResponseCode));
+            Serial.println("POST RESPONSE [REQUESTED] CODE: [" + String(httpResponseCode) + "]");
         } else {
-            Serial.println("Error Sending REQUEST Data, CODE:" + String(httpResponseCode));
+            Serial.println("ERROR SENDING [REQUESTED] CODE: [" + String(httpResponseCode) + "]");
         }
 
-        http.end(); // Close connection
+        //http.end(); // Close connection is optional, but we can keep it on because confirmations will fire right after, no need to close and reopen so quickly.
     } else {
         Serial.println("WiFi Disconnected");
     }
@@ -560,9 +565,9 @@ void sendConfirmationsToSheets(String ClientID, String status, String armed, Str
         int httpResponseCode = http.POST(payload);
 
         if (httpResponseCode > 0) {
-            Serial.println("POST Response Code: " + String(httpResponseCode));
+            Serial.println("POST RESPONSE [CONFIRMED] CODE: [" + String(httpResponseCode) + "]");
         } else {
-            Serial.println("Error Sending CONFIRMATION Data, CODE:" + String(httpResponseCode));
+            Serial.println("ERROR SENDING [CONFIRMED] CODE: [" + String(httpResponseCode) + "]");
         }
 
         http.end(); // Close connection
