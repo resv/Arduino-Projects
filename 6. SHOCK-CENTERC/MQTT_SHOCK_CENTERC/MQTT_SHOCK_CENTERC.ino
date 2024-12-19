@@ -6,6 +6,14 @@
 #include <time.h>
 #include <HTTPClient.h>
 
+// Task handle and queue
+TaskHandle_t googleSheetsTaskHandle = NULL;
+QueueHandle_t googleSheetsQueue;
+
+// Define the maximum payload size for Google Sheets
+#define MAX_PAYLOAD_SIZE 256
+
+
 //Vibration Sensor Pin
 #define VIBRATION_SENSOR_PIN 0  // Digital pin connected to SW-420 (change as needed)
 #define DEBOUNCE_DELAY 100        // Debounce time in milliseconds
@@ -298,29 +306,53 @@ void callback(char* topic, byte* payload, unsigned int length) {
                 }
               }
 
-              // Setup function
-              void setup() {
+void setup() {
     Serial.begin(921600);
     setup_wifi();
-    //pinMode(VIBRATION_SENSOR_PIN, INPUT);
+
+    // Initialize vibration sensor and motor pins
     pinMode(VIBRATION_SENSOR_PIN, INPUT_PULLDOWN);
     pinMode(VIBRATION_MOTOR_PIN, OUTPUT);
     digitalWrite(VIBRATION_MOTOR_PIN, LOW); // Ensure motor is off initially
 
+    // Initialize variables
     lastVibrationTime = millis();
     motorActive = false;
 
+    // Configure MQTT client
     espClient.setCACert(root_ca);
     client.setServer(mqtt_server, mqtt_port);
     client.setCallback(callback);
 
+    // Start NTP client
     timeClient.begin();
 
+    // Fetch and set NTP time
     if (fetchAndSetNTPTime()) {
         lastNTPFetch = millis();
     } else {
         Serial.println("WARNING NTP COULD NOT CONNECT, USING DEFAULT TIME 11/11/11 11:11 UTC");
         internalTime = 1321019471; // 11/11/11 11:11 UTC
+    }
+
+    // Create queue for Google Sheets communication
+    googleSheetsQueue = xQueueCreate(10, MAX_PAYLOAD_SIZE);
+    if (googleSheetsQueue == NULL) {
+        Serial.println("ERROR: Failed to create queue for Google Sheets");
+    }
+
+    // Create RTOS task for Google Sheets
+    xTaskCreate(
+        googleSheetsTask,           // Task function
+        "GoogleSheetsTask",         // Task name
+        4096,                       // Stack size
+        NULL,                       // Task parameter
+        1,                          // Task priority
+        &googleSheetsTaskHandle     // Task handle
+    );
+
+    if (googleSheetsTaskHandle == NULL) {
+        Serial.println("ERROR: Failed to create Google Sheets task");
     }
 }
 
@@ -395,10 +427,8 @@ void loop() {
     }
 
     // Vibration handling logic
-    handleVibration();
+    handleVibration();  // No change; now it just pushes to the queue
 }
-
-
 
 
 
@@ -489,90 +519,101 @@ void handleVibration() {
     }
 }
 
-
+// Function to enqueue data for Google Sheets
 void sendDetectionsToSheets(String clientID, String status, String armed, String dateTimeBuffer) {
     if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-
-        http.begin(googleSheetURL);
-        http.addHeader("Content-Type", "application/json");
-
         // Create JSON payload
         String payload = "{\"clientID\":\"" + clientID + "\",\"status\":\"" + status +
                          "\",\"armed\":\"" + armed + "\",\"dateTime\":\"" + dateTimeBuffer + "\"}";
 
-        // Send HTTP POST request
-        int httpResponseCode = http.POST(payload);
-
-        if (httpResponseCode > 0) {
-            Serial.println("POST RESPONSE [DETECTED] CODE: [" + String(httpResponseCode) + "]");
-        } else {
-            Serial.println("ERROR SENDING [DETECTED] CODE: [" + String(httpResponseCode) + "]");
+        if (payload.length() >= MAX_PAYLOAD_SIZE) {
+            Serial.println("ERROR: Payload exceeds maximum size");
+            return;
         }
 
-        http.end(); // Close connection
+        // Enqueue the payload for the RTOS task
+        if (xQueueSend(googleSheetsQueue, payload.c_str(), portMAX_DELAY) != pdPASS) {
+            Serial.println("ERROR: Failed to enqueue payload");
+        }
     } else {
         Serial.println("WiFi Disconnected");
     }
 }
 
 void sendRequestsToSheets(String requestedClientID, String status, String armed, String fullTimestamp) {
-    if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
+    // Create JSON payload
+    String payload = "{\n";
+    payload += "  \"clientID\": \"" + String(clientID) + "\",\n";
+    payload += "  \"status\": \"" + requestedClientID + " " + status + "\",\n";
+    payload += "  \"armed\": \"" + armed + "\",\n";
+    payload += "  \"dateTime\": \"" + fullTimestamp + "\"\n";
+    payload += "}";
 
-        http.begin(googleSheetURL);
-        http.addHeader("Content-Type", "application/json");
+    if (payload.length() >= MAX_PAYLOAD_SIZE) {
+        Serial.println("ERROR: Payload exceeds maximum size");
+        return;
+    }
 
-        // Create JSON payload with the specified format
-        String payload = "{\n";
-        payload += "  \"clientID\": \"" + String(clientID) + "\",\n";  // Ensure clientID is treated as String
-        payload += "  \"status\": \"" + requestedClientID + " " + status + "\",\n";
-        payload += "  \"armed\": \"" + armed + "\",\n";
-        payload += "  \"dateTime\": \"" + fullTimestamp + "\"\n";
-        payload += "}";
-
-        // Send HTTP POST request
-        int httpResponseCode = http.POST(payload);
-
-        if (httpResponseCode > 0) {
-            Serial.println("POST RESPONSE [REQUESTED] CODE: [" + String(httpResponseCode) + "]");
-        } else {
-            Serial.println("ERROR SENDING [REQUESTED] CODE: [" + String(httpResponseCode) + "]");
-        }
-
-        //http.end(); // Close connection is optional, but we can keep it on because confirmations will fire right after, no need to close and reopen so quickly.
+    // Enqueue the payload
+    if (xQueueSend(googleSheetsQueue, payload.c_str(), portMAX_DELAY) != pdPASS) {
+        Serial.println("ERROR: Failed to enqueue request payload");
     } else {
-        Serial.println("WiFi Disconnected");
+        Serial.println("INFO: Request payload enqueued");
     }
 }
 
+
 void sendConfirmationsToSheets(String ClientID, String status, String armed, String fullTimestamp) {
-    if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
+    // Create JSON payload
+    String payload = "{\n";
+    payload += "  \"clientID\": \"" + String(ClientID) + "\",\n";
+    payload += "  \"status\": \"" + status + "\",\n";
+    payload += "  \"armed\": \"" + armed + "\",\n";
+    payload += "  \"dateTime\": \"" + fullTimestamp + "\"\n";
+    payload += "}";
 
-        http.begin(googleSheetURL);
-        http.addHeader("Content-Type", "application/json");
+    if (payload.length() >= MAX_PAYLOAD_SIZE) {
+        Serial.println("ERROR: Payload exceeds maximum size");
+        return;
+    }
 
-        // Create JSON payload with the specified format
-        String payload = "{\n";
-        payload += "  \"clientID\": \"" + String(clientID) + "\",\n";
-        payload += "  \"status\": \"" + status + "\",\n";
-        payload += "  \"armed\": \"" + armed + "\",\n";
-        payload += "  \"dateTime\": \"" + fullTimestamp + "\"\n";
-        payload += "}";
-
-        // Send HTTP POST request
-        int httpResponseCode = http.POST(payload);
-
-        if (httpResponseCode > 0) {
-            Serial.println("POST RESPONSE [CONFIRMED] CODE: [" + String(httpResponseCode) + "]");
-        } else {
-            Serial.println("ERROR SENDING [CONFIRMED] CODE: [" + String(httpResponseCode) + "]");
-        }
-
-        http.end(); // Close connection
+    // Enqueue the payload
+    if (xQueueSend(googleSheetsQueue, payload.c_str(), portMAX_DELAY) != pdPASS) {
+        Serial.println("ERROR: Failed to enqueue confirmation payload");
     } else {
-        Serial.println("WiFi Disconnected");
+        Serial.println("INFO: Confirmation payload enqueued");
+    }
+}
+
+
+
+// Task for Google Sheets communication
+void googleSheetsTask(void* parameter) {
+    char payload[MAX_PAYLOAD_SIZE];
+    while (true) {
+        // Wait for data in the queue
+        if (xQueueReceive(googleSheetsQueue, &payload, portMAX_DELAY)) {
+            Serial.println("INFO: Received payload for Google Sheets:");
+            Serial.println(payload);
+
+            if (WiFi.status() == WL_CONNECTED) {
+                HTTPClient http;
+                http.begin(googleSheetURL);
+                http.addHeader("Content-Type", "application/json");
+
+                int httpResponseCode = http.POST(payload);
+
+                if (httpResponseCode > 0) {
+                    Serial.println("POST RESPONSE CODE: " + String(httpResponseCode));
+                } else {
+                    Serial.println("ERROR SENDING PAYLOAD TO GOOGLE SHEETS");
+                }
+
+                http.end();
+            } else {
+                Serial.println("ERROR: Wi-Fi not connected. Unable to send to Google Sheets.");
+            }
+        }
     }
 }
 
