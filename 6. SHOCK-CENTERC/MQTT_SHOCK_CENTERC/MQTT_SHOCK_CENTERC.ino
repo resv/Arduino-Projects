@@ -396,15 +396,7 @@ void loop() {
 
 
 
-void retaliate() {
-    unsigned long startTime = millis();
-    while (millis() - startTime < 3000) { // Vibrate for 3 seconds
-        digitalWrite(VIBRATION_MOTOR_PIN, HIGH); // Turn the motor on
-        delay(200);                              // On for 500ms
-        digitalWrite(VIBRATION_MOTOR_PIN, LOW);  // Turn the motor off
-        delay(200);                              // Off for 200ms
-    }
-}
+
 
 void respondToCentralHub() {
     if (requestedClientID.isEmpty() || requestedStatus.isEmpty() || requestedTime.isEmpty()) {
@@ -510,7 +502,7 @@ void sendDetectionsToSheets(String clientID, String status, String armed, String
         if (httpResponseCode > 0) {
             Serial.println("POST Response Code: " + String(httpResponseCode));
         } else {
-            Serial.println("Error Sending Data");
+            Serial.println("Error Sending DETECTED DATA, CODE:" + String(httpResponseCode));
         }
 
         http.end(); // Close connection
@@ -540,7 +532,7 @@ void sendRequestsToSheets(String requestedClientID, String status, String armed,
         if (httpResponseCode > 0) {
             Serial.println("POST Response Code: " + String(httpResponseCode));
         } else {
-            Serial.println("Error Sending Request Data");
+            Serial.println("Error Sending REQUEST Data, CODE:" + String(httpResponseCode));
         }
 
         http.end(); // Close connection
@@ -570,7 +562,7 @@ void sendConfirmationsToSheets(String ClientID, String status, String armed, Str
         if (httpResponseCode > 0) {
             Serial.println("POST Response Code: " + String(httpResponseCode));
         } else {
-            Serial.println("Error Sending Confirmation Data");
+            Serial.println("Error Sending CONFIRMATION Data, CODE:" + String(httpResponseCode));
         }
 
         http.end(); // Close connection

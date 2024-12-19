@@ -1,0 +1,157 @@
+function doPost(e) {
+    // Parse the incoming request payload
+    var params = JSON.parse(e.postData.contents);
+
+    // Log incoming parameters for debugging
+    Logger.log(params);
+
+    // Open the active spreadsheet and select the first sheet
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+
+    // Get the total number of rows currently in the sheet
+    var lastRow = sheet.getRange("A:A").getValues().filter(String).length; // Count all rows with data in Column A
+
+    // Shift data in columns A to E down by 1 row
+    if (lastRow >= 2) { // Ensure there is data to shift (starting from row 2)
+        sheet.getRange(2, 1, lastRow - 1, 5).moveTo(sheet.getRange(3, 1)); // Shift A-E down
+    }
+
+    // Write the new data to the top row (row 2) in columns A to E, only if params have valid values
+    if (params.clientID) {
+        sheet.getRange(2, 1).setValue(params.clientID);          // Column A
+    }
+
+    if (params.status) {
+        sheet.getRange(2, 2).setValue(params.status);            // Column B
+    }
+
+    sheet.getRange(2, 3).setValue(params.armed || "");          // Column C
+    sheet.getRange(2, 4).setValue(new Date());                 // Column D (timestamp)
+    sheet.getRange(2, 5).setValue(params.additionalMetric || ""); // Column E (optional)
+
+    // Format the 4th column to display full date and time
+    sheet.getRange(2, 4).setNumberFormat("MM/dd/yyyy HH:mm:ss");
+
+    // Apply conditional formatting to the new row
+    applyConditionalFormatting(sheet, 2, params);
+
+    // Check if the "EVENT" (Column B) equals "DETECTED SHOCK"
+    if (params.status === "DETECTED SHOCK") {
+        // Increment overall detected shocks (H17)
+        var overallCountCell = sheet.getRange(17, 8); // H17
+        overallCountCell.setValue((overallCountCell.getValue() || 0) + 1);
+
+        // Increment specific metrics for disarmed or armed shocks
+        if (params.armed === "DISARMED") {
+            var disarmedCountCell = sheet.getRange(19, 8); // H19
+            disarmedCountCell.setValue((disarmedCountCell.getValue() || 0) + 1);
+        } else if (params.armed === "ARMED") {
+            var armedCountCell = sheet.getRange(21, 8); // H21
+            armedCountCell.setValue((armedCountCell.getValue() || 0) + 1);
+        }
+
+        // Aggregate detected shocks by month
+        aggregateMonthlyShocks(sheet);
+    }
+
+    // Recalculate and update "Total Time" columns for metrics
+    updateTotalTime(sheet);
+
+    // Return a success response
+    return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+}
+
+function applyConditionalFormatting(sheet, row, params) {
+    // Check if Column B contains "DETECTED SHOCK"
+    if (params.status && params.status.toLowerCase().includes("detected shock")) {
+        sheet.getRange(row, 1, 1, 5).setBackground("lightgreen");
+    }
+
+    // Check if Column B contains "REQUESTED"
+    if (params.status && params.status.toLowerCase().includes("requested")) {
+        sheet.getRange(row, 1, 1, 5).setBackground("yellow");
+    }
+
+    // Check if Column B contains "CONFIRMED"
+    if (params.status && params.status.toLowerCase().includes("confirmed")) {
+        sheet.getRange(row, 1, 1, 5).setBackground("orange");
+    }
+
+    // Check if Column B contains "CONNECTED"
+    if (params.status && params.status.toLowerCase().includes("connected")) {
+        sheet.getRange(row, 1, 1, 5).setBackground("lightblue");
+    }
+
+    // Apply specific formatting to the "Armed" status column (Column C)
+    if (params.armed === "ARMED") {
+        sheet.getRange(row, 3)
+            .setBackground("red")
+            .setFontColor("white");
+    } else if (params.armed === "DISARMED") {
+        sheet.getRange(row, 3)
+            .setBackground("white")
+            .setFontColor("black");
+    }
+}
+
+function aggregateMonthlyShocks(sheet) {
+    var data = sheet.getDataRange().getValues(); // Get all data in the sheet
+    var monthlyCounts = Array(12).fill(0);       // Array to hold counts for each month
+
+    for (var i = 1; i < data.length; i++) { // Skip header row
+        var dateCell = data[i][3]; // Column D contains the date
+        var statusCell = data[i][1]; // Column B contains the status
+
+        if (dateCell && statusCell === "DETECTED SHOCK") {
+            var entryDate = new Date(dateCell);
+            var month = entryDate.getMonth(); // Get the month (0 = January, 11 = December)
+            monthlyCounts[month]++;
+        }
+    }
+
+    // Update monthly totals and times for January (H24, I24) to December (H35, I35)
+    for (var month = 0; month < 12; month++) {
+        var countCell = sheet.getRange(24 + month, 8); // H24 to H35
+        var timeCell = sheet.getRange(24 + month, 9); // I24 to I35
+
+        countCell.setValue(monthlyCounts[month]);
+
+        // Convert counts to time format and update
+        var totalSeconds = monthlyCounts[month] * 3; // 3 seconds per detected shock
+        var timeString = convertSecondsToTime(totalSeconds);
+        timeCell.setValue(timeString);
+
+        // Explicitly set the format to text to preserve the HH:MM:SS format
+        timeCell.setNumberFormat("@STRING@");
+    }
+}
+
+function updateTotalTime(sheet) {
+    const metrics = [
+        { row: 17, column: 8, totalCell: "I17" }, // Overall shocks
+        { row: 19, column: 8, totalCell: "I19" }, // Disarmed shocks
+        { row: 21, column: 8, totalCell: "I21" }  // Armed shocks
+    ];
+
+    metrics.forEach(metric => {
+        const count = sheet.getRange(metric.row, metric.column).getValue() || 0; // Get current count
+        const totalSeconds = count * 3; // Convert count to seconds
+        const timeString = convertSecondsToTime(totalSeconds);
+        const timeCell = sheet.getRange(metric.totalCell);
+        timeCell.setValue(timeString); // Update total time cell
+        timeCell.setNumberFormat("@STRING@"); // Ensure the value is treated as plain text
+    });
+}
+
+function convertSecondsToTime(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+
+    // Format as HH:MM:SS with leading zeros
+    return (
+        String(hours).padStart(2, '0') + ":" +
+        String(minutes).padStart(2, '0') + ":" +
+        String(remainingSeconds).padStart(2, '0')
+    );
+}
