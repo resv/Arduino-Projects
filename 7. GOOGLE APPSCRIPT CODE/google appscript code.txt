@@ -26,39 +26,172 @@ function doPost(e) {
     }
 
     sheet.getRange(2, 3).setValue(params.armed || "");          // Column C
-    sheet.getRange(2, 4).setValue(new Date());                 // Column D (timestamp)
+    sheet.getRange(2, 4).setValue(params.dateTime);            // Column D (use dateTime from payload)
     sheet.getRange(2, 5).setValue(params.additionalMetric || ""); // Column E (optional)
 
     // Format the 4th column to display full date and time
     sheet.getRange(2, 4).setNumberFormat("MM/dd/yyyy HH:mm:ss");
+
+    // Center-align and middle-align the new row (row 2)
+    sheet.getRange(2, 1, 1, 5).setHorizontalAlignment("center").setVerticalAlignment("middle");
+
+    // Handle G4-G6 for "RESV-1ST", "RESV-2ND", "RESV-3RD"
+    if (params.status.includes("RESV-1ST") && params.status.includes("CONNECTED")) {
+        updateDateCell(sheet, 4, params.dateTime); // G4
+    } else if (params.status.includes("RESV-2ND") && params.status.includes("CONNECTED")) {
+        updateDateCell(sheet, 5, params.dateTime); // G5
+    } else if (params.status.includes("RESV-3RD") && params.status.includes("CONNECTED")) {
+        updateDateCell(sheet, 6, params.dateTime); // G6
+    }
+
+    // Handle G10-G12 for "RESV-SHOCKERA", "RESV-SHOCKERB", "RESV-SHOCKERC"
+    if (params.status.includes("CONNECTED")) {
+        if (params.clientID === "RESV-SHOCKERA") {
+            updateDateCell(sheet, 10, params.dateTime); // G10
+        } else if (params.clientID === "RESV-SHOCKERB") {
+            updateDateCell(sheet, 11, params.dateTime); // G11
+        } else if (params.clientID === "RESV-SHOCKERC") {
+            updateDateCell(sheet, 12, params.dateTime); // G12
+        }
+    }
+
+    // Handle I10-I12 for "DETECTED SHOCK"
+    if (params.status === "DETECTED SHOCK") {
+        if (params.clientID === "RESV-SHOCKERA") {
+            updateShockCell(sheet, 10, params.dateTime, params.armed); // I10
+        } else if (params.clientID === "RESV-SHOCKERB") {
+            updateShockCell(sheet, 11, params.dateTime, params.armed); // I11
+        } else if (params.clientID === "RESV-SHOCKERC") {
+            updateShockCell(sheet, 12, params.dateTime, params.armed); // I12
+        }
+    }
+
+    // Handle I4-I6 for "REQUESTED ARM" or "REQUESTED DISARM"
+    if (params.status.includes("RESV-1ST")) {
+        updateRequestCells(sheet, 4, params.status, params.dateTime); // I4
+    } else if (params.status.includes("RESV-2ND")) {
+        updateRequestCells(sheet, 5, params.status, params.dateTime); // I5
+    } else if (params.status.includes("RESV-3RD")) {
+        updateRequestCells(sheet, 6, params.status, params.dateTime); // I6
+    }
+
+    // Calculate totals for H10, H11, and H12
+    calculateShockTotalsByClient(sheet);
 
     // Apply conditional formatting to the new row
     applyConditionalFormatting(sheet, 2, params);
 
     // Check if the "EVENT" (Column B) equals "DETECTED SHOCK"
     if (params.status === "DETECTED SHOCK") {
-        // Increment overall detected shocks (H17)
-        var overallCountCell = sheet.getRange(17, 8); // H17
-        overallCountCell.setValue((overallCountCell.getValue() || 0) + 1);
-
-        // Increment specific metrics for disarmed or armed shocks
-        if (params.armed === "DISARMED") {
-            var disarmedCountCell = sheet.getRange(19, 8); // H19
-            disarmedCountCell.setValue((disarmedCountCell.getValue() || 0) + 1);
-        } else if (params.armed === "ARMED") {
-            var armedCountCell = sheet.getRange(21, 8); // H21
-            armedCountCell.setValue((armedCountCell.getValue() || 0) + 1);
-        }
-
-        // Aggregate detected shocks by month
+        calculateShockTotals(sheet);
         aggregateMonthlyShocks(sheet);
     }
 
     // Recalculate and update "Total Time" columns for metrics
     updateTotalTime(sheet);
 
+    // Update the metrics table
+    updateMetricsTable(sheet);
+
     // Return a success response
     return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+}
+
+
+function updateRequestCells(sheet, row, status, dateTime) {
+    let formattedDateTime = formatDateTime(dateTime);
+
+    if (status.includes("REQUESTED ARM")) {
+        sheet.getRange(row, 8) // Column H
+            .setValue("REQUESTED ARM")
+            .setBackground("red")
+            .setFontColor("white")
+            .setHorizontalAlignment("center")
+            .setVerticalAlignment("middle");
+        sheet.getRange(row, 9) // Column I
+            .setValue(formattedDateTime)
+            .setNumberFormat("MM/dd HH:mm:ss") // Ensure leading zeros in HH
+            .setHorizontalAlignment("center")
+            .setVerticalAlignment("middle");
+    } else if (status.includes("REQUESTED DISARM")) {
+        sheet.getRange(row, 8) // Column H
+            .setValue("REQUESTED DISARM")
+            .setBackground(null)
+            .setFontColor("black")
+            .setHorizontalAlignment("center")
+            .setVerticalAlignment("middle");
+        sheet.getRange(row, 9) // Column I
+            .setValue(formattedDateTime)
+            .setNumberFormat("MM/dd HH:mm:ss") // Ensure leading zeros in HH
+            .setHorizontalAlignment("center")
+            .setVerticalAlignment("middle");
+    }
+}
+
+
+function updateDateCell(sheet, row, dateTime) {
+    let formattedDateTime = formatDateTime(dateTime);
+
+    let cell = sheet.getRange(row, 7); // Column G
+    cell.setValue(formattedDateTime)
+        .setNumberFormat("MM/dd HH:mm:ss") // Ensure leading zeros in HH
+        .setHorizontalAlignment("center")
+        .setVerticalAlignment("middle");
+}
+
+function updateShockCell(sheet, row, dateTime, armedStatus) {
+    let formattedDateTime = formatDateTime(dateTime);
+
+    let cell = sheet.getRange(row, 9); // Column I
+    cell.setValue(formattedDateTime)
+        .setNumberFormat("MM/dd HH:mm:ss") // Ensure leading zeros in HH
+        .setHorizontalAlignment("center")
+        .setVerticalAlignment("middle");
+
+    if (armedStatus === "ARMED") {
+        cell.setBackground("red").setFontColor("white");
+    } else if (armedStatus === "DISARMED") {
+        cell.setBackground(null).setFontColor("black");
+    }
+}
+
+function formatDateTime(dateTime) {
+    let [datePart, timePart] = dateTime.split(" ");
+    let [hours, minutes, seconds] = timePart.split(":").map(Number);
+    hours = String(hours).padStart(2, "0");
+    minutes = String(minutes).padStart(2, "0");
+    seconds = String(seconds).padStart(2, "0");
+    return `${datePart} ${hours}:${minutes}:${seconds}`;
+}
+function calculateShockTotalsByClient(sheet) {
+    var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues(); // Columns A and B
+    var shockeraCount = 0;
+    var shockerbCount = 0;
+    var shockercCount = 0;
+
+    data.forEach(row => {
+        var clientID = row[0];
+        var status = row[1];
+
+        if (clientID === "RESV-SHOCKERA" && status === "DETECTED SHOCK") {
+            shockeraCount++;
+        } else if (clientID === "RESV-SHOCKERB" && status === "DETECTED SHOCK") {
+            shockerbCount++;
+        } else if (clientID === "RESV-SHOCKERC" && status === "DETECTED SHOCK") {
+            shockercCount++;
+        }
+    });
+
+    // Update totals in H10, H11, and H12
+    sheet.getRange(10, 8).setValue(shockeraCount)
+        .setHorizontalAlignment("center")
+        .setVerticalAlignment("middle"); // H10
+    sheet.getRange(11, 8).setValue(shockerbCount)
+        .setHorizontalAlignment("center")
+        .setVerticalAlignment("middle"); // H11
+    sheet.getRange(12, 8).setValue(shockercCount)
+        .setHorizontalAlignment("center")
+        .setVerticalAlignment("middle"); // H12
 }
 
 function applyConditionalFormatting(sheet, row, params) {
@@ -79,7 +212,7 @@ function applyConditionalFormatting(sheet, row, params) {
 
     // Check if Column B contains "CONNECTED"
     if (params.status && params.status.toLowerCase().includes("connected")) {
-        sheet.getRange(row, 1, 1, 5).setBackground("lightblue");
+        sheet.getRange(row, 1, 1, 5).setBackground("cyan");
     }
 
     // Apply specific formatting to the "Armed" status column (Column C)
@@ -92,6 +225,38 @@ function applyConditionalFormatting(sheet, row, params) {
             .setBackground("white")
             .setFontColor("black");
     }
+}
+
+function calculateShockTotals(sheet) {
+    var data = sheet.getRange(2, 2, sheet.getLastRow() - 1, 2).getValues(); // Columns B and C
+    var overallCount = 0;
+    var disarmedCount = 0;
+    var armedCount = 0;
+
+    data.forEach(row => {
+        var status = row[0];
+        var armedStatus = row[1];
+
+        if (status === "DETECTED SHOCK") {
+            overallCount++;
+            if (armedStatus === "DISARMED") {
+                disarmedCount++;
+            } else if (armedStatus === "ARMED") {
+                armedCount++;
+            }
+        }
+    });
+
+    // Update overall, disarmed, and armed counts
+    sheet.getRange(17, 8).setValue(overallCount)
+        .setHorizontalAlignment("center")
+        .setVerticalAlignment("middle"); // H17
+    sheet.getRange(19, 8).setValue(disarmedCount)
+        .setHorizontalAlignment("center")
+        .setVerticalAlignment("middle"); // H19
+    sheet.getRange(21, 8).setValue(armedCount)
+        .setHorizontalAlignment("center")
+        .setVerticalAlignment("middle"); // H21
 }
 
 function aggregateMonthlyShocks(sheet) {
@@ -117,7 +282,7 @@ function aggregateMonthlyShocks(sheet) {
         countCell.setValue(monthlyCounts[month]);
 
         // Convert counts to time format and update
-        var totalSeconds = monthlyCounts[month] * 3; // 3 seconds per detected shock
+        var totalSeconds = monthlyCounts[month] * 4; // 4 seconds per detected shock
         var timeString = convertSecondsToTime(totalSeconds);
         timeCell.setValue(timeString);
 
@@ -135,7 +300,7 @@ function updateTotalTime(sheet) {
 
     metrics.forEach(metric => {
         const count = sheet.getRange(metric.row, metric.column).getValue() || 0; // Get current count
-        const totalSeconds = count * 3; // Convert count to seconds
+        const totalSeconds = count * 4; // Convert count to seconds
         const timeString = convertSecondsToTime(totalSeconds);
         const timeCell = sheet.getRange(metric.totalCell);
         timeCell.setValue(timeString); // Update total time cell
