@@ -50,7 +50,7 @@ const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB";
 const char* mqtt_topic_NTP = "NTP";
 const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT-TIMER";
 const char* mqtt_topic_SHOCK_CENTER = "SHOCK-CENTER";
-const char* clientID = "RESV-SHOCKERC";
+const char* clientID = "RESV-SHOCKERA";
 
 // Your Google Apps Script Web App URL
 const char* googleSheetURL = "https://script.google.com/macros/s/AKfycbzKXvDaj58CzF-1lKAhrHYrmOnBWA6omiKfFka9gppet9IrAt5zJSLdjh_7r1e9YjU-eQ/exec";
@@ -224,7 +224,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     message.trim(); // Remove leading/trailing whitespace
 
     // Debug: Print raw message and topic
-    Serial.println("RESV-SHOCKERC RCVD [" + String(topic) + "]: " + message);
+    Serial.println("RESV-SHOCKERA RCVD [" + String(topic) + "]: " + message);
 
     // Ensure we are processing CENTRAL-HUB messages
     if (String(topic) != mqtt_topic_CENTRAL_HUB) {
