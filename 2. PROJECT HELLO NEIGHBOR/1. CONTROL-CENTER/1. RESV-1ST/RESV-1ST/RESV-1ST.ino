@@ -740,11 +740,12 @@ String parseAndFormatMQTTMessage(const String& message) {
 void updateShockTimeSinceBoot() {
     static String lastFormattedTime = ""; // Track the last displayed time
 
-    // Convert totalRetaliationCount (seconds) to HHH:MM format
-    long hours = totalRetaliationCount / 3600;
-    long minutes = (totalRetaliationCount % 3600) / 60;
+    // Calculate total seconds based on detections and convert to HHH:MM
+    long totalSeconds = totalRetaliationCount * 4; // Multiply by 4 seconds per detection
+    long hours = totalSeconds / 3600;             // Convert seconds to hours
+    long minutes = (totalSeconds % 3600) / 60;    // Extract remaining minutes
 
-    // Determine format
+    // Format the time as HHH:MM
     char timeBuffer[10];
     if (hours < 100) {
         // For less than 100 hours, include a leading space and two leading zeros if needed
@@ -756,7 +757,12 @@ void updateShockTimeSinceBoot() {
 
     String formattedTime = String(timeBuffer);
 
-    // Check if the time has changed
+    // Debugging output to verify calculations
+    Serial.println("Total Detections: " + String(totalRetaliationCount));
+    Serial.println("Total Seconds: " + String(totalSeconds));
+    Serial.println("Formatted Time: " + formattedTime);
+
+    // Check if the time has changed to avoid redundant updates
     if (formattedTime == lastFormattedTime) {
         return; // Exit if the time has not changed
     }
