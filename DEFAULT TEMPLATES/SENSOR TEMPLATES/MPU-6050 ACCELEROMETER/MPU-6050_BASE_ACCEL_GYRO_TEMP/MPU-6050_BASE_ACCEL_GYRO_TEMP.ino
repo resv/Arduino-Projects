@@ -6,7 +6,13 @@ Adafruit_MPU6050 mpu;
 
 #define MPU_POWER_PIN 0 // GPIO0 to supply 3.3V power to MPU6050
 
-// Global variables
+// Global ESP variables
+const char* thisClientID = "RESV-SHOCKERA"; // Define the ClientID
+String isArmed = "DISARMED";
+String dateDate = "MM/DD";
+String dateTime = "HH:MM:SS";
+
+// Global Sensor variables
 float baselineX = 0, baselineY = 0, baselineZ = 0; // Baseline values
 float shockThreshold = 0.5; // Threshold for shock detection
 int temperatureC = 0; // Temperature in Celsius (whole number)
@@ -16,6 +22,7 @@ const unsigned long recalibrationInterval = 600000; // 10 minutes in millisecond
 const unsigned long readAndSerialInterval = 100; // 100ms interval for sensor read and Serial output
 
 // Variables for non-blocking recalibration
+bool shockDetected = false;
 bool recalibrating = false;
 unsigned long recalibrationStart = 0;
 unsigned long lastReadAndSerialTime = 0; // Tracks the last time sensor was read and Serial output
@@ -23,6 +30,7 @@ unsigned long lastReadAndSerialTime = 0; // Tracks the last time sensor was read
 int recalibrationSampleCount = 0;
 float sumX = 0, sumY = 0, sumZ = 0;
 
+// Function to start recalibration
 void startRecalibration() {
   recalibrating = true;
   recalibrationStart = millis();
@@ -33,6 +41,7 @@ void startRecalibration() {
   Serial.println("Recalibrating baseline...");
 }
 
+// Function to handle recalibration logic
 void handleRecalibration() {
   if (recalibrating) {
     unsigned long currentTime = millis();
@@ -63,6 +72,7 @@ void handleRecalibration() {
   }
 }
 
+// Setup function
 void setup() {
   Serial.begin(115200);
 
@@ -89,6 +99,46 @@ void setup() {
   lastShockTime = millis(); // Record the time after the initial calibration
 }
 
+// Function to print sensor data
+void printSensorData(bool shockDetected, float vibrationMagnitude, sensors_event_t& accel, sensors_event_t& gyro) {
+  Serial.print("|CID:"); Serial.print(thisClientID);
+
+  Serial.print("|DD:");
+  Serial.print(dateDate);
+
+  Serial.print("|DT:");
+  Serial.print(dateTime);
+
+  Serial.print("|S:");
+  Serial.print(shockDetected ? "DETECTED!" : "LISTENING");
+
+  Serial.print("|VM:");
+  Serial.print(vibrationMagnitude, 2);
+
+  Serial.print("|IA:");
+  Serial.print(isArmed);
+
+  Serial.print("|AX:");
+  Serial.print(accel.acceleration.x, 2);
+  Serial.print("|AY:");
+  Serial.print(accel.acceleration.y, 2);
+  Serial.print("|AZ:");
+  Serial.print(accel.acceleration.z, 2);
+
+  Serial.print("|GX:");
+  Serial.print(gyro.gyro.x, 2);
+  Serial.print("|GY:");
+  Serial.print(gyro.gyro.y, 2);
+  Serial.print("|GZ:");
+  Serial.print(gyro.gyro.z, 2);
+
+  Serial.print("|TC:");
+  Serial.print(temperatureC);
+  Serial.print("|TF:");
+  Serial.println(temperatureF);
+}
+
+// Main loop function
 void loop() {
   // Handle recalibration logic
   handleRecalibration();
@@ -123,63 +173,21 @@ void loop() {
     float vibrationMagnitude = sqrt(pow(deviationX, 2) + pow(deviationY, 2) + pow(deviationZ, 2));
 
     // Check for shock detection
-    if (vibrationMagnitude > shockThreshold) {
-      Serial.println("DETECTED SHOCK!");
-      Serial.print("Vibration Magnitude: ");
-      Serial.print(vibrationMagnitude, 2);
+    shockDetected = vibrationMagnitude > shockThreshold;
 
-      Serial.print(" | Accel X: ");
-      Serial.print(accel.acceleration.x, 2);
-      Serial.print(", Y: ");
-      Serial.print(accel.acceleration.y, 2);
-      Serial.print(", Z: ");
-      Serial.print(accel.acceleration.z, 2);
-
-      Serial.print(" | Gyro X: ");
-      Serial.print(gyro.gyro.x, 2);
-      Serial.print(", Y: ");
-      Serial.print(gyro.gyro.y, 2);
-      Serial.print(", Z: ");
-      Serial.print(gyro.gyro.z, 2);
-
-      Serial.print(" | Temp: ");
-      Serial.print(temperatureC);
-      Serial.print(" °C, ");
-      Serial.print(temperatureF);
-      Serial.println(" °F");
-
+    if (shockDetected) {
       startRecalibration(); // Start recalibration after detecting a shock
       lastShockTime = millis(); // Reset the last shock time
     }
 
     // Recalibrate baseline if no shock is detected for 10 minutes
     if (millis() - lastShockTime >= recalibrationInterval) {
+      Serial.println("Recalibration triggered due to 10-minute threshold.");
       startRecalibration();
       lastShockTime = millis(); // Reset the last shock time after recalibration
     }
 
     // Print sensor data
-    Serial.print("Vibration Magnitude: ");
-    Serial.print(vibrationMagnitude, 2);
-
-    Serial.print(" | Accel X: ");
-    Serial.print(accel.acceleration.x, 2);
-    Serial.print(", Y: ");
-    Serial.print(accel.acceleration.y, 2);
-    Serial.print(", Z: ");
-    Serial.print(accel.acceleration.z, 2);
-
-    Serial.print(" | Gyro X: ");
-    Serial.print(gyro.gyro.x, 2);
-    Serial.print(", Y: ");
-    Serial.print(gyro.gyro.y, 2);
-    Serial.print(", Z: ");
-    Serial.print(gyro.gyro.z, 2);
-
-    Serial.print(" | Temp: ");
-    Serial.print(temperatureC);
-    Serial.print(" °C, ");
-    Serial.print(temperatureF);
-    Serial.println(" °F");
+    printSensorData(shockDetected, vibrationMagnitude, accel, gyro);
   }
 }
