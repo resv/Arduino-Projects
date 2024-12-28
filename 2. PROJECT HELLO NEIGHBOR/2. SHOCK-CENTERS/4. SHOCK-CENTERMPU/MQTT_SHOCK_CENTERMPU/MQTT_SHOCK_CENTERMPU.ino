@@ -15,7 +15,7 @@ String dateTime = "HH:MM:SS";
 
 // Global Sensor variables
 float baselineX = 0, baselineY = 0, baselineZ = 0; // Baseline values
-float shockThreshold = 0.5; // Threshold for shock detection
+float vibrationThreshold = 0.5; // Threshold for shock detection
 int temperatureC = 0; // Temperature in Celsius (whole number)
 int temperatureF = 0; // Temperature in Fahrenheit (whole number)
 unsigned long lastShockTime = 0; // Time of the last detected shock
@@ -162,6 +162,9 @@ void printSensorData(bool shockDetected, float vibrationMagnitude, sensors_event
   Serial.print("|IA:");
   Serial.print(isArmed);
 
+  Serial.print("|VT:");
+  Serial.print(vibrationThreshold);
+
   Serial.print("|AX:");
   Serial.print(accel.acceleration.x, 2);
   Serial.print("|AY:");
@@ -192,7 +195,7 @@ void loop() {
 
       // Ensure Wi-Fi is connected
       if (WiFi.status() != WL_CONNECTED) {
-          Serial.println("Wi-Fi disconnected! Reconnecting...");
+          Serial.println("WIFI RECONNECTING...");
           setup_wifi();  // Call your existing setup_wifi function
       }
   }
@@ -230,7 +233,7 @@ void loop() {
     float vibrationMagnitude = sqrt(pow(deviationX, 2) + pow(deviationY, 2) + pow(deviationZ, 2));
 
     // Check for shock detection
-    shockDetected = vibrationMagnitude > shockThreshold;
+    shockDetected = vibrationMagnitude > vibrationThreshold;
 
     if (shockDetected) {
       Serial.println("[RECALIBRATION TRIGGERED VIA SHOCK DETECTION]");
