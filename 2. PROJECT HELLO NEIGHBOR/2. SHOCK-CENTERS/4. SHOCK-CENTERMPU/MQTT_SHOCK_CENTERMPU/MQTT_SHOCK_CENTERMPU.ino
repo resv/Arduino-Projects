@@ -1,9 +1,10 @@
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
+#include <WiFi.h> // Add Wi-Fi library
+#include "esp_log.h"
 
 Adafruit_MPU6050 mpu;
-
 #define MPU_POWER_PIN 0 // GPIO0 to supply 3.3V power to MPU6050
 
 // Global ESP variables
@@ -30,6 +31,50 @@ unsigned long lastReadAndSerialTime = 0; // Tracks the last time sensor was read
 int recalibrationSampleCount = 0;
 float sumX = 0, sumY = 0, sumZ = 0;
 
+// Wi-Fi VARIABLES
+const char* wifi_credentials[][2] = {
+    {"OP9", "aaaaaaaaa1"},
+    {"icup +1", "aaaaaaaaa1"},
+    {"ICU", "Emmajin6!"}
+};
+const int num_wifi_credentials = sizeof(wifi_credentials) / sizeof(wifi_credentials[0]);
+int currentWiFiIndex = 0; // Index of the current SSID to try
+static unsigned long lastWiFiCheck = 0;
+const unsigned long wifiCheckInterval = 5000; // Check Wi-Fi every 5 seconds
+
+void setup_wifi() {
+    while (WiFi.status() != WL_CONNECTED) {
+        const char* ssid = wifi_credentials[currentWiFiIndex][0];
+        const char* password = wifi_credentials[currentWiFiIndex][1];
+
+        Serial.print("CONNECTING TO [" + String(ssid) + "]");
+
+        WiFi.disconnect();  // Ensure a clean connection attempt
+        delay(100);         // Allow disconnect to take effect
+        WiFi.begin(ssid, password);
+
+        // Wait for connection or timeout (5 seconds)
+        unsigned long startAttemptTime = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 5000) {
+            delay(500);
+            Serial.print(".");
+        }
+
+        if (WiFi.status() == WL_CONNECTED) {
+            Serial.println("CONNECTED TO [" + String(ssid) + "] [" + WiFi.localIP().toString() + "]");
+            break; // Exit loop on successful connection
+        } else {
+            Serial.println("FAILED TO CONNECT TO [" + String(ssid) + "]");
+            currentWiFiIndex = (currentWiFiIndex + 1) % num_wifi_credentials; // Cycle to the next SSID
+        }
+    }
+
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("ERROR: UNABLE TO CONNECT TO ANY WIFI SSID!");
+        // Handle fallback scenario if needed
+    }
+}
+
 // Function to start recalibration
 void startRecalibration() {
   recalibrating = true;
@@ -38,7 +83,7 @@ void startRecalibration() {
   sumX = 0;
   sumY = 0;
   sumZ = 0;
-  Serial.println("Recalibrating baseline...");
+  Serial.println("[RECALIBRATING BASELINE]");
 }
 
 // Function to handle recalibration logic
@@ -61,10 +106,8 @@ void handleRecalibration() {
         baselineY = sumY / recalibrationSampleCount;
         baselineZ = sumZ / recalibrationSampleCount;
 
-        Serial.println("Baseline recalibrated:");
-        Serial.print("Baseline X: "); Serial.println(baselineX, 2);
-        Serial.print("Baseline Y: "); Serial.println(baselineY, 2);
-        Serial.print("Baseline Z: "); Serial.println(baselineZ, 2);
+        Serial.println("[RECALIBRATION COMPLETE] ");
+        Serial.println("[X:" + String(baselineX, 2) + " Y:" + String(baselineY, 2) + " Z:" + String(baselineZ, 2) +"]");
 
         recalibrating = false; // End recalibration
       }
@@ -75,6 +118,8 @@ void handleRecalibration() {
 // Setup function
 void setup() {
   Serial.begin(115200);
+  esp_log_level_set("wifi", ESP_LOG_NONE);
+  setup_wifi(); // Connect to Wi-Fi
 
   // Configure GPIO0 as output to power the MPU6050
   pinMode(MPU_POWER_PIN, OUTPUT);
@@ -84,7 +129,6 @@ void setup() {
   // Initialize I2C with swapped SDA and SCL pins
   Wire.begin(9, 8); // SDA = GPIO9, SCL = GPIO8
 
-  Serial.println("Initializing MPU6050...");
   if (!mpu.begin()) {
     Serial.println("Failed to initialize MPU6050. Check wiring!");
     while (1);
@@ -140,6 +184,19 @@ void printSensorData(bool shockDetected, float vibrationMagnitude, sensors_event
 
 // Main loop function
 void loop() {
+  unsigned long currentMillis = millis();
+  
+  // Periodic Wi-Fi reconnection check and cycle
+  if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
+      lastWiFiCheck = currentMillis;
+
+      // Ensure Wi-Fi is connected
+      if (WiFi.status() != WL_CONNECTED) {
+          Serial.println("Wi-Fi disconnected! Reconnecting...");
+          setup_wifi();  // Call your existing setup_wifi function
+      }
+  }
+
   // Handle recalibration logic
   handleRecalibration();
 
@@ -176,14 +233,14 @@ void loop() {
     shockDetected = vibrationMagnitude > shockThreshold;
 
     if (shockDetected) {
-      Serial.println("Recalibration triggered due to shock detection.");
+      Serial.println("[RECALIBRATION TRIGGERED VIA SHOCK DETECTION]");
       startRecalibration(); // Start recalibration after detecting a shock
       lastShockTime = millis(); // Reset the last shock time
     }
 
     // Recalibrate baseline if no shock is detected for 10 minutes
     if (millis() - lastShockTime >= recalibrationInterval) {
-      Serial.println("Recalibration triggered due to 10-minute threshold.");
+      Serial.println("[RECALIBRATION TRIGGERED VIA 10min TIMER]");
       startRecalibration();
       lastShockTime = millis(); // Reset the last shock time after recalibration
     }
