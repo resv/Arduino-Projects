@@ -27,6 +27,14 @@ unsigned long lastShockTime = 0; // Time of the last detected shock
 const unsigned long recalibrationInterval = 600000; // 10 minutes in milliseconds
 const unsigned long readAndSerialInterval = 100; // 100ms interval for sensor read and Serial output
 
+// Vibration motor variables
+#define VIBRATION_MOTOR_PIN 4 // Define the pin connected to the vibration motor
+unsigned long motorToggleTime = 0;  // Tracks motor toggle time
+bool motorActive = false;           // Indicates whether the motor is active
+const unsigned long motorOnTime = 200; // Motor ON duration in milliseconds
+const unsigned long motorOffTime = 200; // Motor OFF duration in milliseconds
+const unsigned long vibrationDelay = 4000; // Delay between vibrations when armed
+
 // NTP Variables
 unsigned long lastNTPFetchMillis = 0; // Tracks the last NTP fetch time
 unsigned long internalClockMillis = 0; // Tracks time since last internal clock update
@@ -38,7 +46,6 @@ bool shockDetected = false;
 bool recalibrating = false;
 unsigned long recalibrationStart = 0;
 unsigned long lastReadAndSerialTime = 0; // Tracks the last time sensor was read and Serial output
-
 int recalibrationSampleCount = 0;
 float sumX = 0, sumY = 0, sumZ = 0;
 
@@ -201,6 +208,10 @@ void setup() {
     mpu.setAccelerometerRange(MPU6050_RANGE_2_G); // High sensitivity
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);   // Reduce noise
 
+    // Initialize vibration motor pin
+    pinMode(VIBRATION_MOTOR_PIN, OUTPUT);
+    digitalWrite(VIBRATION_MOTOR_PIN, LOW); // Ensure the motor is off initially
+
     // Initial baseline calculation
     startRecalibration();
     lastShockTime = millis(); // Record the time after the initial calibration
@@ -276,6 +287,9 @@ void loop() {
   // Handle recalibration logic
   handleRecalibration();
 
+  // Handle motor toggling for vibration motor (non-blocking)
+  handleVibrationMotor();
+
   // Skip shock detection during recalibration
   if (recalibrating) {
     return;
@@ -311,7 +325,7 @@ void loop() {
     vibrationMagnitude = sqrt(pow(deviationX, 2) + pow(deviationY, 2) + pow(deviationZ, 2));
 
 
-        // Print sensor data
+    // Print sensor data
     printSensorData(shockDetected, vibrationMagnitude, accel, gyro);
 
     // Check for shock detection
@@ -324,6 +338,12 @@ void loop() {
 
         Serial.println("[RECALIBRATION TRIGGERED VIA SHOCK DETECTION]");
         printSensorData(shockDetected, vibrationMagnitude, accel, gyro);
+
+        if (isArmed == "ARMED") {
+                motorActive = true; // Activate the motor
+                motorToggleTime = currentMillis; // Set the motor toggle time
+                digitalWrite(VIBRATION_MOTOR_PIN, HIGH); // Start the motor
+            }
 
         startRecalibration(); // Start recalibration after detecting a shock
         lastShockTime = millis(); // Reset the last shock time
@@ -470,4 +490,27 @@ void publishDetection() {
                      "|TF:" + String(temperatureF);
     // Publish to central hub
     client.publish(mqtt_topic_CENTRAL_HUB, payload.c_str());
+}
+
+
+// Function to handle motor toggling behavior
+void handleVibrationMotor() {
+    unsigned long currentMillis = millis();
+
+    if (motorActive) {
+        // Toggle motor state
+        if ((currentMillis - motorToggleTime >= motorOnTime) && digitalRead(VIBRATION_MOTOR_PIN) == HIGH) {
+            digitalWrite(VIBRATION_MOTOR_PIN, LOW); // Turn motor off
+            motorToggleTime = currentMillis;
+        } else if ((currentMillis - motorToggleTime >= motorOffTime) && digitalRead(VIBRATION_MOTOR_PIN) == LOW) {
+            digitalWrite(VIBRATION_MOTOR_PIN, HIGH); // Turn motor on
+            motorToggleTime = currentMillis;
+        }
+
+        // Stop the motor after the vibration delay
+        if (currentMillis - lastShockTime >= vibrationDelay) {
+            motorActive = false;
+            digitalWrite(VIBRATION_MOTOR_PIN, LOW); // Ensure the motor is off
+        }
+    }
 }
