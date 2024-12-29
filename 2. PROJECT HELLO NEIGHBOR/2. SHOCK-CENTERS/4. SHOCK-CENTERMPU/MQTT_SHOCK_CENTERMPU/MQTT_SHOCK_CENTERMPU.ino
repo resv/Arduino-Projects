@@ -234,6 +234,7 @@ void setup() {
 
     // Initialize Google Sheets communication
     sheetSetup();
+
 }
 
 
@@ -353,7 +354,7 @@ void loop() {
     if (shockDetected) {
         event = "DETECTED SHOCK";
         // Publish to Central Hub
-        publishDetection();
+        publishMQTT();
         sheetAddQueue(createPayload(true)); // Pass `true` for JSON payload
 
         Serial.println("[RECALIBRATION TRIGGERED VIA SHOCK DETECTION]");
@@ -451,10 +452,8 @@ void connectToTopics() {
 
                 event = "CONNECTED";
 
-                
                 // Publish to the central hub upon successful connection
-                String payload = createPayload(true); // Pass `true` for JSON payload
-                client.publish(mqtt_topic_CENTRAL_HUB, payload.c_str());
+                publishMQTT();
                 resetGlobalVariables(); // Reset global variables after successful connection
             } else {
                 // Provide specific error codes for debugging
@@ -511,7 +510,7 @@ String createPayload(bool forJson) {
     return payload;
 }
 
-void publishDetection() {
+void publishMQTT() {
     if (WiFi.status() == WL_CONNECTED && client.connected()) {
         client.publish(mqtt_topic_CENTRAL_HUB, createPayload(true).c_str()); // Pass `true` for JSON payload
     } else {
@@ -519,6 +518,9 @@ void publishDetection() {
     }
 }
 
+// publish connected
+
+// publish confrim
 
 // Function to handle motor toggling behavior
 void handleVibrationMotor() {
