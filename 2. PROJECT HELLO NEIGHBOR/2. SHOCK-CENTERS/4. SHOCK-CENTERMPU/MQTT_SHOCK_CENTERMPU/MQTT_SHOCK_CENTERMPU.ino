@@ -16,6 +16,18 @@ String isArmed = "ARMED";
 String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";
 String event = "LISTENING";
+int freeHeap = 0; // Global variable to store free heap memory
+
+// Global Heap Variables
+unsigned long lastHeapLogMillis = 0;
+const unsigned long heapLogInterval = 60000; // Update every 1 minute
+const int warningHeapThreshold = 15000;
+const int criticalHeapThreshold = 10000;
+const int emergencyHeapThreshold = 8000;
+
+bool warningHeapFlag = false;
+bool criticalHeapFlag = false;
+bool emergencyHeapFlag = false;
 
 // Global Sensor variables
 float vibrationMagnitude = 0.0; // Vibration magnitude
@@ -250,22 +262,7 @@ void printSensorData(bool shockDetected, float vibrationMagnitude, sensors_event
         Serial.println(createPayload(true)); // Pass `true` to get JSON format
     } else {
         // Key-value string format
-        Serial.print("|ID:" + String(thisClientID) +
-                     "|DD:" + dateDate +
-                     "|DT:" + dateTime +
-                     "|E:" + event +
-                     "|IA:" + isArmed +
-                     "|VM:" + String(vibrationMagnitude, 2) +
-                     "|VT:" + String(vibrationThreshold, 2) +
-                     "|AX:" + String(accel.acceleration.x, 2) +
-                     "|AY:" + String(accel.acceleration.y, 2) +
-                     "|AZ:" + String(accel.acceleration.z, 2) +
-                     "|GX:" + String(gyro.gyro.x, 2) +
-                     "|GY:" + String(gyro.gyro.y, 2) +
-                     "|GZ:" + String(gyro.gyro.z, 2) +
-                     "|TC:" + String(temperatureC) +
-                     "|TF:" + String(temperatureF));
-        Serial.println(); // Add a newline at the end
+        Serial.println(createPayload(false)); // Pass `false` for key-value format
     }
 }
 
@@ -327,6 +324,12 @@ void loop() {
           fetchNTPTime(); // Refetch NTP time
           lastNTPFetchMillis = millis(); // Reset the fetch time
       }
+  }
+
+  // Call logFreeHeap periodically
+  if (millis() - lastHeapLogMillis >= heapLogInterval) {
+      lastHeapLogMillis = millis();
+      logFreeHeap();
   }
 
   // Handle recalibration logic
@@ -509,7 +512,8 @@ String createPayload(bool forJson) {
         payload += "\"GY\":" + String(gyroY, 2) + ",";
         payload += "\"GZ\":" + String(gyroZ, 2) + ",";
         payload += "\"TC\":" + String(temperatureC) + ",";
-        payload += "\"TF\":" + String(temperatureF);
+        payload += "\"TF\":" + String(temperatureF) + ",";
+        payload += "\"FH\":" + String(freeHeap); // Add free heap
         payload += "}";
     } else {
         // Key-value string format for Serial
@@ -527,7 +531,8 @@ String createPayload(bool forJson) {
                   "|GY:" + String(gyroY, 2) +
                   "|GZ:" + String(gyroZ, 2) +
                   "|TC:" + String(temperatureC) +
-                  "|TF:" + String(temperatureF);
+                  "|TF:" + String(temperatureF) +
+                  "|FH:" + String(freeHeap); // Add free heap
     }
 
     return payload;
@@ -633,4 +638,44 @@ void sheetAddQueue(const String& payload) {
     }
 }
 
+void logFreeHeap() {
+    freeHeap = ESP.getFreeHeap();
 
+    // WARNING: Heap < 15,000 bytes
+    if (freeHeap < warningHeapThreshold && !warningHeapFlag) {
+        warningHeapFlag = true;
+        Serial.println("WARNING: Free heap below warning threshold.");
+        event = "WARNING FREE HEAP";
+        publishMQTT();
+        sheetAddQueue(createPayload(true));
+    }
+    if (freeHeap >= warningHeapThreshold) {
+        warningHeapFlag = false; // Reset flag when heap recovers
+    }
+
+    // CRITICAL: Heap < 10,000 bytes
+    if (freeHeap < criticalHeapThreshold && !criticalHeapFlag) {
+        criticalHeapFlag = true;
+        Serial.println("CRITICAL: Free heap below critical threshold.");
+        event = "CRITICAL FREE HEAP";
+        publishMQTT();
+        sheetAddQueue(createPayload(true));
+    }
+    if (freeHeap >= criticalHeapThreshold) {
+        criticalHeapFlag = false; // Reset flag when heap recovers
+    }
+
+    // EMERGENCY: Heap < 8,000 bytes
+    if (freeHeap < emergencyHeapThreshold && !emergencyHeapFlag) {
+        emergencyHeapFlag = true;
+        Serial.println("EMERGENCY: Free heap below emergency threshold. Rebooting...");
+        event = "EMERGENCY FREE HEAP";
+        publishMQTT();
+        sheetAddQueue(createPayload(true));
+        delay(10000); // Give time for MQTT and Sheets data to send
+        ESP.restart(); // Reboot the ESP32
+    }
+    if (freeHeap >= emergencyHeapThreshold) {
+        emergencyHeapFlag = false; // Reset flag when heap recovers
+    }
+}
