@@ -41,6 +41,8 @@ unsigned long lastNTPFetchMillis = 0; // Tracks the last NTP fetch time
 unsigned long internalClockMillis = 0; // Tracks time since last internal clock update
 const unsigned long internalClockInterval = 1000; // 1-second interval for updating the internal clock
 time_t internalEpochTime = 0; // Internal clock epoch time in seconds
+unsigned long lastNTPRetryMillis = 0;  // Track last retry attempt
+const unsigned long ntpRetryInterval = 60000;  // Retry every 1 minute if initial fetch fails
 
 // Variables for non-blocking recalibration
 bool shockDetected = false;
@@ -277,15 +279,22 @@ void loop() {
   // Update internal clock every second
   if (currentMillis - internalClockMillis >= internalClockInterval) {
       internalClockMillis = currentMillis;
-      internalEpochTime += 1; // Increment by 1 second
 
-      // Update `dateDate` and `dateTime`
-      struct tm* estTimeInfo = localtime(&internalEpochTime);
-      char bufferDate[11], bufferTime[9];
-      strftime(bufferDate, sizeof(bufferDate), "%m/%d", estTimeInfo);
-      strftime(bufferTime, sizeof(bufferTime), "%H:%M:%S", estTimeInfo);
-      dateDate = String(bufferDate);
-      dateTime = String(bufferTime);
+      if (internalEpochTime > 0) {
+          internalEpochTime += 1; // Increment by 1 second
+
+          // Update `dateDate` and `dateTime` with valid values
+          struct tm* estTimeInfo = localtime(&internalEpochTime);
+          char bufferDate[11], bufferTime[9];
+          strftime(bufferDate, sizeof(bufferDate), "%m/%d", estTimeInfo);
+          strftime(bufferTime, sizeof(bufferTime), "%H:%M:%S", estTimeInfo);
+          dateDate = String(bufferDate);
+          dateTime = String(bufferTime);
+      } else {
+          // NTP has not synced yet
+          dateDate = "N/A";
+          dateTime = "N/A";
+      }
   }
   
   // Periodic Wi-Fi reconnection check and cycle
@@ -301,6 +310,16 @@ void loop() {
           resetGlobalVariables(); 
       }
   }
+
+  // Retry NTP fetch if needed
+    if (WiFi.status() == WL_CONNECTED) {
+        if (internalEpochTime == 0 || millis() - lastNTPRetryMillis >= ntpRetryInterval) {
+            lastNTPRetryMillis = millis();  // Update retry timestamp
+            if (fetchNTPTime()) {
+                lastNTPFetchMillis = millis();  // Reset 12-hour fetch timer
+            }
+        }
+    }
 
   // Refetch NTP time every 12 hours
   if (millis() - lastNTPFetchMillis >= 12UL * 60 * 60 * 1000) {
@@ -391,7 +410,7 @@ void loop() {
   }
 }
 
-void fetchNTPTime() {
+bool fetchNTPTime() {
     configTime(0, 0, "pool.ntp.org", "time.nist.gov"); // UTC configuration
     struct tm timeInfo;
     if (getLocalTime(&timeInfo)) {
@@ -416,8 +435,10 @@ void fetchNTPTime() {
         dateTime = String(bufferTime);
 
         Serial.println("NTP Time Updated: " + String(dateDate) + " " + String(dateTime));
+        return true;  // Fetch successful
     } else {
         Serial.println("Failed to fetch NTP time");
+        return false;  // Fetch failed
     }
 }
 
