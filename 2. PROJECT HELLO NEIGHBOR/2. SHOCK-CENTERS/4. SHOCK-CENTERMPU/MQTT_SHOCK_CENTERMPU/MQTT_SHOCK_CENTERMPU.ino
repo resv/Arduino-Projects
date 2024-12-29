@@ -655,6 +655,7 @@ void logFreeHeap() {
         publishMQTT();
         sheetAddQueue(createPayload(true));
         Serial.println("INFO: HEAP WARNING RECOVERED TO HEAP STABLE.");
+        event = "LISTENING";
     }
 
     // CRITICAL: Heap < 10,000 bytes
