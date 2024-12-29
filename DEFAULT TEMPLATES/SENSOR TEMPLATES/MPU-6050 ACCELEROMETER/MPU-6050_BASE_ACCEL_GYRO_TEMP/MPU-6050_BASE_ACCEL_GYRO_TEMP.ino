@@ -18,6 +18,7 @@ String event = "-";
 
 // Global Sensor variables
 float baselineX = 0, baselineY = 0, baselineZ = 0; // Baseline values
+float gyroX = 0.0, gyroY = 0.0, gyroZ = 0.0; // variables for gyro readings
 float vibrationThreshold = 0.5; // Threshold for shock detection
 int temperatureC = 0; // Temperature in Celsius (whole number)
 int temperatureF = 0; // Temperature in Fahrenheit (whole number)
@@ -182,10 +183,6 @@ void handleRecalibration() {
 void setup() {
     Serial.begin(115200);
     esp_log_level_set("wifi", ESP_LOG_NONE);
-    setup_wifi(); // Connect to Wi-Fi
-
-    // Handle MQTT keep-alive and callbacks
-    client.loop();
 
     // Configure GPIO0 as output to power the MPU6050
     pinMode(MPU_POWER_PIN, OUTPUT);
@@ -207,6 +204,12 @@ void setup() {
     // Initial baseline calculation
     startRecalibration();
     lastShockTime = millis(); // Record the time after the initial calibration
+
+    // Connect to Wi-Fi
+    setup_wifi(); 
+
+    // Handle MQTT keep-alive and callbacks
+    client.loop();
 }
 
 
@@ -319,6 +322,11 @@ void loop() {
       temperatureF = newTempF;
     }
 
+    // Update gyro global variables
+    gyroX = gyro.gyro.x;
+    gyroY = gyro.gyro.y;
+    gyroZ = gyro.gyro.z;
+
     // Calculate vibration deviation from baseline
     float deviationX = accel.acceleration.x - baselineX;
     float deviationY = accel.acceleration.y - baselineY;
@@ -394,9 +402,9 @@ void connectToTopics() {
         if (currentMillis - lastRetryTime >= retryInterval) {
             lastRetryTime = currentMillis;
 
-            Serial.print("Attempting MQTT connection...");
+            Serial.print("CONNECTING MQTT...");
             if (client.connect(clientID, mqtt_user, mqtt_password)) {
-                Serial.println("connected");
+                Serial.println("CONNECTED TO: [" + String(mqtt_topic_CENTRAL_HUB) + "] [" + String(mqtt_topic_SHOCK_CENTER) + "]");
 
                 // Subscribe to topics
                 client.subscribe(mqtt_topic_CENTRAL_HUB);
@@ -408,8 +416,15 @@ void connectToTopics() {
                                  "|DT:" + dateTime +
                                  "|E:" + event +
                                  "|IA:" + isArmed +
-                                 "|VM:-|AX:0.0|AY:0.0|AZ:0.0|GX:0.0|GY:0.0|GZ:0.0|TC:0|TF:0";
-
+                                 "|VM:" + String(vibrationThreshold, 2) + // Vibration threshold or a real-time metric
+                                 "|AX:" + String(baselineX, 2) +
+                                 "|AY:" + String(baselineY, 2) +
+                                 "|AZ:" + String(baselineZ, 2) +
+                                 "|GX:" + String(gyroX, 2) +
+                                 "|GY:" + String(gyroY, 2) +
+                                 "|GZ:" + String(gyroZ, 2) +
+                                 "|TC:" + String(temperatureC) +
+                                 "|TF:" + String(temperatureF);
                 client.publish(mqtt_topic_CENTRAL_HUB, payload.c_str());
             } else {
                 // Provide specific error codes for debugging

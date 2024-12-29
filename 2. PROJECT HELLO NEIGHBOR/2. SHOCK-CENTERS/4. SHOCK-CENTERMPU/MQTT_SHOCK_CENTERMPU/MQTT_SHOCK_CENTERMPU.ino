@@ -182,10 +182,6 @@ void handleRecalibration() {
 void setup() {
     Serial.begin(115200);
     esp_log_level_set("wifi", ESP_LOG_NONE);
-    setup_wifi(); // Connect to Wi-Fi
-
-    // Handle MQTT keep-alive and callbacks
-    client.loop();
 
     // Configure GPIO0 as output to power the MPU6050
     pinMode(MPU_POWER_PIN, OUTPUT);
@@ -207,6 +203,12 @@ void setup() {
     // Initial baseline calculation
     startRecalibration();
     lastShockTime = millis(); // Record the time after the initial calibration
+
+    // Connect to Wi-Fi
+    setup_wifi(); 
+
+    // Handle MQTT keep-alive and callbacks
+    client.loop();
 }
 
 
@@ -394,9 +396,9 @@ void connectToTopics() {
         if (currentMillis - lastRetryTime >= retryInterval) {
             lastRetryTime = currentMillis;
 
-            Serial.print("Attempting MQTT connection...");
+            Serial.print("CONNECTING MQTT...");
             if (client.connect(clientID, mqtt_user, mqtt_password)) {
-                Serial.println("connected");
+                Serial.println("CONNECTED TO: [" + String(mqtt_topic_CENTRAL_HUB) + "] [" + String(mqtt_topic_SHOCK_CENTER) + "]");
 
                 // Subscribe to topics
                 client.subscribe(mqtt_topic_CENTRAL_HUB);
@@ -408,8 +410,15 @@ void connectToTopics() {
                                  "|DT:" + dateTime +
                                  "|E:" + event +
                                  "|IA:" + isArmed +
-                                 "|VM:-|AX:0.0|AY:0.0|AZ:0.0|GX:0.0|GY:0.0|GZ:0.0|TC:0|TF:0";
-
+                                 "|VM:" + String(vibrationThreshold, 2) + // Vibration threshold or a real-time metric
+                                 "|AX:" + String(baselineX, 2) +
+                                 "|AY:" + String(baselineY, 2) +
+                                 "|AZ:" + String(baselineZ, 2) +
+                                 "|GX:" + String(sumX, 2) + // Replace `sumX`, `sumY`, `sumZ` with gyro global vars if defined
+                                 "|GY:" + String(sumY, 2) +
+                                 "|GZ:" + String(sumZ, 2) +
+                                 "|TC:" + String(temperatureC) +
+                                 "|TF:" + String(temperatureF);
                 client.publish(mqtt_topic_CENTRAL_HUB, payload.c_str());
             } else {
                 // Provide specific error codes for debugging
