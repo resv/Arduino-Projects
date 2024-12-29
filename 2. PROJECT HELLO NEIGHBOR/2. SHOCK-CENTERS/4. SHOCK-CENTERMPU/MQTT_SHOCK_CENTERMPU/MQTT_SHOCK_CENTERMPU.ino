@@ -17,6 +17,7 @@ String dateTime = "HH:MM:SS";
 String event = "-";
 
 // Global Sensor variables
+float vibrationMagnitude = 0.0; // Vibration magnitude
 float baselineX = 0, baselineY = 0, baselineZ = 0; // Baseline values
 float gyroX = 0.0, gyroY = 0.0, gyroZ = 0.0; // variables for gyro readings
 float vibrationThreshold = 0.5; // Threshold for shock detection
@@ -147,13 +148,13 @@ void startRecalibration() {
   sumX = 0;
   sumY = 0;
   sumZ = 0;
-  Serial.println("[RECALIBRATING BASELINE]");
 }
 
 // Function to handle recalibration logic
 void handleRecalibration() {
   if (recalibrating) {
     unsigned long currentTime = millis();
+
     if (currentTime - lastReadAndSerialTime >= readAndSerialInterval) { // Use the same interval
       lastReadAndSerialTime = currentTime;
 
@@ -170,8 +171,7 @@ void handleRecalibration() {
         baselineY = sumY / recalibrationSampleCount;
         baselineZ = sumZ / recalibrationSampleCount;
 
-        Serial.println("[RECALIBRATION COMPLETE] ");
-        Serial.println("[X:" + String(baselineX, 2) + " Y:" + String(baselineY, 2) + " Z:" + String(baselineZ, 2) +"]");
+        Serial.println("[RECALIBRATION COMPLETE] [X:" + String(baselineX, 2) + " Y:" + String(baselineY, 2) + " Z:" + String(baselineZ, 2) +"]");
 
         recalibrating = false; // End recalibration
       }
@@ -215,7 +215,7 @@ void setup() {
 
 // Function to print sensor data
 void printSensorData(bool shockDetected, float vibrationMagnitude, sensors_event_t& accel, sensors_event_t& gyro) {
-  Serial.print("|CID:"); Serial.print(thisClientID);
+  Serial.print("|ID:"); Serial.print(thisClientID);
 
   Serial.print("|DD:");
   Serial.print(dateDate);
@@ -333,31 +333,43 @@ void loop() {
     float deviationZ = accel.acceleration.z - baselineZ;
 
     // Calculate vibration magnitude
-    float vibrationMagnitude = sqrt(pow(deviationX, 2) + pow(deviationY, 2) + pow(deviationZ, 2));
+    vibrationMagnitude = sqrt(pow(deviationX, 2) + pow(deviationY, 2) + pow(deviationZ, 2));
+
+
+        // Print sensor data
+    printSensorData(shockDetected, vibrationMagnitude, accel, gyro);
 
     // Check for shock detection
     shockDetected = vibrationMagnitude > vibrationThreshold;
 
     if (shockDetected) {
         event = "DETECTED SHOCK";
+        // Publish to Central Hub
+        publishDetection();
+
         Serial.println("[RECALIBRATION TRIGGERED VIA SHOCK DETECTION]");
+        printSensorData(shockDetected, vibrationMagnitude, accel, gyro);
+
         startRecalibration(); // Start recalibration after detecting a shock
         lastShockTime = millis(); // Reset the last shock time
+        
+        // if armed, we vibrate code.
+
+        // Send to google sheets
+        //sendDetectiontoSheets();
+        resetGlobalVariables();
     }
 
     // Recalibrate baseline if no shock is detected for 10 minutes
     if (millis() - lastShockTime >= recalibrationInterval) {
+      event = "RECALIBRATING";
       Serial.println("[RECALIBRATION TRIGGERED VIA 10min TIMER]");
+      printSensorData(shockDetected, vibrationMagnitude, accel, gyro);
+
       startRecalibration();
       lastShockTime = millis(); // Reset the last shock time after recalibration
+      resetGlobalVariables();
     }
-
-    // Print sensor data
-    printSensorData(shockDetected, vibrationMagnitude, accel, gyro);
-    
-    // Reset flags and event after printing
-    event = "-"; 
-    shockDetected = false; // Explicitly reset the flag after handling
   }
 }
 
@@ -391,6 +403,18 @@ void fetchNTPTime() {
     }
 }
 
+void resetGlobalVariables() {
+    event = "-";
+    shockDetected = false;
+    vibrationMagnitude = 0.0;
+    baselineX = 0;
+    baselineY = 0;
+    baselineZ = 0;
+    gyroX = 0.0;
+    gyroY = 0.0;
+    gyroZ = 0.0;
+}
+
 void connectToTopics() {
     static unsigned long lastRetryTime = 0; // Track the last retry attempt
     const unsigned long retryInterval = 5000; // Retry every 5 seconds if disconnected
@@ -413,12 +437,14 @@ void connectToTopics() {
                 event = "CONNECTED";
 
                 // Publish to the central hub upon successful connection
-                String payload = "|CID:" + String(thisClientID) +
+                String payload = "|ID:" + String(thisClientID) +
                                  "|DD:" + dateDate +
                                  "|DT:" + dateTime +
                                  "|E:" + event +
-                                 "|IA:" + isArmed +
-                                 "|VM:" + String(vibrationThreshold, 2) + // Vibration threshold or a real-time metric
+                                 "|S:" + String(shockDetected) +
+                                 "|IA:" + String(isArmed) +
+                                 "|VM:" + String(vibrationMagnitude, 2) +
+                                 "|VT:" + String(vibrationThreshold, 2) +
                                  "|AX:" + String(baselineX, 2) +
                                  "|AY:" + String(baselineY, 2) +
                                  "|AZ:" + String(baselineZ, 2) +
@@ -428,7 +454,6 @@ void connectToTopics() {
                                  "|TC:" + String(temperatureC) +
                                  "|TF:" + String(temperatureF);
                 client.publish(mqtt_topic_CENTRAL_HUB, payload.c_str());
-                event = "-";
             } else {
                 // Provide specific error codes for debugging
                 Serial.print("failed, rc=");
@@ -437,4 +462,36 @@ void connectToTopics() {
             }
         }
     }
+}
+
+void publishDetection() {
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("Wi-Fi not connected. Cannot publish detection.");
+        return;
+    }
+
+    if (!client.connected()) {
+        Serial.println("MQTT client not connected. Cannot publish detection.");
+        return;
+    }
+
+    // Create payload
+    String payload = "|ID:" + String(thisClientID) +
+                     "|DD:" + dateDate +
+                     "|DT:" + dateTime +
+                     "|E:" + event +
+                     "|S:" + String(shockDetected) +
+                     "|IA:" + String(isArmed) +
+                     "|VM:" + String(vibrationMagnitude, 2) +
+                     "|VT:" + String(vibrationThreshold, 2) +
+                     "|AX:" + String(baselineX, 2) +
+                     "|AY:" + String(baselineY, 2) +
+                     "|AZ:" + String(baselineZ, 2) +
+                     "|GX:" + String(gyroX, 2) +
+                     "|GY:" + String(gyroY, 2) +
+                     "|GZ:" + String(gyroZ, 2) +
+                     "|TC:" + String(temperatureC) +
+                     "|TF:" + String(temperatureF);
+    // Publish to central hub
+    client.publish(mqtt_topic_CENTRAL_HUB, payload.c_str());
 }
