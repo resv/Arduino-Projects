@@ -11,7 +11,7 @@ Adafruit_MPU6050 mpu;
 
 // Global ESP variables
 const char* thisClientID = "RESV-SHOCKERA"; // Define the ClientID
-String isArmed = "DISARMED";
+String isArmed = "ARMED";
 String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";
 String event = "LISTENING";
@@ -328,7 +328,7 @@ void loop() {
     // Print sensor data
     printSensorData(shockDetected, vibrationMagnitude, accel, gyro);
 
-    // Check for shock detection
+    // If the vibration magnitude exceeds the threshold, a shock is detected
     shockDetected = vibrationMagnitude > vibrationThreshold;
 
     if (shockDetected) {
@@ -431,25 +431,11 @@ void connectToTopics() {
 
                 event = "CONNECTED";
 
+                
                 // Publish to the central hub upon successful connection
-                String payload = "|ID:" + String(thisClientID) +
-                                 "|DD:" + dateDate +
-                                 "|DT:" + dateTime +
-                                 "|E:" + event +
-                                 //"|S:" + String(shockDetected) +
-                                 "|IA:" + String(isArmed) +
-                                 "|VM:" + String(vibrationMagnitude, 2) +
-                                 "|VT:" + String(vibrationThreshold, 2) +
-                                 "|AX:" + String(baselineX, 2) +
-                                 "|AY:" + String(baselineY, 2) +
-                                 "|AZ:" + String(baselineZ, 2) +
-                                 "|GX:" + String(gyroX, 2) +
-                                 "|GY:" + String(gyroY, 2) +
-                                 "|GZ:" + String(gyroZ, 2) +
-                                 "|TC:" + String(temperatureC) +
-                                 "|TF:" + String(temperatureF);
+                String payload = createPayload(); // Use reusable function
                 client.publish(mqtt_topic_CENTRAL_HUB, payload.c_str());
-                resetGlobalVariables();
+                resetGlobalVariables(); // Reset global variables after successful connection
             } else {
                 // Provide specific error codes for debugging
                 Serial.print("failed, rc=");
@@ -460,36 +446,31 @@ void connectToTopics() {
     }
 }
 
+String createPayload() {
+    return "|ID:" + String(thisClientID) +
+           "|DD:" + dateDate +
+           "|DT:" + dateTime +
+           "|E:" + event +
+           //"|S:" + String(shockDetected) +
+           "|IA:" + String(isArmed) +
+           "|VM:" + String(vibrationMagnitude, 2) +
+           "|VT:" + String(vibrationThreshold, 2) +
+           "|AX:" + String(baselineX, 2) +
+           "|AY:" + String(baselineY, 2) +
+           "|AZ:" + String(baselineZ, 2) +
+           "|GX:" + String(gyroX, 2) +
+           "|GY:" + String(gyroY, 2) +
+           "|GZ:" + String(gyroZ, 2) +
+           "|TC:" + String(temperatureC) +
+           "|TF:" + String(temperatureF);
+}
+
 void publishDetection() {
-    if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("Wi-Fi not connected. Cannot publish detection.");
-        return;
+    if (WiFi.status() == WL_CONNECTED && client.connected()) {
+        client.publish(mqtt_topic_CENTRAL_HUB, createPayload().c_str());
+    } else {
+        Serial.println("Error: Cannot publish detection - WiFi/MQTT not connected.");
     }
-
-    if (!client.connected()) {
-        Serial.println("MQTT client not connected. Cannot publish detection.");
-        return;
-    }
-
-    // Create payload
-    String payload = "|ID:" + String(thisClientID) +
-                     "|DD:" + dateDate +
-                     "|DT:" + dateTime +
-                     "|E:" + event +
-                     //"|S:" + String(shockDetected) +
-                     "|IA:" + String(isArmed) +
-                     "|VM:" + String(vibrationMagnitude, 2) +
-                     "|VT:" + String(vibrationThreshold, 2) +
-                     "|AX:" + String(baselineX, 2) +
-                     "|AY:" + String(baselineY, 2) +
-                     "|AZ:" + String(baselineZ, 2) +
-                     "|GX:" + String(gyroX, 2) +
-                     "|GY:" + String(gyroY, 2) +
-                     "|GZ:" + String(gyroZ, 2) +
-                     "|TC:" + String(temperatureC) +
-                     "|TF:" + String(temperatureF);
-    // Publish to central hub
-    client.publish(mqtt_topic_CENTRAL_HUB, payload.c_str());
 }
 
 
