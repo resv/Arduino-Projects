@@ -5,6 +5,7 @@
 #include "esp_log.h"
 #include <WiFiClientSecure.h> // For secure SSL connection
 #include <PubSubClient.h>   // For MQTT client
+#include <HTTPClient.h>
 
 Adafruit_MPU6050 mpu;
 #define MPU_POWER_PIN 0 // GPIO0 to supply 3.3V power to MPU6050
@@ -48,6 +49,15 @@ unsigned long recalibrationStart = 0;
 unsigned long lastReadAndSerialTime = 0; // Tracks the last time sensor was read and Serial output
 int recalibrationSampleCount = 0;
 float sumX = 0, sumY = 0, sumZ = 0;
+
+// GSheets Variables
+#define MAX_PAYLOAD_SIZE 256
+QueueHandle_t googleSheetsQueue = NULL;
+TaskHandle_t googleSheetsTaskHandle = NULL;
+const char* googleSheetURL = "https://script.google.com/macros/s/AKfycbzKXvDaj58CzF-1lKAhrHYrmOnBWA6omiKfFka9gppet9IrAt5zJSLdjh_7r1e9YjU-eQ/exec";
+
+// Use Json for serial
+bool useJsonForSerial = true; // Change to false for key-value
 
 // Wi-Fi VARIABLES
 const char* wifi_credentials[][2] = {
@@ -221,27 +231,36 @@ void setup() {
 
     // Handle MQTT keep-alive and callbacks
     client.loop();
+
+    // Initialize Google Sheets communication
+    sheetSetup();
 }
 
 
 // Function to print sensor data
 void printSensorData(bool shockDetected, float vibrationMagnitude, sensors_event_t& accel, sensors_event_t& gyro) {
-  Serial.print("|ID:" + String(thisClientID) +
-                 "|DD:" + dateDate +
-                 "|DT:" + dateTime +
-                 "|E:" + event +
-                 "|IA:" + isArmed +
-                 "|VM:" + String(vibrationMagnitude, 2) +
-                 "|VT:" + String(vibrationThreshold, 2) +
-                 "|AX:" + String(accel.acceleration.x, 2) +
-                 "|AY:" + String(accel.acceleration.y, 2) +
-                 "|AZ:" + String(accel.acceleration.z, 2) +
-                 "|GX:" + String(gyro.gyro.x, 2) +
-                 "|GY:" + String(gyro.gyro.y, 2) +
-                 "|GZ:" + String(gyro.gyro.z, 2) +
-                 "|TC:" + String(temperatureC) +
-                 "|TF:" + String(temperatureF));
-  Serial.println(); // Add a newline at the end
+    if (useJsonForSerial) {
+        // Use JSON format
+        Serial.println(createPayload(true)); // Pass `true` to get JSON format
+    } else {
+        // Key-value string format
+        Serial.print("|ID:" + String(thisClientID) +
+                     "|DD:" + dateDate +
+                     "|DT:" + dateTime +
+                     "|E:" + event +
+                     "|IA:" + isArmed +
+                     "|VM:" + String(vibrationMagnitude, 2) +
+                     "|VT:" + String(vibrationThreshold, 2) +
+                     "|AX:" + String(accel.acceleration.x, 2) +
+                     "|AY:" + String(accel.acceleration.y, 2) +
+                     "|AZ:" + String(accel.acceleration.z, 2) +
+                     "|GX:" + String(gyro.gyro.x, 2) +
+                     "|GY:" + String(gyro.gyro.y, 2) +
+                     "|GZ:" + String(gyro.gyro.z, 2) +
+                     "|TC:" + String(temperatureC) +
+                     "|TF:" + String(temperatureF));
+        Serial.println(); // Add a newline at the end
+    }
 }
 
 // Main loop function
@@ -335,6 +354,7 @@ void loop() {
         event = "DETECTED SHOCK";
         // Publish to Central Hub
         publishDetection();
+        sheetAddQueue(createPayload(true)); // Pass `true` for JSON payload
 
         Serial.println("[RECALIBRATION TRIGGERED VIA SHOCK DETECTION]");
         printSensorData(shockDetected, vibrationMagnitude, accel, gyro);
@@ -433,7 +453,7 @@ void connectToTopics() {
 
                 
                 // Publish to the central hub upon successful connection
-                String payload = createPayload(); // Use reusable function
+                String payload = createPayload(true); // Pass `true` for JSON payload
                 client.publish(mqtt_topic_CENTRAL_HUB, payload.c_str());
                 resetGlobalVariables(); // Reset global variables after successful connection
             } else {
@@ -446,28 +466,54 @@ void connectToTopics() {
     }
 }
 
-String createPayload() {
-    return "|ID:" + String(thisClientID) +
-           "|DD:" + dateDate +
-           "|DT:" + dateTime +
-           "|E:" + event +
-           //"|S:" + String(shockDetected) +
-           "|IA:" + String(isArmed) +
-           "|VM:" + String(vibrationMagnitude, 2) +
-           "|VT:" + String(vibrationThreshold, 2) +
-           "|AX:" + String(baselineX, 2) +
-           "|AY:" + String(baselineY, 2) +
-           "|AZ:" + String(baselineZ, 2) +
-           "|GX:" + String(gyroX, 2) +
-           "|GY:" + String(gyroY, 2) +
-           "|GZ:" + String(gyroZ, 2) +
-           "|TC:" + String(temperatureC) +
-           "|TF:" + String(temperatureF);
+// Handles Serial, If bool is true, handles MQTT and Sheets payload
+String createPayload(bool forJson) {
+    String payload;
+
+    if (forJson) {
+        // JSON format for MQTT and Google Sheets
+        payload = "{";
+        payload += "\"ID\":\"" + String(thisClientID) + "\",";
+        payload += "\"DD\":\"" + dateDate + "\",";
+        payload += "\"DT\":\"" + dateTime + "\",";
+        payload += "\"E\":\"" + event + "\",";
+        payload += "\"IA\":\"" + isArmed + "\",";
+        payload += "\"VM\":" + String(vibrationMagnitude, 2) + ",";
+        payload += "\"VT\":" + String(vibrationThreshold, 2) + ",";
+        payload += "\"AX\":" + String(baselineX, 2) + ",";
+        payload += "\"AY\":" + String(baselineY, 2) + ",";
+        payload += "\"AZ\":" + String(baselineZ, 2) + ",";
+        payload += "\"GX\":" + String(gyroX, 2) + ",";
+        payload += "\"GY\":" + String(gyroY, 2) + ",";
+        payload += "\"GZ\":" + String(gyroZ, 2) + ",";
+        payload += "\"TC\":" + String(temperatureC) + ",";
+        payload += "\"TF\":" + String(temperatureF);
+        payload += "}";
+    } else {
+        // Key-value string format for Serial
+        payload = "|ID:" + String(thisClientID) +
+                  "|DD:" + dateDate +
+                  "|DT:" + dateTime +
+                  "|E:" + event +
+                  "|IA:" + isArmed +
+                  "|VM:" + String(vibrationMagnitude, 2) +
+                  "|VT:" + String(vibrationThreshold, 2) +
+                  "|AX:" + String(baselineX, 2) +
+                  "|AY:" + String(baselineY, 2) +
+                  "|AZ:" + String(baselineZ, 2) +
+                  "|GX:" + String(gyroX, 2) +
+                  "|GY:" + String(gyroY, 2) +
+                  "|GZ:" + String(gyroZ, 2) +
+                  "|TC:" + String(temperatureC) +
+                  "|TF:" + String(temperatureF);
+    }
+
+    return payload;
 }
 
 void publishDetection() {
     if (WiFi.status() == WL_CONNECTED && client.connected()) {
-        client.publish(mqtt_topic_CENTRAL_HUB, createPayload().c_str());
+        client.publish(mqtt_topic_CENTRAL_HUB, createPayload(true).c_str()); // Pass `true` for JSON payload
     } else {
         Serial.println("Error: Cannot publish detection - WiFi/MQTT not connected.");
     }
@@ -495,3 +541,72 @@ void handleVibrationMotor() {
         }
     }
 }
+
+void sheetSetup() {
+    // Create queue for Google Sheets communication
+    googleSheetsQueue = xQueueCreate(10, MAX_PAYLOAD_SIZE);
+    if (googleSheetsQueue == NULL) {
+        Serial.println("ERROR: Failed to create queue for Google Sheets.");
+    }
+
+    // Create RTOS task for Google Sheets
+    xTaskCreate(
+        sheetTask,                 // Task function
+        "GoogleSheetsTask",        // Task name
+        4096,                      // Stack size
+        NULL,                      // Task parameter
+        1,                         // Task priority
+        &googleSheetsTaskHandle    // Task handle
+    );
+
+    if (googleSheetsTaskHandle == NULL) {
+        Serial.println("ERROR: Failed to create Google Sheets task.");
+    }
+}
+
+// RTOS task to handle Google Sheets communication
+void sheetTask(void* parameter) {
+    char payload[MAX_PAYLOAD_SIZE];
+    while (true) {
+        // Wait for data in the queue
+        if (xQueueReceive(googleSheetsQueue, &payload, portMAX_DELAY)) {
+            Serial.println("INFO: Received payload for Google Sheets:");
+            Serial.println(payload);
+
+            if (WiFi.status() == WL_CONNECTED) {
+                HTTPClient http;
+                http.begin(googleSheetURL);
+                http.addHeader("Content-Type", "application/json");
+
+                int httpResponseCode = http.POST(payload);
+
+                if (httpResponseCode > 0) {
+                    Serial.println("POST RESPONSE CODE: " + String(httpResponseCode));
+                } else {
+                    Serial.println("ERROR: Failed to send payload to Google Sheets.");
+                }
+
+                http.end();
+            } else {
+                Serial.println("ERROR: Wi-Fi not connected. Unable to send to Google Sheets.");
+            }
+        }
+    }
+}
+
+
+// Function to enqueue payloads for Google Sheets
+void sheetAddQueue(const String& payload) {
+    if (payload.length() >= MAX_PAYLOAD_SIZE) {
+        Serial.println("ERROR: Payload exceeds maximum size.");
+        return;
+    }
+
+    if (xQueueSend(googleSheetsQueue, payload.c_str(), portMAX_DELAY) != pdPASS) {
+        Serial.println("ERROR: Failed to enqueue payload to Google Sheets.");
+    } else {
+        Serial.println("INFO: Payload enqueued for Google Sheets.");
+    }
+}
+
+
