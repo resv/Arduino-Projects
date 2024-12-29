@@ -235,6 +235,9 @@ void setup() {
     // Initialize Google Sheets communication
     sheetSetup();
 
+    event = "CONNECTED";
+    sheetAddQueue(createPayload(true)); 
+    resetGlobalVariables();
 }
 
 
@@ -293,6 +296,9 @@ void loop() {
       if (WiFi.status() != WL_CONNECTED) {
           Serial.println("WIFI RECONNECTING...");
           setup_wifi();  // Call your existing setup_wifi function
+          event = "CONNECTED";
+          sheetAddQueue(createPayload(true));
+          resetGlobalVariables(); 
       }
   }
 
@@ -369,10 +375,6 @@ void loop() {
         startRecalibration(); // Start recalibration after detecting a shock
         lastShockTime = millis(); // Reset the last shock time
         
-        // if armed, we vibrate code.
-
-        // Send to google sheets
-        //sendDetectiontoSheets();
         resetGlobalVariables();
     }
 
@@ -595,7 +597,6 @@ void sheetTask(void* parameter) {
         }
     }
 }
-
 
 // Function to enqueue payloads for Google Sheets
 void sheetAddQueue(const String& payload) {
