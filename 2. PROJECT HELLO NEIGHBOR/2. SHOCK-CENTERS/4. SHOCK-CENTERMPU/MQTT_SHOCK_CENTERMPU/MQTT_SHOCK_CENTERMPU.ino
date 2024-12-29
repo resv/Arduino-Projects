@@ -644,38 +644,56 @@ void logFreeHeap() {
     // WARNING: Heap < 15,000 bytes
     if (freeHeap < warningHeapThreshold && !warningHeapFlag) {
         warningHeapFlag = true;
-        Serial.println("WARNING: Free heap below warning threshold.");
-        event = "WARNING FREE HEAP";
+        Serial.println("WARNING: FREE HEAP BELOW WARNING THRESHOLD.");
+        event = "HEAP WARNING";
         publishMQTT();
         sheetAddQueue(createPayload(true));
     }
-    if (freeHeap >= warningHeapThreshold) {
+    if (freeHeap >= warningHeapThreshold && warningHeapFlag) {
         warningHeapFlag = false; // Reset flag when heap recovers
+        event = "HEAP WARNING RECOVERED TO HEAP STABLE"; // Update event for recovery
+        publishMQTT();
+        sheetAddQueue(createPayload(true));
+        Serial.println("INFO: HEAP WARNING RECOVERED TO HEAP STABLE.");
     }
 
     // CRITICAL: Heap < 10,000 bytes
-    if (freeHeap < criticalHeapThreshold && !criticalHeapFlag) {
-        criticalHeapFlag = true;
-        Serial.println("CRITICAL: Free heap below critical threshold.");
-        event = "CRITICAL FREE HEAP";
-        publishMQTT();
-        sheetAddQueue(createPayload(true));
-    }
-    if (freeHeap >= criticalHeapThreshold) {
-        criticalHeapFlag = false; // Reset flag when heap recovers
+    if (freeHeap < criticalHeapThreshold) {
+        if (!criticalHeapFlag) {
+            criticalHeapFlag = true;
+            Serial.println("CRITICAL: FREE HEAP BELOW CRITICAL THRESHOLD.");
+            event = "HEAP CRITICAL";
+            publishMQTT();
+            sheetAddQueue(createPayload(true));
+        }
+    } else if (freeHeap >= criticalHeapThreshold) {
+        if (criticalHeapFlag) {
+            criticalHeapFlag = false; // Reset flag when heap recovers
+            event = "HEAP CRITICAL RECOVERED TO HEAP WARNING."; // Update event for recovery
+            publishMQTT();
+            sheetAddQueue(createPayload(true));
+            Serial.println("INFO: HEAP CRITICAL RECOVERED TO HEAP WARNING.");
+        }
     }
 
     // EMERGENCY: Heap < 8,000 bytes
-    if (freeHeap < emergencyHeapThreshold && !emergencyHeapFlag) {
-        emergencyHeapFlag = true;
-        Serial.println("EMERGENCY: Free heap below emergency threshold. Rebooting...");
-        event = "EMERGENCY FREE HEAP";
-        publishMQTT();
-        sheetAddQueue(createPayload(true));
-        delay(10000); // Give time for MQTT and Sheets data to send
-        ESP.restart(); // Reboot the ESP32
-    }
-    if (freeHeap >= emergencyHeapThreshold) {
-        emergencyHeapFlag = false; // Reset flag when heap recovers
+    if (freeHeap < emergencyHeapThreshold) {
+        if (!emergencyHeapFlag) {
+            emergencyHeapFlag = true;
+            Serial.println("EMERGENCY: HEAP BELOW EMERGENCY THRESHOLD. REBOOTING...");
+            event = "HEAP EMERGENCY";
+            publishMQTT();
+            sheetAddQueue(createPayload(true));
+            delay(10000); // Give time for MQTT and Sheets data to send
+            ESP.restart(); // Reboot the ESP32
+        }
+    } else if (freeHeap >= emergencyHeapThreshold) {
+        if (emergencyHeapFlag) {
+            emergencyHeapFlag = false; // Reset flag when heap recovers
+            event = "HEAP EMERGENCY RECOVERED TO HEAP CRITICAL"; // Update event for recovery
+            publishMQTT();
+            sheetAddQueue(createPayload(true));
+            Serial.println("INFO: HEAP EMERGENCY RECOVERED TO HEAP CRITICAL.");
+        }
     }
 }
