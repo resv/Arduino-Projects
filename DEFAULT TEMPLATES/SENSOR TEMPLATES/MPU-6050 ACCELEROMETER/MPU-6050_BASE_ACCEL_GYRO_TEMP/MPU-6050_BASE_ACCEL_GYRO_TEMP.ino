@@ -410,6 +410,8 @@ void connectToTopics() {
                 client.subscribe(mqtt_topic_CENTRAL_HUB);
                 client.subscribe(mqtt_topic_SHOCK_CENTER);
 
+                event = "CONNECTED";
+
                 // Publish to the central hub upon successful connection
                 String payload = "|CID:" + String(thisClientID) +
                                  "|DD:" + dateDate +
@@ -426,6 +428,7 @@ void connectToTopics() {
                                  "|TC:" + String(temperatureC) +
                                  "|TF:" + String(temperatureF);
                 client.publish(mqtt_topic_CENTRAL_HUB, payload.c_str());
+                event = "-";
             } else {
                 // Provide specific error codes for debugging
                 Serial.print("failed, rc=");

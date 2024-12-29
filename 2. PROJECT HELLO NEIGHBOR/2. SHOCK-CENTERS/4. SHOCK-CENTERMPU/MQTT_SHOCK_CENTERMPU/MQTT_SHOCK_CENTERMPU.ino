@@ -18,6 +18,7 @@ String event = "-";
 
 // Global Sensor variables
 float baselineX = 0, baselineY = 0, baselineZ = 0; // Baseline values
+float gyroX = 0.0, gyroY = 0.0, gyroZ = 0.0; // variables for gyro readings
 float vibrationThreshold = 0.5; // Threshold for shock detection
 int temperatureC = 0; // Temperature in Celsius (whole number)
 int temperatureF = 0; // Temperature in Fahrenheit (whole number)
@@ -321,6 +322,11 @@ void loop() {
       temperatureF = newTempF;
     }
 
+    // Update gyro global variables
+    gyroX = gyro.gyro.x;
+    gyroY = gyro.gyro.y;
+    gyroZ = gyro.gyro.z;
+
     // Calculate vibration deviation from baseline
     float deviationX = accel.acceleration.x - baselineX;
     float deviationY = accel.acceleration.y - baselineY;
@@ -404,6 +410,8 @@ void connectToTopics() {
                 client.subscribe(mqtt_topic_CENTRAL_HUB);
                 client.subscribe(mqtt_topic_SHOCK_CENTER);
 
+                event = "CONNECTED";
+
                 // Publish to the central hub upon successful connection
                 String payload = "|CID:" + String(thisClientID) +
                                  "|DD:" + dateDate +
@@ -414,12 +422,13 @@ void connectToTopics() {
                                  "|AX:" + String(baselineX, 2) +
                                  "|AY:" + String(baselineY, 2) +
                                  "|AZ:" + String(baselineZ, 2) +
-                                 "|GX:" + String(sumX, 2) + // Replace `sumX`, `sumY`, `sumZ` with gyro global vars if defined
-                                 "|GY:" + String(sumY, 2) +
-                                 "|GZ:" + String(sumZ, 2) +
+                                 "|GX:" + String(gyroX, 2) +
+                                 "|GY:" + String(gyroY, 2) +
+                                 "|GZ:" + String(gyroZ, 2) +
                                  "|TC:" + String(temperatureC) +
                                  "|TF:" + String(temperatureF);
                 client.publish(mqtt_topic_CENTRAL_HUB, payload.c_str());
+                event = "-";
             } else {
                 // Provide specific error codes for debugging
                 Serial.print("failed, rc=");
