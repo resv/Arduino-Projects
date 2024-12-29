@@ -14,7 +14,7 @@ const char* thisClientID = "RESV-SHOCKERA"; // Define the ClientID
 String isArmed = "DISARMED";
 String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";
-String event = "-";
+String event = "LISTENING";
 
 // Global Sensor variables
 float vibrationMagnitude = 0.0; // Vibration magnitude
@@ -215,47 +215,22 @@ void setup() {
 
 // Function to print sensor data
 void printSensorData(bool shockDetected, float vibrationMagnitude, sensors_event_t& accel, sensors_event_t& gyro) {
-  Serial.print("|ID:"); Serial.print(thisClientID);
-
-  Serial.print("|DD:");
-  Serial.print(dateDate);
-
-  Serial.print("|DT:");
-  Serial.print(dateTime);
-
-  Serial.print("|E:");
-  Serial.print(event);
-
-  Serial.print("|S:");
-  Serial.print(shockDetected ? "DETECTED" : "LISTENING");
-
-  Serial.print("|VM:");
-  Serial.print(vibrationMagnitude, 2);
-
-  Serial.print("|IA:");
-  Serial.print(isArmed);
-
-  Serial.print("|VT:");
-  Serial.print(vibrationThreshold);
-
-  Serial.print("|AX:");
-  Serial.print(accel.acceleration.x, 2);
-  Serial.print("|AY:");
-  Serial.print(accel.acceleration.y, 2);
-  Serial.print("|AZ:");
-  Serial.print(accel.acceleration.z, 2);
-
-  Serial.print("|GX:");
-  Serial.print(gyro.gyro.x, 2);
-  Serial.print("|GY:");
-  Serial.print(gyro.gyro.y, 2);
-  Serial.print("|GZ:");
-  Serial.print(gyro.gyro.z, 2);
-
-  Serial.print("|TC:");
-  Serial.print(temperatureC);
-  Serial.print("|TF:");
-  Serial.println(temperatureF);
+  Serial.print("|ID:" + String(thisClientID) +
+                 "|DD:" + dateDate +
+                 "|DT:" + dateTime +
+                 "|E:" + event +
+                 "|IA:" + isArmed +
+                 "|VM:" + String(vibrationMagnitude, 2) +
+                 "|VT:" + String(vibrationThreshold, 2) +
+                 "|AX:" + String(accel.acceleration.x, 2) +
+                 "|AY:" + String(accel.acceleration.y, 2) +
+                 "|AZ:" + String(accel.acceleration.z, 2) +
+                 "|GX:" + String(gyro.gyro.x, 2) +
+                 "|GY:" + String(gyro.gyro.y, 2) +
+                 "|GZ:" + String(gyro.gyro.z, 2) +
+                 "|TC:" + String(temperatureC) +
+                 "|TF:" + String(temperatureF));
+  Serial.println(); // Add a newline at the end
 }
 
 // Main loop function
@@ -404,7 +379,7 @@ void fetchNTPTime() {
 }
 
 void resetGlobalVariables() {
-    event = "-";
+    event = "LISTENING";
     shockDetected = false;
     vibrationMagnitude = 0.0;
     baselineX = 0;
@@ -441,7 +416,7 @@ void connectToTopics() {
                                  "|DD:" + dateDate +
                                  "|DT:" + dateTime +
                                  "|E:" + event +
-                                 "|S:" + String(shockDetected) +
+                                 //"|S:" + String(shockDetected) +
                                  "|IA:" + String(isArmed) +
                                  "|VM:" + String(vibrationMagnitude, 2) +
                                  "|VT:" + String(vibrationThreshold, 2) +
@@ -454,6 +429,7 @@ void connectToTopics() {
                                  "|TC:" + String(temperatureC) +
                                  "|TF:" + String(temperatureF);
                 client.publish(mqtt_topic_CENTRAL_HUB, payload.c_str());
+                resetGlobalVariables();
             } else {
                 // Provide specific error codes for debugging
                 Serial.print("failed, rc=");
@@ -480,7 +456,7 @@ void publishDetection() {
                      "|DD:" + dateDate +
                      "|DT:" + dateTime +
                      "|E:" + event +
-                     "|S:" + String(shockDetected) +
+                     //"|S:" + String(shockDetected) +
                      "|IA:" + String(isArmed) +
                      "|VM:" + String(vibrationMagnitude, 2) +
                      "|VT:" + String(vibrationThreshold, 2) +
