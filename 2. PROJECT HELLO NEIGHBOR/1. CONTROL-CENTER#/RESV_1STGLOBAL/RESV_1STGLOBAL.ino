@@ -1,41 +1,69 @@
-#include <Adafruit_GFX.h>
-#include <Adafruit_ST7789.h>
-#include <WiFi.h>
-#include <WiFiClientSecure.h>
-#include <PubSubClient.h>
-#include <WiFiUdp.h>
-#include <NTPClient.h>
-#include <time.h>
-
-// LCD configuration
-#define LCD_WIDTH 170
-#define LCD_HEIGHT 320
-#define LCD_MOSI 23
-#define LCD_SCLK 18
-#define LCD_CS 15
-#define LCD_DC 2
-#define LCD_RST 4
-#define LCD_BLK 32
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <Wire.h>
+#include <WiFi.h> // Add Wi-Fi library
+#include "esp_log.h"
+#include <WiFiClientSecure.h> // For secure SSL connection
+#include <PubSubClient.h>   // For MQTT client
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 #define EXTERNAL_BUTTON_PIN 22  // GPIO pin for the external button
 #define ONBOARD_BUTTON_PIN 0   // GPIO pin for the onboard button
 
+// Global ESP variables
+const char* thisClientID = "RESV-1ST"; // Define the ClientID
+String isArmed = "--";
+String dateDate = "MM/DD";
+String dateTime = "HH:MM:SS";
+String event = "LISTENING";
+int freeHeap = 0; // Global variable to store free heap memory
 
-Adafruit_ST7789 lcd = Adafruit_ST7789(LCD_CS, LCD_DC, LCD_RST);
+// Global Heap Variables
+unsigned long lastHeapLogMillis = 0;
+const unsigned long heapLogInterval = 60000; // Update every 1 minute
+const int warningHeapThreshold = 15000;
+const int criticalHeapThreshold = 10000;
+const int emergencyHeapThreshold = 8000;
 
-// Wi-Fi credentials (multiple SSIDs)
+bool warningHeapFlag = false;
+bool criticalHeapFlag = false;
+bool emergencyHeapFlag = false;
+
+// Global Sensor variables
+float vibrationMagnitude = 0.0; // Vibration magnitude
+float baselineX = 0, baselineY = 0, baselineZ = 0; // Baseline values
+float gyroX = 0.0, gyroY = 0.0, gyroZ = 0.0; // variables for gyro readings
+float vibrationThreshold = 0.5; // Threshold for shock detection
+int temperatureC = 0; // Temperature in Celsius (whole number)
+int temperatureF = 0; // Temperature in Fahrenheit (whole number)
+
+
+// NTP Variables
+unsigned long lastNTPFetchMillis = 0; // Tracks the last NTP fetch time
+unsigned long internalClockMillis = 0; // Tracks time since last internal clock update
+const unsigned long internalClockInterval = 1000; // 1-second interval for updating the internal clock
+time_t internalEpochTime = 0; // Internal clock epoch time in seconds
+unsigned long lastNTPRetryMillis = 0;  // Track last retry attempt
+const unsigned long ntpRetryInterval = 60000;  // Retry every 1 minute if initial fetch fails
+
+
+// GSheets Variables
+#define MAX_PAYLOAD_SIZE 256
+
+// Use Json for serial
+bool useJsonForSerial = true; // Change to false for key-value
+
+// Wi-Fi VARIABLES
 const char* wifi_credentials[][2] = {
     {"OP9", "aaaaaaaaa1"},
     {"icup +1", "aaaaaaaaa1"},
     {"ICU", "Emmajin6!"}
 };
 const int num_wifi_credentials = sizeof(wifi_credentials) / sizeof(wifi_credentials[0]);
-
-// Other configurations and variables
-unsigned long lastWiFiCheck = 0;  // Track last Wi-Fi check time
-const unsigned long wifiCheckInterval = 5000;  // Interval for Wi-Fi check (5 seconds)
-int currentWiFiIndex = 0;  // Index for cycling through SSIDs
-bool mqttReconnectBlocked = false;  // Block MQTT reconnect spam
+int currentWiFiIndex = 0; // Index of the current SSID to try
+static unsigned long lastWiFiCheck = 0;
+const unsigned long wifiCheckInterval = 5000; // Check Wi-Fi every 5 seconds
 
 // MQTT broker credentials
 const char* mqtt_server = "9321cdfa0af34b83b77797a4488354cd.s1.eu.hivemq.cloud";
@@ -43,10 +71,14 @@ const int mqtt_port = 8883;
 const char* mqtt_user = "MasterA";
 const char* mqtt_password = "MasterA1";
 const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB";
-const char* mqtt_topic_NTP = "NTP";
-const char* mqtt_topic_WORKOUT_TIMER = "WORKOUT-TIMER";
 const char* mqtt_topic_SHOCK_CENTER = "SHOCK-CENTER";
 const char* clientID = "RESV-1ST";
+WiFiClientSecure espClient; // MQTT OVER SSL
+PubSubClient client(espClient); // creates instance object client for PubSubClient class
+// Non-blocking reconnect variables
+unsigned long mqttReconnectTimer = 0;
+const unsigned long mqttReconnectInterval = 5000; // Retry every 5 seconds
+
 
 // Root certificate
 const char* root_ca = R"EOF(
@@ -81,66 +113,15 @@ uYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA
 -----END CERTIFICATE-----
 )EOF";
 
-// WiFi and MQTT clients
-WiFiClientSecure espClient;
-PubSubClient client(espClient);
-
-// Default workout timer value
-String workoutTimer = "--:--";
-
-// Default date and time since boot
-String shockTimeSinceBoot = " --:--";
-String dateSinceBoot = "--/--";
-
-// Status line variables
-String statusDetection = "Listening";  //
-String isArmed = "";              // STATUS: ---
-String lastRequestClientID = "";    // LAST REQUEST: --- (CLIENTID)
-String lastRequestStatus = "";      // LAST REQUEST: --- ARM/DISARM REQUESTED
-String lastRequestDate = "";        // LAST REQUEST: --- (DATE)
-String lastRequestTime = "";        // LAST REQUEST: --- (DATE / TIME)
-String lastTemperature = "--";  // Placeholder for the current temperature
-String lastMagnitude = "--";       // Placeholder for the last detected magnitude
-// Accelerometer readings initialized as placeholders
-String lastAccelX = "--";
-String lastAccelY = "--";
-String lastAccelZ = "--";
-
-// Long press button variables
-unsigned long buttonPressStart = 0; // Track when the button was pressed
-bool isButtonHeld = false;         // Track if the button is being held
-
-
-// Define the log size and initialize the log
-const int logSize = 50;
-String lastDetectionLog[logSize];
-
-int totalRetaliationCount = 0;  // TOTAL RETALIATION START TIME
-
-// NTP configuration
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);  // UTC, sync every 60 seconds
-unsigned long lastNTPFetch = 0;
-#define SECONDS_IN_A_DAY 86400
-#define MAX_NTP_RETRIES 6307200
-int NTPReadyToPublish = 0;
-
-// Internal time tracking
-time_t internalTime = 0;       // Tracks the current epoch time
-unsigned long lastMillis = 0;  // Tracks the last time the display was updated
-
-// Connect to Wi-Fi
 void setup_wifi() {
-    Serial.println("Connecting to Wi-Fi...");
+    while (WiFi.status() != WL_CONNECTED) {
+        const char* ssid = wifi_credentials[currentWiFiIndex][0];
+        const char* password = wifi_credentials[currentWiFiIndex][1];
 
-    for (int i = 0; i < num_wifi_credentials; i++) {
-        const char* ssid = wifi_credentials[i][0];
-        const char* password = wifi_credentials[i][1];
+        Serial.print("CONNECTING TO [" + String(ssid) + "]");
 
-        Serial.println("Trying SSID: " + String(ssid));
-
-        WiFi.disconnect();  // Ensure any ongoing connection is terminated
-        delay(100);         // Allow some time for the disconnect to take effect
+        WiFi.disconnect();  // Ensure a clean connection attempt
+        delay(100);         // Allow disconnect to take effect
         WiFi.begin(ssid, password);
 
         // Wait for connection or timeout (5 seconds)
@@ -150,863 +131,389 @@ void setup_wifi() {
             Serial.print(".");
         }
 
-        if (WiFi.status() == WL_CONNECTED) {
-            Serial.println("\nWi-Fi connected! SSID: \"" + String(ssid) + "\", IP: " + WiFi.localIP().toString());
-            return; // Exit once connected
+       if (WiFi.status() == WL_CONNECTED) {
+            fetchNTPTime(); // Fetch NTP time
+            Serial.println("CONNECTED TO [" + String(ssid) + "] [" + WiFi.localIP().toString() + "]");
+
+              // Configure MQTT
+              client.setServer(mqtt_server, mqtt_port);
+              client.setCallback(mqttCallback); // Set the callback here
+              espClient.setCACert(root_ca); // Attach root CA certificate
+              
+              connectToTopics(); // CONNECT TO ALL TOPICS
+            break; // Exit loop on successful connection
         } else {
-            Serial.println("\nFailed to connect to SSID: \"" + String(ssid) + "\". Trying next...");
+            Serial.println("FAILED TO CONNECT TO [" + String(ssid) + "]");
+            currentWiFiIndex = (currentWiFiIndex + 1) % num_wifi_credentials; // Cycle to the next SSID
         }
     }
 
-    Serial.println("ERROR: Unable to connect to any Wi-Fi network!");
-    // Optionally: Trigger a fallback behavior here (e.g., retry loop, enter AP mode, etc.)
-}
-
-// Function to update the timer on the LCD
-void updateWorkoutTimerLCD(const String& timerValue) {
-  lcd.fillRect(199, 0, 70, 14, ST77XX_BLACK);  // Clear timer area
-  lcd.setCursor(199, 0);                       // Set cursor position for timer
-  lcd.setTextSize(2);                          // Set text size for timer
-  lcd.setTextColor(ST77XX_GREEN);
-  lcd.println(timerValue);  // Display the timer
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("ERROR: UNABLE TO CONNECT TO ANY WIFI SSID!");
+        // Handle fallback scenario if needed
+    }
 }
 
 
-// Fetch NTP time and update internal time
-bool fetchAndSetNTPTime() {
-  int retryCount = 0;
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+    Serial.print("RESV-1ST RCVD [");
+    Serial.print(topic);
+    Serial.print("]: ");
 
-  lcd.fillRect(0, 100, 320, 70, ST77XX_BLACK);
-  lcd.setCursor(30, 120);
-  lcd.setTextSize(3);
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.println("Fetching NTP...");
+    // Convert payload to a String
+    String message;
+    for (unsigned int i = 0; i < length; i++) {
+        message += (char)payload[i];
+    }
+    Serial.println(message);
 
-  while (!timeClient.update() && retryCount < MAX_NTP_RETRIES) {
-    retryCount++;
-    Serial.println("Retrying NTP fetch...");
-    delay(2000);
-  }
+    // Parse JSON payload
+    StaticJsonDocument<512> doc; // Adjust size if necessary
+    DeserializationError error = deserializeJson(doc, message);
 
-  if (retryCount == MAX_NTP_RETRIES) {
-    Serial.println("Failed to fetch NTP time after retries.");
+    if (error) {
+        Serial.print("Failed to parse MQTT message: ");
+        Serial.println(error.c_str());
+        return;
+    }
 
-    lcd.fillRect(0, 100, 320, 70, ST77XX_BLACK);
-    lcd.setCursor(40, 120);
-    lcd.setTextSize(3);
-    lcd.setTextColor(ST77XX_YELLOW);
-    lcd.println("NTP FAILED");
-    return false;
-  }
+    // Extract all data from JSON document
+    const char* id = doc["ID"];
+    const char* date = doc["DD"];
+    const char* time = doc["DT"];
+    const char* event = doc["E"];
+    const char* isArmed = doc["IA"];
+    float vibrationMagnitude = doc["VM"];
+    float vibrationThreshold = doc["VT"];
+    float ax = doc["AX"];
+    float ay = doc["AY"];
+    float az = doc["AZ"];
+    float gx = doc["GX"];
+    float gy = doc["GY"];
+    float gz = doc["GZ"];
+    int temperatureC = doc["TC"];
+    int temperatureF = doc["TF"];
+    int freeHeap = doc["FH"];
 
-  internalTime = timeClient.getEpochTime();
-  Serial.println("NTP Time fetched: " + String(ctime(&internalTime)));
-
-  // Publish updated times after fetch
-  publishTimeData();
-
-  return true;
-}
-
-// Display and format all timezone data
-void displayTimezones() {
-  const int offsets[] = { 0, -5, -6, -7, -8 };
-  const char* zones[] = { "UTC-0", "EST-5", "CST-6", "MST-7", "PST-8" };
-  const uint16_t zoneColors[] = { ST77XX_CYAN, ST77XX_GREEN, ST77XX_WHITE, ST77XX_ORANGE, ST77XX_MAGENTA };
-  char dateBuffer[20];
-  char time12Buffer[10];
-  char time24Buffer[10];
-
-  const int xOffset = 3;  // Offset to shift all x-coordinates
-
-  // Display table headers
-  lcd.setTextSize(2);
-  lcd.fillRect(0, 100, 320, 70, ST77XX_BLACK);
-
-  // Sketch lines for table for timezones:
-  lcd.fillRect(0, 100, 320, 1, ST77XX_YELLOW);   // horizontal line
-  lcd.fillRect(64, 100, 1, 70, ST77XX_YELLOW);   // vertical line
-  lcd.fillRect(128, 100, 1, 70, ST77XX_YELLOW);  // vertical line
-  lcd.fillRect(192, 100, 1, 70, ST77XX_YELLOW);  // vertical line
-  lcd.fillRect(256, 100, 1, 70, ST77XX_YELLOW);  // vertical line
-
-  // Sketch fill in colors for table for timezones:
-  //lcd.fillRect(0, 100, 64, 70, ST77XX_BLUE);      // PST CELL
-  //lcd.fillRect(64, 100, 128, 70, ST77XX_RED);     // MST CELL
-  //lcd.fillRect(128, 100, 192, 70, ST77XX_ORANGE); // CST CELL
-  //lcd.fillRect(192, 100, 256, 70, ST77XX_GREEN);  // EST CELL
-  //lcd.fillRect(256, 100, 320, 70, ST77XX_WHITE);  // UTC CELL
-
-  // Loop through each timezone and display zone names and times
-  for (int i = 4; i >= 0; i--) {
-    // Set text color for the current zone
-    lcd.setTextColor(zoneColors[i]);
-
-    // Print zone name
-    lcd.setCursor((64 * (4 - i)) + xOffset, 102);  // Add xOffset to x-coordinate
-    lcd.print(zones[i]);
-
-    //lcd.setTextColor(ST77XX_WHITE); //back to white for the rest
-    // Adjust time for the current timezone
-    time_t adjustedTime = internalTime + (offsets[i] * 3600);
-    struct tm* timeInfo = gmtime(&adjustedTime);
-
-    strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", timeInfo);
-    strftime(time12Buffer, sizeof(time12Buffer), "%I:%M", timeInfo);  // 12-hour format without AM/PM
-    strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", timeInfo);
-
-    // Print time in 12-hour format (without AM/PM)
-    lcd.setCursor((64 * (4 - i)) + xOffset, 120);
-    lcd.print(time12Buffer);
-
-    // Print time in 24-hour format
-    lcd.setCursor((64 * (4 - i)) + xOffset, 138);
-    lcd.print(time24Buffer);
-
-    // Print date
-    lcd.setCursor((64 * (4 - i)) + xOffset, 156);
-    lcd.print(dateBuffer);
+    // Print extracted values for debugging
+    Serial.println("Extracted JSON Data:");
+    Serial.println("ID: " + String(id));
+    Serial.println("Date: " + String(date));
+    Serial.println("Time: " + String(time));
+    Serial.println("Event: " + String(event));
+    Serial.println("Is Armed: " + String(isArmed));
+    Serial.println("Vibration Magnitude: " + String(vibrationMagnitude, 2));
+    Serial.println("Vibration Threshold: " + String(vibrationThreshold, 2));
+    Serial.println("Acceleration - AX: " + String(ax, 2) + " AY: " + String(ay, 2) + " AZ: " + String(az, 2));
+    Serial.println("Gyroscope - GX: " + String(gx, 2) + " GY: " + String(gy, 2) + " GZ: " + String(gz, 2));
+    Serial.println("Temperature: " + String(temperatureC) + "C / " + String(temperatureF) + "F");
+    Serial.println("Free Heap: " + String(freeHeap));
     
-    // Update `dateSinceBoot` if processing EST
-    if (i == 1) { // Index 1 corresponds to EST
-        dateSinceBoot = String(dateBuffer); // Save the date in global variable
+    // Example logic
+    if (String(id) == "RESV-1ST") {
+        Serial.println("Message is for this client!");
+        if (String(event) == "ARMED") {
+            isArmed = "ARMED";
+            Serial.println("System is ARMED.");
+        }
+        if (vibrationMagnitude > vibrationThreshold) {
+            Serial.println("Vibration exceeds threshold!");
+        }
     }
-  }
 }
 
-// Publish timezone data to MQTT
-void publishTimeData() {
-  const int offsets[] = { 0, -5, -6, -7, -8 };
-  const char* zones[] = { "UTC-0", "EST-5", "CST-6", "MST-7", "PST-8" };
-  char dateBuffer[20];
-  char time12Buffer[10];
-  char time24Buffer[10];
-
-  String payload = "";
-
-  for (int i = 0; i < 5; i++) {
-    time_t adjustedTime = internalTime + (offsets[i] * 3600);
-    struct tm* timeInfo = gmtime(&adjustedTime);
-
-    strftime(dateBuffer, sizeof(dateBuffer), "%m-%d", timeInfo);
-    strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", timeInfo);
-    strftime(time24Buffer, sizeof(time24Buffer), "%H:%M", timeInfo);
-
-    payload += String(zones[i]) + " | " + String(dateBuffer) + " | " + String(time12Buffer) + " | " + String(time24Buffer) + "\n";
-  }
-
-  //client.publish(mqtt_topic_NTP, payload.c_str()); (DOESN"T WORK DUE TO HIVEMQ MQTT CHAR LIMIT?)
-  Serial.println("----------- NTP TIME -----------\n" + payload);
-
-  // Publish only EST-5 row separately
-  int estIndex = 1;  // Index of EST-5 in the offsets array
-  time_t estTime = internalTime + (offsets[estIndex] * 3600);
-  struct tm* estTimeInfo = gmtime(&estTime);
-
-  strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", estTimeInfo);
-  strftime(time12Buffer, sizeof(time12Buffer), "%I:%M %p", estTimeInfo);
-  strftime(time24Buffer, sizeof(time24Buffer), "%H:%M:%S", estTimeInfo);
-
-  String estPayload = String(dateBuffer) + " " + String(time24Buffer);
-
-  Serial.println("Staged NTP Publish data:");
-  Serial.println(estPayload + "\n");
-
-  if (NTPReadyToPublish == 1) {
-    //client.publish(mqtt_topic_NTP, estPayload.c_str());
-    client.publish(mqtt_topic_CENTRAL_HUB, (String(clientID) + " | CONNECTED | " + estPayload).c_str());
-  } else {
-    Serial.println("Staged NTP could not publish, NTPReadyToPublish flag remains at 0\n");
-  }
-}
-
-// Update callback to handle WORKOUT-TIMER messages and CENTRAL-HUB logs
-// Updated callback function
-void callback(char* topic, byte* payload, unsigned int length) {
-  String message = "";
-  for (unsigned int i = 0; i < length; i++) {
-    message += (char)payload[i];
-  }
-
-  Serial.println("RESV-1ST RCVD [" + String(topic) + "]: " + message);
-
-  // Handle NTP requests
-  if (String(topic) == mqtt_topic_NTP && message.endsWith("| NTP REQUEST")) {
-    Serial.println("Processing NTP REQUEST...");
-    if (fetchAndSetNTPTime()) {
-      Serial.println("NTP updated and published.");
-    }
-  }
-
-  // Handle WORKOUT-TIMER updates
-  if (String(topic) == mqtt_topic_WORKOUT_TIMER) {
-    workoutTimer = message;
-    updateWorkoutTimerLCD(workoutTimer); // Correct usage
-  }
-
-  // Handle SHOCK-CENTER messages
-  if (String(topic) == mqtt_topic_SHOCK_CENTER && message.indexOf("DETECTED SHOCK") != -1) {
-    // Parse and format the message
-    String formattedMessage = parseAndFormatMQTTMessage(message);
-
-    // Add the formatted message to the log
-    addToLog(formattedMessage);
-
-    // Update LCD components
-    updateLastDetectionLine(); // Correct usage
-    updateIsArmedLine();       // Correct usage
-    totalRetaliationCount++;
-    updateTotalRetaliationLine();  // Correct usage
-    updateShockTimeSinceBoot();    // Correct usage
-  }
-
-  // Handle CENTRAL-HUB messages
-  if (String(topic) == mqtt_topic_CENTRAL_HUB && message.indexOf("CONNECTED") != -1) {
-    int pos1 = message.indexOf(':') + 1;
-    int pos2 = message.indexOf('|', pos1);
-    int pos3 = message.lastIndexOf('|');
-
-    if (pos1 != -1 && pos2 != -1 && pos3 != -1) {
-      String clientID = message.substring(pos1, pos2).trim();
-      String dateTime = message.substring(pos3 + 1).trim();
-
-      String secondLetter = "X"; // Default to unknown
-      if (clientID == "RESV-SHOCKERA") secondLetter = "A";
-      else if (clientID == "RESV-SHOCKERB") secondLetter = "B";
-      else if (clientID == "RESV-SHOCKERC") secondLetter = "C";
-
-      String formattedMessage = dateTime + " R" + secondLetter;
-
-      // Add to log
-      addToLog(formattedMessage);
-
-      // Refresh LCD
-      updateLastDetectionLine(); // Correct usage
-    }
-  }
-
-  if (String(topic) == mqtt_topic_CENTRAL_HUB) {
-    if (message.indexOf("ARM CONFIRMED") != -1 || message.indexOf("DISARM CONFIRMED") != -1) {
-      // Parse and format the message
-      String formattedMessage = parseAndFormatCentralHubMessage(message);
-
-      // Update LCD
-      updateLastRequest();      // Correct usage
-      updateIsArmedLine();      // Correct usage
-    }
-  }
-}
-
-
-
-
-  
-   if (String(topic) == mqtt_topic_CENTRAL_HUB) {
-    if (message.indexOf("ARM CONFIRMED") != -1 || message.indexOf("DISARM CONFIRMED") != -1) {
-      // Parse and format the message
-      String formattedMessage = parseAndFormatCentralHubMessage(message);
-      // Update the LCD
-      updateLastRequest();
-      updateIsArmedLine();
-    }
-  }
-
-}
-
-// Reconnect to MQTT broker
-void reconnect() {
-  while (!client.connected()) {
-    Serial.println("Connecting to MQTT broker...");
-    if (client.connect(clientID, mqtt_user, mqtt_password)) {
-      Serial.println(String(clientID) + " | CONNECTED TT MQTT BROKER!");
-
-      client.subscribe(mqtt_topic_CENTRAL_HUB);
-
-      client.subscribe(mqtt_topic_NTP);
-      //client.publish(mqtt_topic_NTP, (String(clientID) + " CONNECTED").c_str());
-      NTPReadyToPublish = 1;
-
-      client.subscribe(mqtt_topic_WORKOUT_TIMER);
-      //client.publish(mqtt_topic_WORKOUT_TIMER, (String(clientID) + " CONNECTED").c_str());
-
-      client.subscribe(mqtt_topic_SHOCK_CENTER);
-
-      Serial.println(String(clientID) + " | FULLY SUBSCRIBED TO [" + mqtt_topic_CENTRAL_HUB + "] | [" + mqtt_topic_NTP + "] | [" + mqtt_topic_WORKOUT_TIMER + "] | [" + mqtt_topic_SHOCK_CENTER + "]");
-
-      publishTimeData();
-
-    } else {
-      Serial.println(" | MQTT BROKER CONNECTION FAILED!, rc=" + String(client.state()));
-      delay(5000);
-    }
-  }
-}
 
 // Setup function
 void setup() {
-  Serial.begin(115200);
-  setup_wifi();
+    Serial.begin(115200);
+    esp_log_level_set("wifi", ESP_LOG_NONE);
 
-  espClient.setCACert(root_ca);
-  client.setServer(mqtt_server, mqtt_port);
-  client.setCallback(callback);
+    // Connect to Wi-Fi
+    setup_wifi(); 
 
-  lcd.init(LCD_WIDTH, LCD_HEIGHT);
-  lcd.setRotation(1);
-  lcd.fillRect(0, 0, 320, 100, ST77XX_BLACK);
+    // Handle MQTT keep-alive and callbacks
+    client.loop();
 
-  pinMode(EXTERNAL_BUTTON_PIN, INPUT_PULLUP);  // External button as input with pull-up
-  pinMode(ONBOARD_BUTTON_PIN, INPUT_PULLUP);   // Onboard button as input with pull-up
+    event = "TESTCONNECT";
 
-
-  //  lcd.setCursor(40, 40);
-  //  lcd.setTextSize(3);
-  //  lcd.setTextColor(ST77XX_WHITE);
-  //  lcd.println("Fetching NTP...");
-
-  timeClient.begin();
-
-  if (fetchAndSetNTPTime()) {
-    lastNTPFetch = millis();
-  } else {
-    Serial.println("Using default time.");
-    internalTime = 0;  // 11/11/11 11:11 UTC
-  }
-
-  displayTimezones();
-  updateWorkoutTimerLCD(workoutTimer);  // Display default timer value
-
-  // Display Status Lines
-  updateStatusLine(); // Banner Detection/listening
-  updateIsArmedLine(); //corner icon
-  updateLastRequest();
-  updateLastDetectionLine(); //log column
-  updateTotalRetaliationLine(); // Banner retaliation count
-  updateDateSinceBoot(); // the Bottom of the top, middle
-  updateShockTimeSinceBoot(); // the top of the top, middle
+    resetGlobalVariables();
 }
 
+
+// Function to print sensor data
+void printSensorData(bool shockDetected, float vibrationMagnitude, sensors_event_t& accel, sensors_event_t& gyro) {
+    if (useJsonForSerial) {
+        // Use JSON format
+        Serial.println(createPayload(true)); // Pass `true` to get JSON format
+    } else {
+        // Key-value string format
+        Serial.println(createPayload(false)); // Pass `false` for key-value format
+    }
+}
+
+// Main loop function
 void loop() {
-    static unsigned long lastWiFiCheck = 0;  // Tracks the last time Wi-Fi status was checked
-    const unsigned long wifiCheckInterval = 5000;  // Check Wi-Fi every 5 seconds
-    static int currentWiFiIndex = 0;  // Tracks which Wi-Fi SSID to try next
-    static bool wifiDisconnected = false;  // Tracks if Wi-Fi is currently disconnected
-
-    unsigned long currentMillis = millis();
-
-    // Periodic Wi-Fi status check
-    if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
-        lastWiFiCheck = currentMillis;
-
-        if (WiFi.status() != WL_CONNECTED) {
-            if (!wifiDisconnected) {
-                Serial.println("Wi-Fi disconnected! Attempting to reconnect...");
-                wifiDisconnected = true;  // Set the disconnected flag
-            }
-
-            // Disconnect and move to the next Wi-Fi SSID
-            WiFi.disconnect();
-            delay(100);  // Allow disconnect to take effect
-            currentWiFiIndex = (currentWiFiIndex + 1) % num_wifi_credentials;  // Loop through SSIDs
-
-            const char* ssid = wifi_credentials[currentWiFiIndex][0];
-            const char* password = wifi_credentials[currentWiFiIndex][1];
-
-            Serial.println("Trying SSID: " + String(ssid));
-            WiFi.begin(ssid, password);
-
-            // Wait for connection or timeout (5 seconds)
-            unsigned long startAttemptTime = millis();
-            while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 5000) {
-                delay(500);
-                Serial.print(".");
-            }
-
-            if (WiFi.status() == WL_CONNECTED) {
-                Serial.println("\nWi-Fi reconnected! SSID: \"" + String(ssid) + "\", IP: " + WiFi.localIP().toString());
-                wifiDisconnected = false;  // Reset the disconnected flag
-            } else {
-                Serial.println("\nFailed to reconnect to SSID: \"" + String(ssid) + "\". Will try next...");
-            }
-        }
-    }
-
-    // Ensure Wi-Fi is connected before attempting MQTT reconnection
-    if (WiFi.status() == WL_CONNECTED) {
-        if (!client.connected()) {
-            reconnect();  // Reconnect to MQTT if disconnected
-        }
-        client.loop();  // Process MQTT messages
-    } else if (!wifiDisconnected) {
-        Serial.println("Skipping MQTT reconnect as Wi-Fi is not connected.");
-        wifiDisconnected = true;  // Avoid repeated disconnect messages
-    }
-
-    // Update the displayed time every 60 seconds
-    if (currentMillis - lastMillis >= 60000) {
-        internalTime += 60;         // Increment internal time by 60 seconds
-        displayTimezones();         // Update time zones on LCD
-        lastMillis = currentMillis; // Reset last time display was updated
-    }
-
-    // Refresh NTP time once a day
-    if (currentMillis - lastNTPFetch >= SECONDS_IN_A_DAY * 1000) {
-        if (fetchAndSetNTPTime()) {
-            lastNTPFetch = currentMillis;  // Reset NTP fetch timer
-        }
-    }
-
-    // Check for button presses
-    buttonPressToggle();
-}
-
-
-
-void updateStatusLine() {
-  //lcd.fillRect(0, 0, 190, 14, ST77XX_BLACK);
-  lcd.setCursor(0, 0);
-  lcd.setTextSize(3);
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("");
-  lcd.setTextColor(ST77XX_YELLOW);
-  lcd.print(statusDetection);  // or DETECTED!
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.print("");
-}
-
-void updateLastDetectionLine() {
-  // Clear the area on the LCD where the detection logs are displayed
-  lcd.fillRect(0, 25, 192, 145, ST77XX_BLACK); // TOP LEFT CORNER TO SYMBOL AND DOWN CLEAR
-  lcd.fillRect(192, 100, 128, 70, ST77XX_BLACK); // BOTTOM RIGHT CORNER OF UTC CLEAR
-  
-  // Display the most recent logs
-  lcd.setTextSize(2);
-  lcd.setTextColor(ST77XX_WHITE);
-
-  // Loop through the first few logs (e.g., the most recent 7 logs)
-  for (int i = 0; i < 7 && i < 50; i++) {
-    if (lastDetectionLog[i] != "") {    // Check if the log exists
-      lcd.setCursor(0, 25 + (i * 20));  // Adjust the Y-position for each log
-      lcd.print(lastDetectionLog[i]);   // Display the log
-    }
-  }
-  //AccelXYZ, temp, and magnitude last update
-    lcd.setTextColor(ST77XX_GREEN); // Set color for these values
-    lcd.setCursor(0, 170); // Position for the temperature
-    lcd.print("Temp: ");
-    lcd.print(lastTemperature);
-
-    lcd.setCursor(0, 190); // Position for the magnitude
-    lcd.print("Mag: ");
-    lcd.print(lastMagnitude);
-
-     // Display accelerometer readings
-    lcd.setTextColor(ST77XX_CYAN); // Set a different color for accelerometer data
-    lcd.setCursor(0, 210); // Position for accelerometer X
-    lcd.print("X: ");
-    lcd.print(lastAccelX);
-
-    lcd.setCursor(0, 230); // Position for accelerometer Y
-    lcd.print("Y: ");
-    lcd.print(lastAccelY);
-
-    lcd.setCursor(0, 250); // Position for accelerometer Z
-    lcd.print("Z: ");
-    lcd.print(lastAccelZ);
-}
-
-void updateLastRequest() {
-    lcd.fillRect(189, 42, 70, 17, ST77XX_BLACK); // LAST word clear
-    lcd.fillRect(190, 59, 130, 40, ST77XX_BLACK); // Variables word clear
-    if (isArmed == "ARMED"){
-      lcd.setTextColor(ST77XX_ORANGE);
-    } else if (isArmed == "DISAR"){
-      lcd.setTextColor(ST77XX_CYAN);    
-    } else {
-      lcd.setTextColor(ST77XX_GREEN);  
-    }
-      lcd.setCursor(190, 43);
-      lcd.setTextSize(2);
-      //lcd.print(" LAST");
-      lcd.setCursor(195, 60);
-      lcd.print(lastRequestClientID);
-      lcd.setCursor(192, 77);
-      lcd.print(lastRequestDate);
-      lcd.setCursor(259, 77);
-      lcd.print(lastRequestTime);
-}
-
-void updateTotalRetaliationLine() {
-    // Lambda function for formatting numbers with commas
-    auto formatNumberWithCommas = [](long number) -> String {
-        String result = "";
-        int count = 0;
-
-        if (number == 0) {
-            return "0";
-        }
-
-        while (number > 0) {
-            result = (char)((number % 10) + '0') + result; // Add the digit
-            count++;
-            if (count % 3 == 0 && number / 10 > 0) {
-                result = ',' + result; // Add comma every three digits
-            }
-            number /= 10;
-        }
-
-        return result;
-    };
-
-    // Format the count with commas
-    String formattedCount = formatNumberWithCommas(totalRetaliationCount);
-
-    if (totalRetaliationCount <= 9) {                             //0-9
-        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
-        lcd.setCursor(0, 0);
-        lcd.setTextSize(3);
-        lcd.setTextColor(ST77XX_YELLOW);
-        lcd.print("    #");
-        lcd.print(formattedCount);
-        lcd.print("   ");
-    } else if (totalRetaliationCount >= 10 && totalRetaliationCount <= 99) {    //10-99
-        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
-        lcd.setCursor(0, 0);
-        lcd.setTextSize(3);
-        lcd.setTextColor(ST77XX_YELLOW);
-        lcd.print("   #");
-        lcd.print(formattedCount);
-        lcd.print("   ");
-    } else if (totalRetaliationCount >= 100 && totalRetaliationCount <= 999) { //100-999
-        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
-        lcd.setCursor(0, 0);
-        lcd.setTextSize(3);
-        lcd.setTextColor(ST77XX_YELLOW);
-        lcd.print("   #");
-        lcd.print(formattedCount);
-        lcd.print("  ");
-    } else if (totalRetaliationCount >= 1000 && totalRetaliationCount <= 9999) { //1,000-9,999
-        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
-        lcd.setCursor(0, 0);
-        lcd.setTextSize(3);
-        lcd.setTextColor(ST77XX_YELLOW);
-        lcd.print("  #");
-        lcd.print(formattedCount);
-        lcd.print("  ");
-    } else if (totalRetaliationCount >= 10000 && totalRetaliationCount <= 99999) { //10,000-99,999
-        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
-        lcd.setCursor(0, 0);
-        lcd.setTextSize(3);
-        lcd.setTextColor(ST77XX_YELLOW);
-        lcd.print("  #");
-        lcd.print(formattedCount);
-        lcd.print(" ");
-    } else if (totalRetaliationCount >= 100000 && totalRetaliationCount <= 999999) { //100,000-999,999
-        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
-        lcd.setCursor(0, 0);
-        lcd.setTextSize(3);
-        lcd.setTextColor(ST77XX_YELLOW);
-        lcd.print(" #");
-        lcd.print(formattedCount);
-        lcd.print(" ");
-    } else if (totalRetaliationCount >= 1000000 && totalRetaliationCount <= 9999999) { //1,000,000-9,999,999
-        lcd.fillRect(0, -1, 187, 26, ST77XX_BLACK);
-        lcd.setCursor(0, 0);
-        lcd.setTextSize(3);
-        lcd.setTextColor(ST77XX_YELLOW);
-        lcd.print("#");
-        lcd.print(formattedCount);
-        lcd.print("");
-    }
-}
-
-
-void updateIsArmedLine() {
-    static String lastIsArmed = ""; // Track the last state
-
-    if (isArmed == lastIsArmed) {
-        return; // Exit if the state hasn't changed
-    }
-
-    // Clear the area for the icon and text
-    lcd.fillRect(260, 0, 60, 57, ST77XX_BLACK);
-
-    // Common icon display settings
-    lcd.setCursor(276, 0);
-    lcd.setTextSize(6);
-
-    if (isArmed == " N/A ") {
-        lcd.setTextColor(ST77XX_WHITE);
-        lcd.print("?");
-    } else if (isArmed == "ARMED") {
-        lcd.setTextColor(ST77XX_RED);
-        lcd.print("8");
-        lcd.fillRect(273, 18, 36, 1, ST77XX_CYAN); // Divider
-        lcd.fillRect(273, 18, 36, 24, ST77XX_RED); // Bottom part of "8"
-    } else if (isArmed == "DISAR") {
-        lcd.setTextColor(ST77XX_CYAN);
-        lcd.print("8");
-        lcd.fillRect(298, 6, 24, 12, ST77XX_BLACK); // Clear top-right of "8"
-        lcd.fillRect(273, 18, 36, 24, ST77XX_CYAN); // Bottom part of "8"
-        lcd.fillRect(273, 18, 36, 1, ST77XX_BLACK); // Clear divider
-    }
-
-    // Display the state text below the icon
-    lcd.setCursor(260, 43);
-    lcd.setTextSize(2);
-    lcd.print(isArmed);
-
-    lastIsArmed = isArmed; // Update the last state
-}
-
-// Function to add a message to the log
-void addToLog(const String& message) {
-  // Shift existing logs down
-  for (int i = logSize - 1; i > 0; i--) {
-    lastDetectionLog[i] = lastDetectionLog[i - 1];
-  }
-  // Add the new message at the top
-  lastDetectionLog[0] = message;
-}
-
-// Function to parse and format the MQTT message
-String parseAndFormatMQTTMessage(const String& message) {
-    // Find the positions of the delimiters in the original message
-    int pos1 = message.indexOf('|');
-    int pos2 = message.indexOf('|', pos1 + 1);
-    int pos3 = message.lastIndexOf('|');
-
-    // Ensure the positions are valid
-    if (pos1 == -1 || pos2 == -1 || pos3 == -1) {
-        return "Parsing Error: Invalid Message Format";
-    }
-
-    // Extract parts of the message
-    String clientID = message.substring(0, pos1);
-    clientID.trim();
-
-    String status = message.substring(pos1 + 1, pos2);
-    status.trim();
-
-    String dateTime = message.substring(pos3 + 1);
-    dateTime.trim();
-
-    // Determine the first shorthand (armed/disarmed)
-    String firstLetter = (status.indexOf("ARM") != -1) ? "A" : "D";
-
-    // Determine the second shorthand based on clientID
-    String secondLetter = "X"; // Default to unknown
-    if (clientID == "RESV-SHOCKERA") {
-        secondLetter = "A";
-    } else if (clientID == "RESV-SHOCKERB") {
-        secondLetter = "B";
-    } else if (clientID == "RESV-SHOCKERC") {
-        secondLetter = "C";
-    }
-
-    // Combine the formatted string
-    String formattedMessage = dateTime + " " + firstLetter + secondLetter;
-    return formattedMessage;
-}
-
-
-void updateShockTimeSinceBoot() {
-    static String lastFormattedTime = ""; // Track the last displayed time
-
-    // Calculate total seconds based on detections and convert to HHH:MM
-    long totalSeconds = totalRetaliationCount * 4; // Multiply by 4 seconds per detection
-    long hours = totalSeconds / 3600;             // Convert seconds to hours
-    long minutes = (totalSeconds % 3600) / 60;    // Extract remaining minutes
-
-    // Format the time as HHH:MM
-    char timeBuffer[10];
-    if (hours < 100) {
-        // For less than 100 hours, include a leading space and two leading zeros if needed
-        snprintf(timeBuffer, sizeof(timeBuffer), " %02ld:%02ld", hours, minutes);
-    } else {
-        // For 100 hours or more, display as 3 digits without a leading space
-        snprintf(timeBuffer, sizeof(timeBuffer), "%03ld:%02ld", hours, minutes);
-    }
-
-    String formattedTime = String(timeBuffer);
-
-    // Debugging output to verify calculations
-    Serial.println("Total Detections: " + String(totalRetaliationCount));
-    Serial.println("Total Seconds: " + String(totalSeconds));
-    Serial.println("Formatted Time: " + formattedTime);
-
-    // Check if the time has changed to avoid redundant updates
-    if (formattedTime == lastFormattedTime) {
-        return; // Exit if the time has not changed
-    }
-
-    // Update the display
-    lcd.fillRect(190, 0, 70, 14, ST77XX_BLACK);  // Clear timer area
-    lcd.setCursor(190, 0);                       // Set cursor position for timer
-    lcd.setTextSize(2);                          // Set text size for timer
-    lcd.setTextColor(ST77XX_MAGENTA);
-    lcd.println(formattedTime);                  // Display the formatted time
-
-    lastFormattedTime = formattedTime; // Update the last displayed time
-}
-
-void updateDateSinceBoot(){
-  lcd.fillRect(190, 15, 70, 15, ST77XX_BLACK) ;  // Clear timer area
-  lcd.setCursor(190, 15);                       // Set cursor position for timer
-  lcd.setTextSize(2);                          // Set text size for timer
-  lcd.setTextColor(ST77XX_MAGENTA);
-  lcd.println(" " + dateSinceBoot);  // Display the timer
-}
-
-void buttonPressToggle() {
-    static bool lastOnboardButtonState = HIGH;   // Previous state of the onboard button
-    bool currentOnboardButtonState = digitalRead(ONBOARD_BUTTON_PIN); // Read button state
-
-    if (lastOnboardButtonState == HIGH && currentOnboardButtonState == LOW) {
-        // Button pressed: start tracking press duration
-        buttonPressStart = millis();
-        isButtonHeld = false;
-    } 
-    else if (lastOnboardButtonState == LOW && currentOnboardButtonState == HIGH) {
-        // Button released: check press duration
-        unsigned long pressDuration = millis() - buttonPressStart;
-        if (pressDuration > 1000) { // Long press: send global request
-            sendRequest(true); // `true` indicates a global request
-        } else { // Short press: send targeted request
-            sendRequest(false); // `false` indicates a targeted request
-        }
-        isButtonHeld = false;
-    } 
-    else if (currentOnboardButtonState == LOW) {
-        // Button is being held
-        if (millis() - buttonPressStart > 2000 && !isButtonHeld) {
-            // Mark as held to avoid duplicate global requests
-            isButtonHeld = true;
-        }
-    }
-
-    // Update button state
-    lastOnboardButtonState = currentOnboardButtonState;
-}
-
-
-void sendRequest(bool isGlobal) {
-    // Recalculate the current time using elapsed millis
-    time_t currentTime = internalTime + (millis() - lastMillis) / 1000; // Add elapsed seconds
-    const int estOffset = -5 * 3600;  // Offset for EST (UTC-5)
-    time_t estTime = currentTime + estOffset;  // Adjusted time for EST
-    struct tm* estTimeInfo = gmtime(&estTime);
-
-    // Format the date and time
-    char dateBuffer[20];
-    char time24Buffer[10];
-    strftime(dateBuffer, sizeof(dateBuffer), "%m/%d", estTimeInfo);       // MM/DD
-    strftime(time24Buffer, sizeof(time24Buffer), "%H:%M:%S", estTimeInfo); // HH:MM:SS (24-hour format)
-
-    // Determine action and target
-    String action = (isArmed == "DISAR") ? "REQUESTED ARM" : "REQUESTED DISARM";
-    String target = isGlobal ? "#" : "A"; // `#` for global, `A` for targeted
-
-    // Construct MQTT message
-    String mqttMessage = String(clientID) + " | " + action + " " + target + " | " + String(dateBuffer) + " " + String(time24Buffer);
-
-    // Prepare the display message
-    String displayMessage;
-    if (isGlobal) {
-        displayMessage = "ALL " + String(client.connected() ? "SENT!" : "FAIL!");
-    } else {
-        displayMessage = "#" + target + " " + String(client.connected() ? "SENT!" : "FAIL!");
-    }
-
-    // Publish MQTT message
-    if (client.connected()) {
-        client.publish(mqtt_topic_CENTRAL_HUB, mqttMessage.c_str());
-    }
-
-    // Calculate alignment
-    int textWidth = displayMessage.length() * 12; // Approx. 12 pixels per character in text size 2
-    int xOffset = 320 - textWidth; // Screen width (320) minus text width
-
-    // Display the message
-    lcd.fillRect(0, 43, 320, 17, ST77XX_BLACK); // Clear the message area
-    lcd.setTextColor(client.connected() ? ST77XX_GREEN : ST77XX_RED); // Green for success, Red for failure
-    lcd.setCursor(xOffset, 43);
-    lcd.setTextSize(2);
-    lcd.print(displayMessage);
-}
-
-// Function to parse and format CENTRAL-HUB messages
-String parseAndFormatCentralHubMessage(const String& message) {
-  // Find the positions of the delimiters in the original message
-  int pos1 = message.indexOf('|');
-  int pos2 = message.indexOf('|', pos1 + 1);
-  int pos3 = message.lastIndexOf('|');
-
-  // Ensure the positions are valid
-  if (pos1 == -1 || pos2 == -1 || pos3 == -1) {
-    return "Parsing Error: Invalid Message Format";
-  }
-
-  // Extract parts of the message
-  String clientID = message.substring(0, pos1);      // Extract the Client ID
-  clientID.trim();                                   // Trim whitespace
-
-  String status = message.substring(pos1 + 1, pos2); // Extract the status
-  status.trim();                                     // Trim whitespace
-
-  String dateTime = message.substring(pos3 + 1);     // Extract the timestamp
-  dateTime.trim();                                   // Trim whitespace
-
-  // Parse the status for shorthand notation
-  if (status == "ARM CONFIRMED") {
-    status = "A"; // Short for Armed
-    isArmed = "ARMED";
-  } else if (status == "DISARM CONFIRMED") {
-    status = "D"; // Short for Disarmed
-    isArmed = "DISAR";
-  }
-
-  // Split date and time from the dateTime string
-  int spacePos = dateTime.indexOf(' ');
-  String date = "N/A";
-  String time = "N/A";
-  if (spacePos != -1) {
-    date = dateTime.substring(0, spacePos);  // Extract full date
-    String fullTime = dateTime.substring(spacePos + 1); // Extract time with seconds
-
-    // Extract HH:MM from the full time (keeping logic for seconds)
-    int colonPos = fullTime.indexOf(':');
-    if (colonPos != -1) {
-      int secondColonPos = fullTime.indexOf(':', colonPos + 1);
-      if (secondColonPos != -1) {
-        time = fullTime.substring(0, secondColonPos); // For HH:MM:SS
+  unsigned long currentMillis = millis();
+
+  // Handle MQTT keep-alive and callbacks
+  client.loop();
+
+  // Update internal clock every second
+  if (currentMillis - internalClockMillis >= internalClockInterval) {
+      internalClockMillis = currentMillis;
+
+      if (internalEpochTime > 0) {
+          internalEpochTime += 1; // Increment by 1 second
+
+          // Update `dateDate` and `dateTime` with valid values
+          struct tm* estTimeInfo = localtime(&internalEpochTime);
+          char bufferDate[11], bufferTime[9];
+          strftime(bufferDate, sizeof(bufferDate), "%m/%d", estTimeInfo);
+          strftime(bufferTime, sizeof(bufferTime), "%H:%M:%S", estTimeInfo);
+          dateDate = String(bufferDate);
+          dateTime = String(bufferTime);
       } else {
-        time = fullTime.substring(0, colonPos + 3); // For HH:MM
+          // NTP has not synced yet
+          dateDate = "N/A";
+          dateTime = "N/A";
       }
-    }
+  }
+  
+  // Periodic Wi-Fi reconnection check and cycle
+  if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
+      lastWiFiCheck = currentMillis;
 
-    // Reformat the date to exclude the year, keeping only MM/DD
-    int slashPos = date.indexOf('/');
-    if (slashPos != -1) {
-      int secondSlashPos = date.indexOf('/', slashPos + 1);
-      if (secondSlashPos != -1) {
-        date = date.substring(0, secondSlashPos); // Trim to MM/DD
+      // Ensure Wi-Fi is connected
+      if (WiFi.status() != WL_CONNECTED) {
+          Serial.println("WIFI RECONNECTING...");
+          setup_wifi();  // Call your existing setup_wifi function
+          event = "CONNECTED";
+          resetGlobalVariables(); 
       }
-    }
   }
 
-  // Update global variables for LCD display
-  lastRequestClientID = clientID;
-  lastRequestStatus = status;
-  lastRequestDate = date;
-  lastRequestTime = time; // HH:MM format
+  // Retry NTP fetch if needed
+    if (WiFi.status() == WL_CONNECTED) {
+        if (internalEpochTime == 0 || millis() - lastNTPRetryMillis >= ntpRetryInterval) {
+            lastNTPRetryMillis = millis();  // Update retry timestamp
+            if (fetchNTPTime()) {
+                lastNTPFetchMillis = millis();  // Reset 12-hour fetch timer
+            }
+        }
+    }
 
-  // Combine the formatted string
-  return date + " " + time + " | " + status + " | " + clientID;
+  // Refetch NTP time every 12 hours
+  if (millis() - lastNTPFetchMillis >= 12UL * 60 * 60 * 1000) {
+      if (WiFi.status() == WL_CONNECTED) {
+          fetchNTPTime(); // Refetch NTP time
+          lastNTPFetchMillis = millis(); // Reset the fetch time
+      }
+  }
+
+  // Call logFreeHeap periodically
+  if (millis() - lastHeapLogMillis >= heapLogInterval) {
+      lastHeapLogMillis = millis();
+      logFreeHeap();
+  }
+
+  if (buttonpress) {
+      isArmed = "ARMED";
+      // Publish to Central Hub
+      publishMQTT();
+      resetGlobalVariables();
+  }
 }
 
+bool fetchNTPTime() {
+    configTime(0, 0, "pool.ntp.org", "time.nist.gov"); // UTC configuration
+    struct tm timeInfo;
+    if (getLocalTime(&timeInfo)) {
+        time_t rawTime = mktime(&timeInfo); // Get current UTC time
+        internalEpochTime = rawTime; // Start with UTC
 
-//onboard button to shutdown lcd or not
-//add touch sensor to either arm or disarm
-//add external logging/
-//cp437
+        // Determine the EST offset (-5 or -4 for DST)
+        int offsetHours = -5; // Standard EST offset
+        if ((timeInfo.tm_mon > 2 && timeInfo.tm_mon < 10) || // Between March and October
+            (timeInfo.tm_mon == 2 && timeInfo.tm_mday >= 9) || // On or after March 9
+            (timeInfo.tm_mon == 10 && timeInfo.tm_mday < 2)) { // Before November 2
+            offsetHours = -4; // DST offset
+        }
+        internalEpochTime += offsetHours * 3600; // Apply EST offset
+
+        // Update `dateDate` and `dateTime` with parsed EST values
+        struct tm* estTimeInfo = localtime(&internalEpochTime);
+        char bufferDate[11], bufferTime[9];
+        strftime(bufferDate, sizeof(bufferDate), "%m/%d", estTimeInfo);
+        strftime(bufferTime, sizeof(bufferTime), "%H:%M:%S", estTimeInfo);
+        dateDate = String(bufferDate);
+        dateTime = String(bufferTime);
+
+        Serial.println("NTP Time Updated: " + String(dateDate) + " " + String(dateTime));
+        return true;  // Fetch successful
+    } else {
+        Serial.println("Failed to fetch NTP time");
+        return false;  // Fetch failed
+    }
+}
+
+void resetGlobalVariables() {
+    event = "LISTENING";
+    shockDetected = false;
+    vibrationMagnitude = 0.0;
+    baselineX = 0;
+    baselineY = 0;
+    baselineZ = 0;
+    gyroX = 0.0;
+    gyroY = 0.0;
+    gyroZ = 0.0;
+}
+
+void connectToTopics() {
+    static unsigned long lastRetryTime = 0; // Track the last retry attempt
+    const unsigned long retryInterval = 5000; // Retry every 5 seconds if disconnected
+
+    if (!client.connected()) {
+        unsigned long currentMillis = millis();
+
+        // Avoid retrying too frequently
+        if (currentMillis - lastRetryTime >= retryInterval) {
+            lastRetryTime = currentMillis;
+
+            Serial.print("CONNECTING MQTT...");
+            if (client.connect(clientID, mqtt_user, mqtt_password)) {
+                Serial.println("CONNECTED TO: [" + String(mqtt_topic_CENTRAL_HUB) + "] [" + String(mqtt_topic_SHOCK_CENTER) + "]");
+
+                // Subscribe to topics
+                client.subscribe(mqtt_topic_CENTRAL_HUB);
+                client.subscribe(mqtt_topic_SHOCK_CENTER);
+
+                event = "CONNECTED";
+
+                // Publish to the central hub upon successful connection
+                publishMQTT();
+                resetGlobalVariables(); // Reset global variables after successful connection
+            } else {
+                // Provide specific error codes for debugging
+                Serial.print("failed, rc=");
+                Serial.print(client.state());
+                Serial.println(" try again in 5 seconds...");
+            }
+        }
+    }
+}
+
+// Handles Serial, If bool is true, handles MQTT and Sheets payload
+String createPayload(bool forJson) {
+    String payload;
+
+    if (forJson) {
+        // JSON format for MQTT and Google Sheets
+        payload = "{";
+        payload += "\"ID\":\"" + String(thisClientID) + "\",";
+        payload += "\"DD\":\"" + dateDate + "\",";
+        payload += "\"DT\":\"" + dateTime + "\",";
+        payload += "\"E\":\"" + event + "\",";
+        payload += "\"IA\":\"" + isArmed + "\",";
+        payload += "\"VM\":" + String(vibrationMagnitude, 2) + ",";
+        payload += "\"VT\":" + String(vibrationThreshold, 2) + ",";
+        payload += "\"AX\":" + String(baselineX, 2) + ",";
+        payload += "\"AY\":" + String(baselineY, 2) + ",";
+        payload += "\"AZ\":" + String(baselineZ, 2) + ",";
+        payload += "\"GX\":" + String(gyroX, 2) + ",";
+        payload += "\"GY\":" + String(gyroY, 2) + ",";
+        payload += "\"GZ\":" + String(gyroZ, 2) + ",";
+        payload += "\"TC\":" + String(temperatureC) + ",";
+        payload += "\"TF\":" + String(temperatureF) + ",";
+        payload += "\"FH\":" + String(freeHeap); // Add free heap
+        payload += "}";
+    } else {
+        // Key-value string format for Serial
+        payload = "|ID:" + String(thisClientID) +
+                  "|DD:" + dateDate +
+                  "|DT:" + dateTime +
+                  "|E:" + event +
+                  "|IA:" + isArmed +
+                  "|VM:" + String(vibrationMagnitude, 2) +
+                  "|VT:" + String(vibrationThreshold, 2) +
+                  "|AX:" + String(baselineX, 2) +
+                  "|AY:" + String(baselineY, 2) +
+                  "|AZ:" + String(baselineZ, 2) +
+                  "|GX:" + String(gyroX, 2) +
+                  "|GY:" + String(gyroY, 2) +
+                  "|GZ:" + String(gyroZ, 2) +
+                  "|TC:" + String(temperatureC) +
+                  "|TF:" + String(temperatureF) +
+                  "|FH:" + String(freeHeap); // Add free heap
+    }
+
+    return payload;
+}
+
+void publishMQTT() {
+    if (WiFi.status() == WL_CONNECTED && client.connected()) {
+        client.publish(mqtt_topic_CENTRAL_HUB, createPayload(true).c_str()); // Pass `true` for JSON payload
+    } else {
+        Serial.println("Error: Cannot publish detection - WiFi/MQTT not connected.");
+    }
+}
+
+void logFreeHeap() {
+    freeHeap = ESP.getFreeHeap();
+
+    // WARNING: Heap < 15,000 bytes
+    if (freeHeap < warningHeapThreshold && !warningHeapFlag) {
+        warningHeapFlag = true;
+        Serial.println("WARNING: FREE HEAP BELOW WARNING THRESHOLD.");
+        event = "HEAP WARNING";
+        publishMQTT();
+        sheetAddQueue(createPayload(true));
+    }
+    if (freeHeap >= warningHeapThreshold && warningHeapFlag) {
+        warningHeapFlag = false; // Reset flag when heap recovers
+        event = "HEAP WARNING RECOVERED TO HEAP STABLE"; // Update event for recovery
+        publishMQTT();
+        sheetAddQueue(createPayload(true));
+        Serial.println("INFO: HEAP WARNING RECOVERED TO HEAP STABLE.");
+        event = "LISTENING";
+    }
+
+    // CRITICAL: Heap < 10,000 bytes
+    if (freeHeap < criticalHeapThreshold) {
+        if (!criticalHeapFlag) {
+            criticalHeapFlag = true;
+            Serial.println("CRITICAL: FREE HEAP BELOW CRITICAL THRESHOLD.");
+            event = "HEAP CRITICAL";
+            publishMQTT();
+            sheetAddQueue(createPayload(true));
+        }
+    } else if (freeHeap >= criticalHeapThreshold) {
+        if (criticalHeapFlag) {
+            criticalHeapFlag = false; // Reset flag when heap recovers
+            event = "HEAP CRITICAL RECOVERED TO HEAP WARNING."; // Update event for recovery
+            publishMQTT();
+            sheetAddQueue(createPayload(true));
+            Serial.println("INFO: HEAP CRITICAL RECOVERED TO HEAP WARNING.");
+        }
+    }
+
+    // EMERGENCY: Heap < 8,000 bytes
+    if (freeHeap < emergencyHeapThreshold) {
+        if (!emergencyHeapFlag) {
+            emergencyHeapFlag = true;
+            Serial.println("EMERGENCY: HEAP BELOW EMERGENCY THRESHOLD. REBOOTING...");
+            event = "HEAP EMERGENCY";
+            publishMQTT();
+            sheetAddQueue(createPayload(true));
+            delay(10000); // Give time for MQTT and Sheets data to send
+            ESP.restart(); // Reboot the ESP32
+        }
+    } else if (freeHeap >= emergencyHeapThreshold) {
+        if (emergencyHeapFlag) {
+            emergencyHeapFlag = false; // Reset flag when heap recovers
+            event = "HEAP EMERGENCY RECOVERED TO HEAP CRITICAL"; // Update event for recovery
+            publishMQTT();
+            sheetAddQueue(createPayload(true));
+            Serial.println("INFO: HEAP EMERGENCY RECOVERED TO HEAP CRITICAL.");
+        }
+    }
+}

@@ -38,6 +38,7 @@ float gyroX = 0.0, gyroY = 0.0, gyroZ = 0.0; // variables for gyro readings
 float vibrationThreshold = 0.5; // Threshold for shock detection
 int temperatureC = 0; // Temperature in Celsius (whole number)
 int temperatureF = 0; // Temperature in Fahrenheit (whole number)
+
 unsigned long lastShockTime = 0; // Time of the last detected shock
 const unsigned long recalibrationInterval = 600000; // 10 minutes in milliseconds
 const unsigned long readAndSerialInterval = 100; // 100ms interval for sensor read and Serial output
@@ -716,17 +717,17 @@ void logFreeHeap() {
     // WARNING: Heap < 15,000 bytes
     if (freeHeap < warningHeapThreshold && !warningHeapFlag) {
         warningHeapFlag = true;
-        Serial.println("WARNING: FREE HEAP BELOW WARNING THRESHOLD.");
-        event = "HEAP WARNING";
+        Serial.println("[HEAP WARNING] " + String(thisClientID) + " BELOW WARNING THRESHOLD");
+        event = "[HEAP WARNING] " + String(thisClientID) + " BELOW WARNING THRESHOLD";
         publishMQTT();
         sheetAddQueue(createPayload(true));
     }
     if (freeHeap >= warningHeapThreshold && warningHeapFlag) {
         warningHeapFlag = false; // Reset flag when heap recovers
-        event = "HEAP WARNING RECOVERED TO HEAP STABLE"; // Update event for recovery
+        Serial.println("[HEAP WARNING] " + String(thisClientID) + " RECOVERED TO STABLE");
+        event = "[HEAP WARNING] " + String(thisClientID) + " RECOVERED TO STABLE"; // Update event for recovery
         publishMQTT();
         sheetAddQueue(createPayload(true));
-        Serial.println("INFO: HEAP WARNING RECOVERED TO HEAP STABLE.");
         event = "LISTENING";
     }
 
@@ -734,18 +735,18 @@ void logFreeHeap() {
     if (freeHeap < criticalHeapThreshold) {
         if (!criticalHeapFlag) {
             criticalHeapFlag = true;
-            Serial.println("CRITICAL: FREE HEAP BELOW CRITICAL THRESHOLD.");
-            event = "HEAP CRITICAL";
+            Serial.println("[HEAP CRITICAL] " + String(thisClientID) + " BELOW CRITICAL THRESHOLD");
+            event = "[HEAP CRITICAL] " + String(thisClientID) + " BELOW CRITICAL THRESHOLD";
             publishMQTT();
             sheetAddQueue(createPayload(true));
         }
     } else if (freeHeap >= criticalHeapThreshold) {
         if (criticalHeapFlag) {
             criticalHeapFlag = false; // Reset flag when heap recovers
-            event = "HEAP CRITICAL RECOVERED TO HEAP WARNING."; // Update event for recovery
+            Serial.println("[HEAP CRITICAL] " + String(thisClientID) + " RECOVERED TO WARNING");
+            event = "[HEAP CRITICAL] " + String(thisClientID) + " RECOVERED TO WARNING"; // Update event for recovery
             publishMQTT();
             sheetAddQueue(createPayload(true));
-            Serial.println("INFO: HEAP CRITICAL RECOVERED TO HEAP WARNING.");
         }
     }
 
@@ -753,8 +754,8 @@ void logFreeHeap() {
     if (freeHeap < emergencyHeapThreshold) {
         if (!emergencyHeapFlag) {
             emergencyHeapFlag = true;
-            Serial.println("EMERGENCY: HEAP BELOW EMERGENCY THRESHOLD. REBOOTING...");
-            event = "HEAP EMERGENCY";
+            Serial.println("[HEAP EMERGENCY] " + String(thisClientID) + " BELOW EMERGENCY THRESHOLD, REBOOTING");
+            event = "[HEAP EMERGENCY] " + String(thisClientID) + " BELOW EMERGENCY THRESHOLD, REBOOTING";
             publishMQTT();
             sheetAddQueue(createPayload(true));
             delay(10000); // Give time for MQTT and Sheets data to send
@@ -763,10 +764,10 @@ void logFreeHeap() {
     } else if (freeHeap >= emergencyHeapThreshold) {
         if (emergencyHeapFlag) {
             emergencyHeapFlag = false; // Reset flag when heap recovers
-            event = "HEAP EMERGENCY RECOVERED TO HEAP CRITICAL"; // Update event for recovery
+            Serial.println("[HEAP EMERGENCY] " + String(thisClientID) + " RECOVERED TO CRITICAL");
+            event = "[HEAP EMERGENCY] " + String(thisClientID) + " RECOVERED TO CRITICAL"; // Update event for recovery
             publishMQTT();
             sheetAddQueue(createPayload(true));
-            Serial.println("INFO: HEAP EMERGENCY RECOVERED TO HEAP CRITICAL.");
         }
     }
 }
