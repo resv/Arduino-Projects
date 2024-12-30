@@ -6,6 +6,8 @@
 #include <WiFiClientSecure.h> // For secure SSL connection
 #include <PubSubClient.h>   // For MQTT client
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
+
 
 Adafruit_MPU6050 mpu;
 #define MPU_POWER_PIN 0 // GPIO0 to supply 3.3V power to MPU6050
@@ -156,7 +158,9 @@ void setup_wifi() {
 
               // Configure MQTT
               client.setServer(mqtt_server, mqtt_port);
+              client.setCallback(mqttCallback); // Set the callback here
               espClient.setCACert(root_ca); // Attach root CA certificate
+              
               connectToTopics(); // CONNECT TO ALL TOPICS
             break; // Exit loop on successful connection
         } else {
@@ -210,6 +214,74 @@ void handleRecalibration() {
   }
 }
 
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+    Serial.print("RESV-SHOCKERMPU RCVD [");
+    Serial.print(topic);
+    Serial.print("]: ");
+
+    // Convert payload to a String
+    String message;
+    for (unsigned int i = 0; i < length; i++) {
+        message += (char)payload[i];
+    }
+    Serial.println(message);
+
+    // Parse JSON payload
+    StaticJsonDocument<512> doc; // Adjust size if necessary
+    DeserializationError error = deserializeJson(doc, message);
+
+    if (error) {
+        Serial.print("Failed to parse MQTT message: ");
+        Serial.println(error.c_str());
+        return;
+    }
+
+    // Extract all data from JSON document
+    const char* id = doc["ID"];
+    const char* date = doc["DD"];
+    const char* time = doc["DT"];
+    const char* event = doc["E"];
+    const char* isArmed = doc["IA"];
+    float vibrationMagnitude = doc["VM"];
+    float vibrationThreshold = doc["VT"];
+    float ax = doc["AX"];
+    float ay = doc["AY"];
+    float az = doc["AZ"];
+    float gx = doc["GX"];
+    float gy = doc["GY"];
+    float gz = doc["GZ"];
+    int temperatureC = doc["TC"];
+    int temperatureF = doc["TF"];
+    int freeHeap = doc["FH"];
+
+    // Print extracted values for debugging
+    Serial.println("Extracted JSON Data:");
+    Serial.println("ID: " + String(id));
+    Serial.println("Date: " + String(date));
+    Serial.println("Time: " + String(time));
+    Serial.println("Event: " + String(event));
+    Serial.println("Is Armed: " + String(isArmed));
+    Serial.println("Vibration Magnitude: " + String(vibrationMagnitude, 2));
+    Serial.println("Vibration Threshold: " + String(vibrationThreshold, 2));
+    Serial.println("Acceleration - AX: " + String(ax, 2) + " AY: " + String(ay, 2) + " AZ: " + String(az, 2));
+    Serial.println("Gyroscope - GX: " + String(gx, 2) + " GY: " + String(gy, 2) + " GZ: " + String(gz, 2));
+    Serial.println("Temperature: " + String(temperatureC) + "C / " + String(temperatureF) + "F");
+    Serial.println("Free Heap: " + String(freeHeap));
+    
+    // Example logic
+    if (String(id) == "RESV-1ST") {
+        Serial.println("Message is for this client!");
+        if (String(event) == "ARMED") {
+            isArmed = "ARMED";
+            Serial.println("System is ARMED.");
+        }
+        if (vibrationMagnitude > vibrationThreshold) {
+            Serial.println("Vibration exceeds threshold!");
+        }
+    }
+}
+
+
 // Setup function
 void setup() {
     Serial.begin(115200);
@@ -249,7 +321,7 @@ void setup() {
     // Initialize Google Sheets communication
     sheetSetup();
 
-    event = "CONNECTED";
+    event = "BINGO";
     sheetAddQueue(createPayload(true)); 
     resetGlobalVariables();
 }
