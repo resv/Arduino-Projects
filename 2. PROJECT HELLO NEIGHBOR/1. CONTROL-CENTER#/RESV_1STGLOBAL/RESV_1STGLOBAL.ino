@@ -16,6 +16,7 @@ bool isButtonHeld = false;         // Track if the button is being held
 bool buttonPressed = false;        // Track button state
 unsigned long debounceDelay = 50;  // Debounce delay
 unsigned long lastButtonPressTime = 0;
+unsigned long buttonHoldDurationThreshold = 1500; // Button duration threshold (in milliseconds) 1.5 seconds
 
 // Global ESP variables
 const char* thisClientID = "RESV-1ST"; // Define the ClientID
@@ -200,21 +201,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     int temperatureC = doc["TC"];
     int temperatureF = doc["TF"];
     int freeHeap = doc["FH"];
-
-    // Print extracted values for debugging
-    Serial.println("Extracted JSON Data:");
-    Serial.println("ID: " + String(id));
-    Serial.println("Date: " + String(date));
-    Serial.println("Time: " + String(time));
-    Serial.println("Event: " + String(event));
-    Serial.println("Is Armed: " + String(isArmed));
-    Serial.println("Vibration Magnitude: " + String(vibrationMagnitude, 2));
-    Serial.println("Vibration Threshold: " + String(vibrationThreshold, 2));
-    Serial.println("Acceleration - AX: " + String(ax, 2) + " AY: " + String(ay, 2) + " AZ: " + String(az, 2));
-    Serial.println("Gyroscope - GX: " + String(gx, 2) + " GY: " + String(gy, 2) + " GZ: " + String(gz, 2));
-    Serial.println("Temperature: " + String(temperatureC) + "C / " + String(temperatureF) + "F");
-    Serial.println("Free Heap: " + String(freeHeap));
-    
+  
     // Example logic
     if (String(id) == "RESV-1ST") {
         Serial.println("Message is for this client!");
@@ -234,6 +221,9 @@ void setup() {
     Serial.begin(115200);
     esp_log_level_set("wifi", ESP_LOG_NONE);
 
+    //Button setup
+    pinMode(ONBOARD_BUTTON_PIN, INPUT_PULLUP); // Ensure the button pin is set to INPUT_PULLUP
+
     // Connect to Wi-Fi
     setup_wifi(); 
 
@@ -245,18 +235,6 @@ void setup() {
     resetGlobalVariables();
 }
 
-
-// Function to print sensor data
-void printSensorData(bool shockDetected, float vibrationMagnitude, sensors_event_t& accel, sensors_event_t& gyro) {
-    if (useJsonForSerial) {
-        // Use JSON format
-        Serial.println(createPayload(true)); // Pass `true` to get JSON format
-    } else {
-        // Key-value string format
-        Serial.println(createPayload(false)); // Pass `false` for key-value format
-    }
-}
-
 // Main loop function
 void loop() {
   unsigned long currentMillis = millis();
@@ -266,22 +244,31 @@ void loop() {
 
   // Button press logic
   bool currentButtonState = digitalRead(ONBOARD_BUTTON_PIN) == LOW; // Active LOW
-  if (currentButtonState != buttonPressed && (currentMillis - lastButtonPressTime) > debounceDelay) {
-      buttonPressed = currentButtonState;
-      lastButtonPressTime = currentMillis;
+  if (currentButtonState && !buttonPressed) {
+      // Button just pressed
+      buttonPressed = true;
+      buttonPressStart = currentMillis;
+      isButtonHeld = false; // Reset the long-press flag
+  }
 
-      if (buttonPressed) {
-          buttonPressStart = currentMillis;
-          isButtonHeld = false; // Reset the long-press flag
-      } else {
-          unsigned long pressDuration = currentMillis - buttonPressStart;
-          if (pressDuration >= 1500) {
-              // Long press: Publish global request
-              publishArmDisarmEvent(true);
-          } else if (pressDuration > 0) {
-              // Short press: Publish targeted request
-              publishArmDisarmEvent(false);
-          }
+  if (buttonPressed && currentButtonState) {
+      // Button is being held down
+      unsigned long pressDuration = currentMillis - buttonPressStart;
+      if (pressDuration >= buttonHoldDurationThreshold && !isButtonHeld) {
+          // Long press detected: Publish global request
+          isButtonHeld = true; // Prevent multiple triggers
+          publishArmDisarmEvent(true);
+      }
+  }
+
+  if (!currentButtonState && buttonPressed) {
+      // Button released
+      buttonPressed = false;
+      unsigned long pressDuration = currentMillis - buttonPressStart;
+
+      if (pressDuration > 0 && pressDuration < buttonHoldDurationThreshold) {
+          // Short press detected: Publish targeted request
+          publishArmDisarmEvent(false);
       }
   }
 
@@ -379,7 +366,6 @@ bool fetchNTPTime() {
 
 void resetGlobalVariables() {
     event = "LISTENING";
-    shockDetected = false;
     vibrationMagnitude = 0.0;
     baselineX = 0;
     baselineY = 0;
@@ -538,17 +524,14 @@ void publishArmDisarmEvent(bool isGlobal) {
     // Determine the new `isArmed` state
     isArmed = (isArmed == "DISARMED") ? "ARMED" : "DISARMED";
 
-    // Create the event string
-    if (isGlobal) {
-        event = String(thisClientID) + " REQUESTED " + isArmed + " #";
-    } else {
-        event = String(thisClientID) + " REQUESTED " + isArmed + " TO RESV-SHOCKERA";
-    }
+    // Construct the event string
+    event = String(thisClientID) + " REQUESTED " + isArmed;
+    event += isGlobal ? " #" : " TO RESV-SHOCKERA";
 
-    // Publish the updated event to MQTT
+    // Publish the updated state
     publishMQTT();
 
-    // Debugging information
+    // Debugging
     Serial.println("Event Published: " + event);
     Serial.println("System State: " + isArmed);
 }

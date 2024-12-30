@@ -322,7 +322,7 @@ void setup() {
     // Initialize Google Sheets communication
     sheetSetup();
 
-    event = "BINGO";
+    event = "CONNECTED";
     sheetAddQueue(createPayload(true)); 
     resetGlobalVariables();
 }
