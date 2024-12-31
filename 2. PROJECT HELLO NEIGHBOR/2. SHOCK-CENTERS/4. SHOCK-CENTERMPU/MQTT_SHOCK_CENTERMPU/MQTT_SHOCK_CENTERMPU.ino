@@ -336,19 +336,24 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         resetGlobalVariables();
     }
 
-    // CALLBACK FOR vtThreshold increment,
-    if ((String(receivedId) != thisClientID && String(receivedEvent).indexOf(" ADJUSTED VIBRATION THRESHOLD BY ") != -1) ||
-        (String(receivedId) != thisClientID && String(receivedEvent).indexOf(" ADJUSTED VIBRATION THRESHOLD BY " + " TO #") != -1 {        
+    // CALLBACK FOR vtThreshold adjustment +/-
+    if (String(receivedId) != thisClientID && 
+        (String(receivedEvent).indexOf(" ADJUSTED VIBRATION THRESHOLD BY ") != -1 &&
+        (String(receivedEvent).indexOf(thisClientID) != -1 || 
+          String(receivedEvent).indexOf(" ADJUSTED VIBRATION THRESHOLD BY TO " + String("#")) != -1))) {
+        
         event = String(receivedEvent);
-        sheetAddQueue(createPayload(true)); 
+        sheetAddQueue(createPayload(true));
         vibrationThreshold = receivedVibrationThreshold;
-        event = String(thisClientID) + " VIBRATION THRESHOLD SET TO " + String(vibrationThreshold);
+        event = String(thisClientID) + " VIBRATION THRESHOLD SET TO " + String(vibrationThreshold, 2);
         publishMQTT();
-        sheetAddQueue(createPayload(true)); 
+        sheetAddQueue(createPayload(true));
+        
         // Reset variables
         resetGlobalVariables();
     }
 }
+
 
 
 

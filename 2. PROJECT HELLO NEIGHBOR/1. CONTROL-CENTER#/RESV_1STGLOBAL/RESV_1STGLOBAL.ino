@@ -313,7 +313,8 @@ void loop() {
           isButtonHeld = true; // Prevent multiple triggers
           //publishArmDisarmEvent(true);
           //publishvtStepUpEvent(true);
-          publishvtStepDownEvent(true);
+          //publishAdjustVibrationThreshold(vtStep, true);
+          publishAdjustVibrationThreshold(-vtStep, true);
       }
   }
 
@@ -325,8 +326,8 @@ void loop() {
       if (pressDuration > 0 && pressDuration < buttonHoldDurationThreshold) {
           // Short press detected: Publish targeted request
           //publishArmDisarmEvent(false);
-          //publishvtStepUpEvent(false);
-          publishvtStepDownEvent(false);
+          //publishAdjustVibrationThreshold(vtStep, false);
+          publishAdjustVibrationThreshold(-vtStep, false);
       }
   }
 
@@ -585,30 +586,27 @@ void publishArmDisarmEvent(bool isGlobal) {
     publishMQTT();
 }
 
-void publishvtStepUpEvent(bool isGlobal) {
-    if (isGlobal) {
-        event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY +" + vtStep  + " TO #";
-    } else {
-        event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY +" + vtStep  + " TO RESV-SHOCKERA";
+void publishAdjustVibrationThreshold(float adjustment, bool isGlobal) {
+    vibrationThreshold += adjustment;
+
+    // Prevent vibrationThreshold from going below 0
+    if (vibrationThreshold < 0.0) {
+        vibrationThreshold = 0.0;
+        Serial.println("Vibration threshold cannot be negative. Reset to 0.");
     }
-    vibrationThreshold += vtStep;
+
+    // Construct the event string
+    String direction = (adjustment > 0) ? "+" : "-";
+    event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY " + direction + abs(adjustment) + 
+            (isGlobal ? " TO #" : " TO RESV-SHOCKERA");
+
     // Publish the event
     publishMQTT();
     resetGlobalVariables();
 }
 
-void publishvtStepDownEvent(bool isGlobal) {
-    if (isGlobal) {
-        event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY -" + vtStep  + " TO #";
-    } else {
-        event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY -" + vtStep + " TO RESV-SHOCKERA";
-    }
-    vibrationThreshold -= vtStep;
-    // Publish the event
-    publishMQTT();
-    resetGlobalVariables();
-}
-
-// add anotther physical button, copy ther code where publishvtstepupevent exists, replace it with publishvtstepdownevent. and this should work flawlessly.
+// add anotther physical button, copy ther code where publishAdjustVibrationThreshold(-vtStep, true); exists, 
+   // replace it with publishAdjustVibrationThreshold(-vtStep, true) or publishAdjustVibrationThreshold(vtStep, true);. and this should work flawlessly.
+      // boolean value takes care of # or explicit
 // vt step is currently set to 0.01 that is very small.. we may want to increase it..
 //need to add another method to reset vt threshold? maybe.. we have step down so many not.. 
