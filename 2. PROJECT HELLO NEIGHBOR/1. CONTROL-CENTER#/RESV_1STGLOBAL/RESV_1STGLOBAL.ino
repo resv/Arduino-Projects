@@ -230,8 +230,6 @@ void setup() {
     // Handle MQTT keep-alive and callbacks
     client.loop();
 
-    event = "TESTCONNECT";
-
     resetGlobalVariables();
 }
 

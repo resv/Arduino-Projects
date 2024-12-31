@@ -263,7 +263,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
     // Check if the message is for this device
     if (String(receivedId) == thisClientID) {
-        Serial.println("IGNORING SELFPUBLISH CALLBACK");
+        Serial.println("IGNORING SELF PUBLISH CALLBACK");
         return;
     }
 
@@ -281,29 +281,29 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.println("Temperature: " + String(receivedTemperatureC) + "C / " + String(receivedTemperatureF) + "F");
     Serial.println("Free Heap: " + String(receivedFreeHeap));
 
-    // Update global variables based on received values
-    dateDate = String(receivedDate);
-    dateTime = String(receivedTime);
-    event = String(receivedEvent);
-    isArmed = String(receivedIsArmed);
-    vibrationMagnitude = receivedVibrationMagnitude;
-    vibrationThreshold = receivedVibrationThreshold;
-    baselineX = receivedAx;
-    baselineY = receivedAy;
-    baselineZ = receivedAz;
-    gyroX = receivedGx;
-    gyroY = receivedGy;
-    gyroZ = receivedGz;
-    temperatureC = receivedTemperatureC;
-    temperatureF = receivedTemperatureF;
-    freeHeap = receivedFreeHeap;
+    // EXAMPLE OF LOCAL TO GLOBAL ASSIGNMENTS 
+    // dateDate = String(receivedDate);
+    // dateTime = String(receivedTime);
+    // event = String(receivedEvent);
+    // isArmed = String(receivedIsArmed);
+    // vibrationMagnitude = receivedVibrationMagnitude;
+    // vibrationThreshold = receivedVibrationThreshold;
+    // baselineX = receivedAx;
+    // baselineY = receivedAy;
+    // baselineZ = receivedAz;
+    // gyroX = receivedGx;
+    // gyroY = receivedGy;
+    // gyroZ = receivedGz;
+    // temperatureC = receivedTemperatureC;
+    // temperatureF = receivedTemperatureF;
+    // freeHeap = receivedFreeHeap;
 
     // Debug: Print updated global state
-    Serial.println("Updated Global Variables:");
+    Serial.println("GLOBAL VARIABLES BEFORE EXPLICIT NEW VALUES");
     Serial.println("Date: " + dateDate);
     Serial.println("Time: " + dateTime);
     Serial.println("Event: " + event);
-    Serial.println("Is Armed: " + isArmed);
+    Serial.println("IsArmed: " + isArmed);
     Serial.println("Vibration Magnitude: " + String(vibrationMagnitude, 2));
     Serial.println("Vibration Threshold: " + String(vibrationThreshold, 2));
     Serial.println("Acceleration - AX: " + String(baselineX, 2) + " AY: " + String(baselineY, 2) + " AZ: " + String(baselineZ, 2));
@@ -312,20 +312,18 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.println("Free Heap: " + String(freeHeap));
 
     // Take action based on the event
-    if (event.indexOf("REQUESTED ARM") != -1) {
+    if (String(receivedEvent).indexOf("REQUESTED ARMED") != -1) {
         Serial.println("[REQUESTED ARM RECEIVED]");
-        isArmed = "ARMED";
-        event = String(thisClientID) + " ARM CONFIRMED";
+        isArmed = receivedIsArmed;
+        event = String(thisClientID) + " CONFIRMED " + String(receivedIsArmed);
         publishMQTT();
         resetGlobalVariables();
-        Serial.println("System is now armed and confirmation sent.");
-    } else if (event.indexOf("REQUESTED DISARM") != -1) {
+    } else if (String(receivedEvent).indexOf("REQUESTED DISARMED") != -1) {
         Serial.println("[REQUESTED DISARM RECEIVED]");
-        isArmed = "DISARMED";
-        event = String(thisClientID) + " DISARM CONFIRMED";
+        isArmed = receivedIsArmed;
+        event = String(thisClientID) + " CONFIRMED " + String(receivedIsArmed);
         publishMQTT();
         resetGlobalVariables();
-        Serial.println("System is now disarmed and confirmation sent.");
     }
 }
 
@@ -568,13 +566,13 @@ bool fetchNTPTime() {
 void resetGlobalVariables() {
     event = "LISTENING";
     shockDetected = false;
-    vibrationMagnitude = 0.0;
-    baselineX = 0;
-    baselineY = 0;
-    baselineZ = 0;
-    gyroX = 0.0;
-    gyroY = 0.0;
-    gyroZ = 0.0;
+    //vibrationMagnitude = 0.0;
+    //baselineX = 0;
+    //baselineY = 0;
+    //baselineZ = 0;
+    //gyroX = 0.0;
+    //gyroY = 0.0;
+    //gyroZ = 0.0;
 }
 
 void connectToTopics() {
