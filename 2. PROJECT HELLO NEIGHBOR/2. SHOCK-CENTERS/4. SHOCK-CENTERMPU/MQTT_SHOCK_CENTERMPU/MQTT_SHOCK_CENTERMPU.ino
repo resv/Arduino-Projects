@@ -228,7 +228,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.println(message);
 
     // Parse JSON payload
-    StaticJsonDocument<512> doc; // Adjust size if necessary
+    StaticJsonDocument<512> doc;
     DeserializationError error = deserializeJson(doc, message);
 
     if (error) {
@@ -237,50 +237,98 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         return;
     }
 
-    // Extract all data from JSON document
-    const char* id = doc["ID"];
-    const char* date = doc["DD"];
-    const char* time = doc["DT"];
-    const char* event = doc["E"];
-    const char* isArmed = doc["IA"];
-    float vibrationMagnitude = doc["VM"];
-    float vibrationThreshold = doc["VT"];
-    float ax = doc["AX"];
-    float ay = doc["AY"];
-    float az = doc["AZ"];
-    float gx = doc["GX"];
-    float gy = doc["GY"];
-    float gz = doc["GZ"];
-    int temperatureC = doc["TC"];
-    int temperatureF = doc["TF"];
-    int freeHeap = doc["FH"];
+    // Extract data into temporary `receivedX` variables
+    const char* receivedId = doc["ID"];
+    const char* receivedDate = doc["DD"];
+    const char* receivedTime = doc["DT"];
+    const char* receivedEvent = doc["E"];
+    const char* receivedIsArmed = doc["IA"];
+    float receivedVibrationMagnitude = doc["VM"];
+    float receivedVibrationThreshold = doc["VT"];
+    float receivedAx = doc["AX"];
+    float receivedAy = doc["AY"];
+    float receivedAz = doc["AZ"];
+    float receivedGx = doc["GX"];
+    float receivedGy = doc["GY"];
+    float receivedGz = doc["GZ"];
+    int receivedTemperatureC = doc["TC"];
+    int receivedTemperatureF = doc["TF"];
+    int receivedFreeHeap = doc["FH"];
 
-    // Print extracted values for debugging
-    Serial.println("Extracted JSON Data:");
-    Serial.println("ID: " + String(id));
-    Serial.println("Date: " + String(date));
-    Serial.println("Time: " + String(time));
-    Serial.println("Event: " + String(event));
-    Serial.println("Is Armed: " + String(isArmed));
+    // Check if all mandatory fields are present
+    if (!receivedId || !receivedEvent || !receivedIsArmed) {
+        Serial.println("Incomplete JSON data received, ignoring...");
+        return;
+    }
+
+    // Check if the message is for this device
+    if (String(receivedId) == thisClientID) {
+        Serial.println("IGNORING SELFPUBLISH CALLBACK");
+        return;
+    }
+
+    // Debug: Print all received values
+    Serial.println("Received Values:");
+    Serial.println("ID: " + String(receivedId));
+    Serial.println("Date: " + String(receivedDate));
+    Serial.println("Time: " + String(receivedTime));
+    Serial.println("Event: " + String(receivedEvent));
+    Serial.println("Is Armed: " + String(receivedIsArmed));
+    Serial.println("Vibration Magnitude: " + String(receivedVibrationMagnitude, 2));
+    Serial.println("Vibration Threshold: " + String(receivedVibrationThreshold, 2));
+    Serial.println("Acceleration - AX: " + String(receivedAx, 2) + " AY: " + String(receivedAy, 2) + " AZ: " + String(receivedAz, 2));
+    Serial.println("Gyroscope - GX: " + String(receivedGx, 2) + " GY: " + String(receivedGy, 2) + " GZ: " + String(receivedGz, 2));
+    Serial.println("Temperature: " + String(receivedTemperatureC) + "C / " + String(receivedTemperatureF) + "F");
+    Serial.println("Free Heap: " + String(receivedFreeHeap));
+
+    // Update global variables based on received values
+    dateDate = String(receivedDate);
+    dateTime = String(receivedTime);
+    event = String(receivedEvent);
+    isArmed = String(receivedIsArmed);
+    vibrationMagnitude = receivedVibrationMagnitude;
+    vibrationThreshold = receivedVibrationThreshold;
+    baselineX = receivedAx;
+    baselineY = receivedAy;
+    baselineZ = receivedAz;
+    gyroX = receivedGx;
+    gyroY = receivedGy;
+    gyroZ = receivedGz;
+    temperatureC = receivedTemperatureC;
+    temperatureF = receivedTemperatureF;
+    freeHeap = receivedFreeHeap;
+
+    // Debug: Print updated global state
+    Serial.println("Updated Global Variables:");
+    Serial.println("Date: " + dateDate);
+    Serial.println("Time: " + dateTime);
+    Serial.println("Event: " + event);
+    Serial.println("Is Armed: " + isArmed);
     Serial.println("Vibration Magnitude: " + String(vibrationMagnitude, 2));
     Serial.println("Vibration Threshold: " + String(vibrationThreshold, 2));
-    Serial.println("Acceleration - AX: " + String(ax, 2) + " AY: " + String(ay, 2) + " AZ: " + String(az, 2));
-    Serial.println("Gyroscope - GX: " + String(gx, 2) + " GY: " + String(gy, 2) + " GZ: " + String(gz, 2));
+    Serial.println("Acceleration - AX: " + String(baselineX, 2) + " AY: " + String(baselineY, 2) + " AZ: " + String(baselineZ, 2));
+    Serial.println("Gyroscope - GX: " + String(gyroX, 2) + " GY: " + String(gyroY, 2) + " GZ: " + String(gyroZ, 2));
     Serial.println("Temperature: " + String(temperatureC) + "C / " + String(temperatureF) + "F");
     Serial.println("Free Heap: " + String(freeHeap));
-    
-    // Example logic
-    if (String(id) == "RESV-1ST") {
-        Serial.println("Message is for this client!");
-        if (String(event) == "ARMED") {
-            isArmed = "ARMED";
-            Serial.println("System is ARMED.");
-        }
-        if (vibrationMagnitude > vibrationThreshold) {
-            Serial.println("Vibration exceeds threshold!");
-        }
+
+    // Take action based on the event
+    if (event.indexOf("REQUESTED ARM") != -1) {
+        Serial.println("[REQUESTED ARM RECEIVED]");
+        isArmed = "ARMED";
+        event = String(thisClientID) + " ARM CONFIRMED";
+        publishMQTT();
+        resetGlobalVariables();
+        Serial.println("System is now armed and confirmation sent.");
+    } else if (event.indexOf("REQUESTED DISARM") != -1) {
+        Serial.println("[REQUESTED DISARM RECEIVED]");
+        isArmed = "DISARMED";
+        event = String(thisClientID) + " DISARM CONFIRMED";
+        publishMQTT();
+        resetGlobalVariables();
+        Serial.println("System is now disarmed and confirmation sent.");
     }
 }
+
 
 
 // Setup function
@@ -453,7 +501,7 @@ void loop() {
     shockDetected = vibrationMagnitude > vibrationThreshold;
 
     if (shockDetected) {
-        event = "DETECTED SHOCK";
+        event = String(thisClientID) + " DETECTED SHOCK";
         // Publish to Central Hub
         publishMQTT();
         sheetAddQueue(createPayload(true)); // Pass `true` for JSON payload
