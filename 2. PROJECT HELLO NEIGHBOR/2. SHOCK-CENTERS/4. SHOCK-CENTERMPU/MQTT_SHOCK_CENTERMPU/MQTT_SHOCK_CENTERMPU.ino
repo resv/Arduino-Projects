@@ -269,17 +269,17 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
     // Debug: Print all received values
     Serial.println("Received Values:");
-    Serial.println("ID: " + String(receivedId));
-    Serial.println("Date: " + String(receivedDate));
-    Serial.println("Time: " + String(receivedTime));
-    Serial.println("Event: " + String(receivedEvent));
-    Serial.println("Is Armed: " + String(receivedIsArmed));
-    Serial.println("Vibration Magnitude: " + String(receivedVibrationMagnitude, 2));
-    Serial.println("Vibration Threshold: " + String(receivedVibrationThreshold, 2));
-    Serial.println("Acceleration - AX: " + String(receivedAx, 2) + " AY: " + String(receivedAy, 2) + " AZ: " + String(receivedAz, 2));
-    Serial.println("Gyroscope - GX: " + String(receivedGx, 2) + " GY: " + String(receivedGy, 2) + " GZ: " + String(receivedGz, 2));
-    Serial.println("Temperature: " + String(receivedTemperatureC) + "C / " + String(receivedTemperatureF) + "F");
-    Serial.println("Free Heap: " + String(receivedFreeHeap));
+    Serial.println("receivedID: " + String(receivedId));
+    Serial.println("receivedDate: " + String(receivedDate));
+    Serial.println("receivedTime: " + String(receivedTime));
+    Serial.println("receivedEvent: " + String(receivedEvent));
+    Serial.println("receivedIsArmed: " + String(receivedIsArmed));
+    Serial.println("receivedVibrationMagnitude: " + String(receivedVibrationMagnitude, 2));
+    Serial.println("receivedVibrationThreshold: " + String(receivedVibrationThreshold, 2));
+    Serial.println("receivedAx: " + String(receivedAx, 2) + " Ay: " + String(receivedAy, 2) + " Az: " + String(receivedAz, 2));
+    Serial.println("receivedGx: " + String(receivedGx, 2) + " Gy: " + String(receivedGy, 2) + " Gz: " + String(receivedGz, 2));
+    Serial.println("receivedTemperatureC: " + String(receivedTemperatureC) + "C / " + String(receivedTemperatureF) + "F");
+    Serial.println("receivedFreeHeap: " + String(receivedFreeHeap));
 
     // EXAMPLE OF LOCAL TO GLOBAL ASSIGNMENTS 
     // dateDate = String(receivedDate);
@@ -322,6 +322,14 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         event = String(thisClientID) + " CONFIRMED " + String(receivedIsArmed);
         publishMQTT();
         sheetAddQueue(createPayload(true)); 
+        resetGlobalVariables();
+    }
+
+    // CALLBACK FOR CONNECTED ESPS, If ID is not thisClientID and event contains "CONNECTED"
+    if (String(receivedId) != thisClientID && String(receivedEvent).indexOf("CONNECTED") != -1) {        
+        event = String(receivedEvent);
+        sheetAddQueue(createPayload(true)); 
+        // Reset variables
         resetGlobalVariables();
     }
 }
