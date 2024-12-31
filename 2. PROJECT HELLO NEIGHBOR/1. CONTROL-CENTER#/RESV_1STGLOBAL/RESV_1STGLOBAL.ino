@@ -17,6 +17,7 @@ bool buttonPressed = false;        // Track button state
 unsigned long debounceDelay = 50;  // Debounce delay
 unsigned long lastButtonPressTime = 0;
 unsigned long buttonHoldDurationThreshold = 1500; // Button duration threshold (in milliseconds) 1.5 seconds
+float vtStep = 0.01; // Stride or size used to adjust Vibration Threshold
 
 // Global ESP variables
 const char* thisClientID = "RESV-1ST"; // Define the ClientID
@@ -175,7 +176,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.println(message);
 
     // Parse JSON payload
-    StaticJsonDocument<512> doc; // Adjust size if necessary
+    StaticJsonDocument<512> doc;
     DeserializationError error = deserializeJson(doc, message);
 
     if (error) {
@@ -184,34 +185,89 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         return;
     }
 
-    // Extract all data from JSON document
-    const char* id = doc["ID"];
-    const char* date = doc["DD"];
-    const char* time = doc["DT"];
-    const char* event = doc["E"];
-    const char* isArmed = doc["IA"];
-    float vibrationMagnitude = doc["VM"];
-    float vibrationThreshold = doc["VT"];
-    float ax = doc["AX"];
-    float ay = doc["AY"];
-    float az = doc["AZ"];
-    float gx = doc["GX"];
-    float gy = doc["GY"];
-    float gz = doc["GZ"];
-    int temperatureC = doc["TC"];
-    int temperatureF = doc["TF"];
-    int freeHeap = doc["FH"];
-  
-    // Example logic
-    if (String(id) == "RESV-1ST") {
-        Serial.println("Message is for this client!");
-        if (String(event) == "ARMED") {
-            isArmed = "ARMED";
-            Serial.println("System is ARMED.");
-        }
-        if (vibrationMagnitude > vibrationThreshold) {
-            Serial.println("Vibration exceeds threshold!");
-        }
+    // Extract data into temporary `receivedX` variables
+    const char* receivedId = doc["ID"];
+    const char* receivedDate = doc["DD"];
+    const char* receivedTime = doc["DT"];
+    const char* receivedEvent = doc["E"];
+    const char* receivedIsArmed = doc["IA"];
+    float receivedVibrationMagnitude = doc["VM"];
+    float receivedVibrationThreshold = doc["VT"];
+    float receivedAx = doc["AX"];
+    float receivedAy = doc["AY"];
+    float receivedAz = doc["AZ"];
+    float receivedGx = doc["GX"];
+    float receivedGy = doc["GY"];
+    float receivedGz = doc["GZ"];
+    int receivedTemperatureC = doc["TC"];
+    int receivedTemperatureF = doc["TF"];
+    int receivedFreeHeap = doc["FH"];
+
+    // Add a check at the start of the callback
+    if (String(receivedId) == thisClientID) {
+        Serial.println("IGNORING SELF-PUBLISHED MESSAGE.");
+        return;
+    }
+
+    // Check if all mandatory fields are present
+    if (!receivedId || !receivedEvent) {
+    Serial.println("CRITICAL JSON FIELDS MISSING, IGNORING MESSAGE...");
+    Serial.println("ORIGINAL MESSAGE: " + message); // Log the original payload
+    event = String(thisClientID) + "RCVD CRITICAL JSON FIELDS MISSING, IGNORING MESSAGE...";
+    resetGlobalVariables();
+    return;
+}
+
+    // Debug: Print updated global state
+    Serial.println("------------------------ GLOBAL VARIABLES BEFORE EXPLICIT NEW VALUES ------------------------");
+    Serial.println("Date: " + dateDate);
+    Serial.println("Time: " + dateTime);
+    Serial.println("Event: " + event);
+    Serial.println("IsArmed: " + isArmed);
+    Serial.println("Vibration Magnitude: " + String(vibrationMagnitude, 2));
+    Serial.println("Vibration Threshold: " + String(vibrationThreshold, 2));
+    Serial.println("Acceleration - AX: " + String(baselineX, 2) + " AY: " + String(baselineY, 2) + " AZ: " + String(baselineZ, 2));
+    Serial.println("Gyroscope - GX: " + String(gyroX, 2) + " GY: " + String(gyroY, 2) + " GZ: " + String(gyroZ, 2));
+    Serial.println("Temperature: " + String(temperatureC) + "C / " + String(temperatureF) + "F");
+    Serial.println("Free Heap: " + String(freeHeap));
+
+    // Debug: Print all received values
+    Serial.println("------------------------ RECEIVED VALUES ------------------------");
+    Serial.println("receivedID: " + String(receivedId));
+    Serial.println("receivedDate: " + String(receivedDate));
+    Serial.println("receivedTime: " + String(receivedTime));
+    Serial.println("receivedEvent: " + String(receivedEvent));
+    Serial.println("receivedIsArmed: " + String(receivedIsArmed));
+    Serial.println("receivedVibrationMagnitude: " + String(receivedVibrationMagnitude, 2));
+    Serial.println("receivedVibrationThreshold: " + String(receivedVibrationThreshold, 2));
+    Serial.println("receivedAx: " + String(receivedAx, 2) + " Ay: " + String(receivedAy, 2) + " Az: " + String(receivedAz, 2));
+    Serial.println("receivedGx: " + String(receivedGx, 2) + " Gy: " + String(receivedGy, 2) + " Gz: " + String(receivedGz, 2));
+    Serial.println("receivedTemperatureC: " + String(receivedTemperatureC) + "C / " + String(receivedTemperatureF) + "F");
+    Serial.println("receivedFreeHeap: " + String(receivedFreeHeap));
+
+    // EXAMPLE OF LOCAL TO GLOBAL ASSIGNMENTS 
+    // dateDate = String(receivedDate);
+    // dateTime = String(receivedTime);
+    // event = String(receivedEvent);
+    // isArmed = String(receivedIsArmed);
+    // vibrationMagnitude = receivedVibrationMagnitude;
+    // vibrationThreshold = receivedVibrationThreshold;
+    // baselineX = receivedAx;
+    // baselineY = receivedAy;
+    // baselineZ = receivedAz;
+    // gyroX = receivedGx;
+    // gyroY = receivedGy;
+    // gyroZ = receivedGz;
+    // temperatureC = receivedTemperatureC;
+    // temperatureF = receivedTemperatureF;
+    // freeHeap = receivedFreeHeap;
+
+    // CALLBACK FOR EXPLICIT OR GLOBAL ARM/DISARM REQUESTS, ASSIGNVALUE, SEND CONFIRMATION
+    if ((String(receivedEvent).indexOf(String(receivedId) + " CONFIRMED " + String(receivedIsArmed)) != -1) || 
+        (String(receivedEvent).indexOf(String(receivedId) + " CONFIRMED " + String(receivedIsArmed) + " TO #") != -1)) {
+        Serial.println("[" + String(receivedId) + " CONFIRMED " + String(receivedIsArmed) + " RECEIVED]");
+        isArmed = receivedIsArmed;
+        resetGlobalVariables();
     }
 }
 
@@ -255,7 +311,8 @@ void loop() {
       if (pressDuration >= buttonHoldDurationThreshold && !isButtonHeld) {
           // Long press detected: Publish global request
           isButtonHeld = true; // Prevent multiple triggers
-          publishArmDisarmEvent(true);
+          //publishArmDisarmEvent(true);
+          publishvtStepUpEvent(true);
       }
   }
 
@@ -266,7 +323,8 @@ void loop() {
 
       if (pressDuration > 0 && pressDuration < buttonHoldDurationThreshold) {
           // Short press detected: Publish targeted request
-          publishArmDisarmEvent(false);
+          //publishArmDisarmEvent(false);
+          publishvtStepUpEvent(false);
       }
   }
 
@@ -363,13 +421,6 @@ bool fetchNTPTime() {
 
 void resetGlobalVariables() {
     event = "LISTENING";
-    vibrationMagnitude = 0.0;
-    baselineX = 0;
-    baselineY = 0;
-    baselineZ = 0;
-    gyroX = 0.0;
-    gyroY = 0.0;
-    gyroZ = 0.0;
 }
 
 void connectToTopics() {
@@ -518,17 +569,44 @@ void logFreeHeap() {
 }
 
 void publishArmDisarmEvent(bool isGlobal) {
-    // Determine the new `isArmed` state
+    // Toggle the armed state
     isArmed = (isArmed == "DISARMED") ? "ARMED" : "DISARMED";
 
-    // Construct the event string
-    event = String(thisClientID) + " REQUESTED " + isArmed + " TO ";
-    event += isGlobal ? "#" : "RESV-SHOCKERA";
+    // Construct event string based on the type of request
+    if (isGlobal) {
+        event = String(thisClientID) + " REQUESTED " + isArmed + " TO #";
+    } else {
+        event = String(thisClientID) + " REQUESTED " + isArmed + " TO RESV-SHOCKERA";
+    }
 
-    // Publish the updated state
+    // Publish the event
     publishMQTT();
-
-    // Debugging
-    Serial.println("Event Published: " + event);
-    Serial.println("System State: " + isArmed);
 }
+
+void publishvtStepUpEvent(bool isGlobal) {
+    if (isGlobal) {
+        event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY +" + vtStep  + " TO #";
+    } else {
+        event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY +" + vtStep  + " TO RESV-SHOCKERA";
+    }
+    vibrationThreshold += vtStep;
+    // Publish the event
+    publishMQTT();
+    resetGlobalVariables();
+}
+
+void publishvtStepDownEvent(bool isGlobal) {
+    if (isGlobal) {
+        event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY -" + vtStep + " TO RESV-SHOCKERA";
+    } else {
+        event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY -" + vtStep  + " TO #";
+    }
+    vibrationThreshold -= vtStep;
+    // Publish the event
+    publishMQTT();
+    resetGlobalVariables();
+}
+
+// add anotther physical button, copy ther code where publishvtstepupevent exists, replace it with publishvtstepdownevent. and this should work flawlessly.
+// vt step is currently set to 0.01 that is very small.. we may want to increase it..
+//need to add another method to reset vt threshold? maybe.. we have step down so many not.. 

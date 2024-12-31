@@ -255,6 +255,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     int receivedTemperatureF = doc["TF"];
     int receivedFreeHeap = doc["FH"];
 
+    // Add a check at the start of the callback
+    if (String(receivedId) == thisClientID) {
+        Serial.println("IGNORING SELF-PUBLISHED MESSAGE.");
+        return;
+    }
+
     // Check if all mandatory fields are present
     if (!receivedId || !receivedEvent) {
     Serial.println("CRITICAL JSON FIELDS MISSING, IGNORING MESSAGE...");
@@ -312,7 +318,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     // CALLBACK FOR EXPLICIT OR GLOBAL ARM/DISARM REQUESTS, ASSIGNVALUE, SEND CONFIRMATION
     if ((String(receivedEvent).indexOf("REQUESTED " + String(receivedIsArmed) + " TO " + thisClientID) != -1) || 
         (String(receivedEvent).indexOf("REQUESTED " + String(receivedIsArmed) + " TO #") != -1)) {
-        Serial.println("[REQUESTED " + String(receivedIsArmed) + " RECEIVED]");
         event = receivedEvent;
         publishMQTT();
         sheetAddQueue(createPayload(true)); 
@@ -326,6 +331,19 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     // CALLBACK FOR CONNECTED ESPS, If ID is not thisClientID and event contains "CONNECTED"
     if (String(receivedId) != thisClientID && String(receivedEvent).indexOf("CONNECTED") != -1) {        
         event = String(receivedEvent);
+        sheetAddQueue(createPayload(true)); 
+        // Reset variables
+        resetGlobalVariables();
+    }
+
+    // CALLBACK FOR vtThreshold increment,
+    if ((String(receivedId) != thisClientID && String(receivedEvent).indexOf(" ADJUSTED VIBRATION THRESHOLD BY ") != -1) ||
+        (String(receivedId) != thisClientID && String(receivedEvent).indexOf(" ADJUSTED VIBRATION THRESHOLD BY " + " TO #") != -1 {        
+        event = String(receivedEvent);
+        sheetAddQueue(createPayload(true)); 
+        vibrationThreshold = receivedVibrationThreshold;
+        event = String(thisClientID) + " VIBRATION THRESHOLD SET TO " + String(vibrationThreshold);
+        publishMQTT();
         sheetAddQueue(createPayload(true)); 
         // Reset variables
         resetGlobalVariables();
