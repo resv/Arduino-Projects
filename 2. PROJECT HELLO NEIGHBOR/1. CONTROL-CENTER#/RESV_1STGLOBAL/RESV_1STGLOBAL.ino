@@ -312,7 +312,8 @@ void loop() {
           // Long press detected: Publish global request
           isButtonHeld = true; // Prevent multiple triggers
           //publishArmDisarmEvent(true);
-          publishvtStepUpEvent(true);
+          //publishvtStepUpEvent(true);
+          publishvtStepDownEvent(true);
       }
   }
 
@@ -324,7 +325,8 @@ void loop() {
       if (pressDuration > 0 && pressDuration < buttonHoldDurationThreshold) {
           // Short press detected: Publish targeted request
           //publishArmDisarmEvent(false);
-          publishvtStepUpEvent(false);
+          //publishvtStepUpEvent(false);
+          publishvtStepDownEvent(false);
       }
   }
 
@@ -597,9 +599,9 @@ void publishvtStepUpEvent(bool isGlobal) {
 
 void publishvtStepDownEvent(bool isGlobal) {
     if (isGlobal) {
-        event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY -" + vtStep + " TO RESV-SHOCKERA";
-    } else {
         event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY -" + vtStep  + " TO #";
+    } else {
+        event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY -" + vtStep + " TO RESV-SHOCKERA";
     }
     vibrationThreshold -= vtStep;
     // Publish the event
