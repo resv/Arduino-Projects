@@ -322,7 +322,7 @@ void setup() {
     // Initialize Google Sheets communication
     sheetSetup();
 
-    event = "CONNECTED";
+    event = String(thisClientID) + " CONNECTED";
     sheetAddQueue(createPayload(true)); 
     resetGlobalVariables();
 }
@@ -375,7 +375,7 @@ void loop() {
       if (WiFi.status() != WL_CONNECTED) {
           Serial.println("WIFI RECONNECTING...");
           setup_wifi();  // Call your existing setup_wifi function
-          event = "CONNECTED";
+          event = String(thisClientID) + " CONNECTED";
           sheetAddQueue(createPayload(true));
           resetGlobalVariables(); 
       }
@@ -549,7 +549,7 @@ void connectToTopics() {
                 client.subscribe(mqtt_topic_CENTRAL_HUB);
                 client.subscribe(mqtt_topic_SHOCK_CENTER);
 
-                event = "CONNECTED";
+                event = String(thisClientID) + " CONNECTED";
 
                 // Publish to the central hub upon successful connection
                 publishMQTT();
