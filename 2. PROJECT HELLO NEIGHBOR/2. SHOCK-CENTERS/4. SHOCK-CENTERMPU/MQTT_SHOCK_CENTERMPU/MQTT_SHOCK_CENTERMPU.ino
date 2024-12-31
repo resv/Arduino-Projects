@@ -94,7 +94,7 @@ const char* mqtt_user = "MasterA";
 const char* mqtt_password = "MasterA1";
 const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB";
 const char* mqtt_topic_SHOCK_CENTER = "SHOCK-CENTER";
-const char* clientID = "RESV-SHOCKERA";
+const char* clientID = thisClientID;
 WiFiClientSecure espClient; // MQTT OVER SSL
 PubSubClient client(espClient); // creates instance object client for PubSubClient class
 // Non-blocking reconnect variables
@@ -216,7 +216,7 @@ void handleRecalibration() {
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-    Serial.print("RESV-SHOCKERMPU RCVD [");
+    Serial.print(String(thisClientID) + " RCVD [");
     Serial.print(topic);
     Serial.print("]: ");
 
@@ -510,7 +510,6 @@ bool fetchNTPTime() {
         dateDate = String(bufferDate);
         dateTime = String(bufferTime);
 
-        Serial.println("NTP Time Updated: " + String(dateDate) + " " + String(dateTime));
         return true;  // Fetch successful
     } else {
         Serial.println("Failed to fetch NTP time");

@@ -79,7 +79,7 @@ const char* mqtt_user = "MasterA";
 const char* mqtt_password = "MasterA1";
 const char* mqtt_topic_CENTRAL_HUB = "CENTRAL-HUB";
 const char* mqtt_topic_SHOCK_CENTER = "SHOCK-CENTER";
-const char* clientID = "RESV-1ST";
+const char* clientID = thisClientID;
 WiFiClientSecure espClient; // MQTT OVER SSL
 PubSubClient client(espClient); // creates instance object client for PubSubClient class
 // Non-blocking reconnect variables
@@ -163,7 +163,7 @@ void setup_wifi() {
 
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-    Serial.print("RESV-1ST RCVD [");
+    Serial.print(String(thisClientID) + " RCVD [");
     Serial.print(topic);
     Serial.print("]: ");
 
@@ -302,7 +302,7 @@ void loop() {
       if (WiFi.status() != WL_CONNECTED) {
           Serial.println("WIFI RECONNECTING...");
           setup_wifi();  // Call your existing setup_wifi function
-          event = "CONNECTED";
+          event = String(thisClientID) + " CONNECTED";
           resetGlobalVariables(); 
       }
   }
@@ -356,7 +356,6 @@ bool fetchNTPTime() {
         dateDate = String(bufferDate);
         dateTime = String(bufferTime);
 
-        Serial.println("NTP Time Updated: " + String(dateDate) + " " + String(dateTime));
         return true;  // Fetch successful
     } else {
         Serial.println("Failed to fetch NTP time");
@@ -394,7 +393,7 @@ void connectToTopics() {
                 client.subscribe(mqtt_topic_CENTRAL_HUB);
                 client.subscribe(mqtt_topic_SHOCK_CENTER);
 
-                event = "CONNECTED";
+                event = String(thisClientID) + " CONNECTED";
 
                 // Publish to the central hub upon successful connection
                 publishMQTT();
