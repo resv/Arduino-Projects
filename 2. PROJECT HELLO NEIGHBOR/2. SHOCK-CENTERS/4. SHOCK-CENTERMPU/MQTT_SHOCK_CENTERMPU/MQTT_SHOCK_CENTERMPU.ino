@@ -256,19 +256,30 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     int receivedFreeHeap = doc["FH"];
 
     // Check if all mandatory fields are present
-    if (!receivedId || !receivedEvent || !receivedIsArmed) {
-        Serial.println("Incomplete JSON data received, ignoring...");
-        return;
-    }
+    if (!receivedId || !receivedEvent) {
+    Serial.println("CRITICAL JSON FIELDS MISSING, IGNORING MESSAGE...");
+    Serial.println("ORIGINAL MESSAGE: " + message); // Log the original payload
+    event = String(thisClientID) + "RCVD CRITICAL JSON FIELDS MISSING, IGNORING MESSAGE...";
+    sheetAddQueue(createPayload(true)); 
+    resetGlobalVariables();
+    return;
+}
 
-    // Check if the message is for this device
-    if (String(receivedId) == thisClientID) {
-        Serial.println("IGNORING SELF PUBLISH CALLBACK");
-        return;
-    }
+    // Debug: Print updated global state
+    Serial.println("------------------------ GLOBAL VARIABLES BEFORE EXPLICIT NEW VALUES ------------------------");
+    Serial.println("Date: " + dateDate);
+    Serial.println("Time: " + dateTime);
+    Serial.println("Event: " + event);
+    Serial.println("IsArmed: " + isArmed);
+    Serial.println("Vibration Magnitude: " + String(vibrationMagnitude, 2));
+    Serial.println("Vibration Threshold: " + String(vibrationThreshold, 2));
+    Serial.println("Acceleration - AX: " + String(baselineX, 2) + " AY: " + String(baselineY, 2) + " AZ: " + String(baselineZ, 2));
+    Serial.println("Gyroscope - GX: " + String(gyroX, 2) + " GY: " + String(gyroY, 2) + " GZ: " + String(gyroZ, 2));
+    Serial.println("Temperature: " + String(temperatureC) + "C / " + String(temperatureF) + "F");
+    Serial.println("Free Heap: " + String(freeHeap));
 
     // Debug: Print all received values
-    Serial.println("Received Values:");
+    Serial.println("------------------------ RECEIVED VALUES ------------------------");
     Serial.println("receivedID: " + String(receivedId));
     Serial.println("receivedDate: " + String(receivedDate));
     Serial.println("receivedTime: " + String(receivedTime));
@@ -297,19 +308,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     // temperatureC = receivedTemperatureC;
     // temperatureF = receivedTemperatureF;
     // freeHeap = receivedFreeHeap;
-
-    // Debug: Print updated global state
-    Serial.println("GLOBAL VARIABLES BEFORE EXPLICIT NEW VALUES");
-    Serial.println("Date: " + dateDate);
-    Serial.println("Time: " + dateTime);
-    Serial.println("Event: " + event);
-    Serial.println("IsArmed: " + isArmed);
-    Serial.println("Vibration Magnitude: " + String(vibrationMagnitude, 2));
-    Serial.println("Vibration Threshold: " + String(vibrationThreshold, 2));
-    Serial.println("Acceleration - AX: " + String(baselineX, 2) + " AY: " + String(baselineY, 2) + " AZ: " + String(baselineZ, 2));
-    Serial.println("Gyroscope - GX: " + String(gyroX, 2) + " GY: " + String(gyroY, 2) + " GZ: " + String(gyroZ, 2));
-    Serial.println("Temperature: " + String(temperatureC) + "C / " + String(temperatureF) + "F");
-    Serial.println("Free Heap: " + String(freeHeap));
 
     // CALLBACK FOR EXPLICIT OR GLOBAL ARM/DISARM REQUESTS, ASSIGNVALUE, SEND CONFIRMATION
     if ((String(receivedEvent).indexOf("REQUESTED " + String(receivedIsArmed) + " TO " + thisClientID) != -1) || 
