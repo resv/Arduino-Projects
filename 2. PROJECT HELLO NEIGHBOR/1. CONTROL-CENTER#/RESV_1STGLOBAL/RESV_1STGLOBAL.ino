@@ -522,8 +522,8 @@ void publishArmDisarmEvent(bool isGlobal) {
     isArmed = (isArmed == "DISARMED") ? "ARMED" : "DISARMED";
 
     // Construct the event string
-    event = String(thisClientID) + " REQUESTED " + isArmed;
-    event += isGlobal ? " #" : " TO RESV-SHOCKERA";
+    event = String(thisClientID) + " REQUESTED " + isArmed + " TO ";
+    event += isGlobal ? "#" : "RESV-SHOCKERA";
 
     // Publish the updated state
     publishMQTT();

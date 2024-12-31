@@ -311,29 +311,19 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.println("Temperature: " + String(temperatureC) + "C / " + String(temperatureF) + "F");
     Serial.println("Free Heap: " + String(freeHeap));
 
-    // ARM/DISARM REQUESTS CALL BACK
-    if (String(receivedEvent).indexOf("REQUESTED " + String(receivedIsArmed)) != -1) {
+    // CALLBACK FOR EXPLICIT OR GLOBAL ARM/DISARM REQUESTS, ASSIGNVALUE, SEND CONFIRMATION
+    if ((String(receivedEvent).indexOf("REQUESTED " + String(receivedIsArmed) + " TO " + thisClientID) != -1) || 
+        (String(receivedEvent).indexOf("REQUESTED " + String(receivedIsArmed) + " TO #") != -1)) {
         Serial.println("[REQUESTED " + String(receivedIsArmed) + " RECEIVED]");
+        event = receivedEvent;
+        publishMQTT();
+        sheetAddQueue(createPayload(true)); 
         isArmed = receivedIsArmed;
         event = String(thisClientID) + " CONFIRMED " + String(receivedIsArmed);
         publishMQTT();
         sheetAddQueue(createPayload(true)); 
         resetGlobalVariables();
     }
-
-        // Take action based on the event
-   // if (String(receivedEvent).indexOf("REQUESTED " + String(receivedIsArmed)) != -1) {
-    //    Serial.println("[REQUESTED " + String(receivedIsArmed) + " RECEIVED]");
-   //     isArmed = receivedIsArmed;
-    //    event = String(thisClientID) + " CONFIRMED " + String(receivedIsArmed);
-   //     publishMQTT();
-   //     resetGlobalVariables();
- //   } else if (String(receivedEvent).indexOf("REQUESTED DISARMED") != -1) {
-   //     Serial.println("[REQUESTED DISARM RECEIVED]");
-   //     isArmed = receivedIsArmed;
-  //      event = String(thisClientID) + " CONFIRMED " + String(receivedIsArmed);
-//publishMQTT();
-  //      resetGlobalVariables();
 }
 
 
