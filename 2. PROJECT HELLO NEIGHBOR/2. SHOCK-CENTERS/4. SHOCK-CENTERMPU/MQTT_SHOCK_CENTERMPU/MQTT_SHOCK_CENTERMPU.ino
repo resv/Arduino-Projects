@@ -19,7 +19,7 @@ String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";
 String event = "LISTENING";
 int freeHeap = 0; // Global variable to store free heap memory
-float temperatureOffset = -1.75;
+float temperatureOffset = -2.5;
 
 // Global Heap Variables
 unsigned long lastHeapLogMillis = 0;
@@ -499,8 +499,12 @@ void loop() {
     mpu.getEvent(&accel, &gyro, &temp);
 
     // Update temperature variables if the whole number changes
-    int newTempC = static_cast<int>(temp.temperature + temperatureOffset);
-    int newTempF = static_cast<int>((newTempC * 9.0 / 5.0) + 32.0);
+    float adjustedTempC = temp.temperature + temperatureOffset; // Adjusted temperature with offset
+    float adjustedTempF = (adjustedTempC * 9.0 / 5.0) + 32.0;   // Convert to Fahrenheit
+
+    // Truncate after conversion
+    int newTempC = static_cast<int>(adjustedTempC);  // Integer Celsius value
+    int newTempF = static_cast<int>(adjustedTempF); // Integer Fahrenheit value
 
     if (newTempC != temperatureC || newTempF != temperatureF) {
       temperatureC = newTempC;
