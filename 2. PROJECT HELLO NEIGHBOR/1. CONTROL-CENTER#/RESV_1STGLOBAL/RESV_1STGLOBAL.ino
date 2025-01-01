@@ -267,6 +267,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         (String(receivedEvent).indexOf(String(receivedId) + " CONFIRMED " + String(receivedIsArmed) + " TO #") != -1)) {
         Serial.println("[" + String(receivedId) + " CONFIRMED " + String(receivedIsArmed) + " RECEIVED]");
         isArmed = receivedIsArmed;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
         resetGlobalVariables();
     }
 }
