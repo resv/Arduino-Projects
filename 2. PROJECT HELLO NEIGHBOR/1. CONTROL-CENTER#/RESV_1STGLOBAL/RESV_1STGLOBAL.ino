@@ -11,8 +11,8 @@
 #include <Adafruit_ST7789.h>
 
 // LCD configuration
-#define LCD_WIDTH 320
-#define LCD_HEIGHT 170
+#define LCD_WIDTH 170
+#define LCD_HEIGHT 320
 #define LCD_MOSI 23
 #define LCD_SCLK 18
 #define LCD_CS 15
@@ -143,6 +143,7 @@ void setup_wifi() {
         Serial.print("CONNECTING TO [" + String(ssid) + "]");
 
         // Set the cursor for the first line (fixed position)
+        lcd.fillScreen(ST77XX_BLACK);
         lcd.setCursor(40, 30);
         lcd.println("WIFI Connecting");
 
@@ -303,7 +304,6 @@ void setup() {
     //Button setup
     pinMode(ONBOARD_BUTTON_PIN, INPUT_PULLUP); // Ensure the button pin is set to INPUT_PULLUP
 
-    // InitializeLCD
     LCDInitialize();
 
     // Connect to Wi-Fi
@@ -631,17 +631,14 @@ void publishAdjustVibrationThreshold(float adjustment, bool isGlobal) {
     resetGlobalVariables();
 }
 
-void LCDInitialize() {
+void LCDInitialize(){
   lcd.init(LCD_WIDTH, LCD_HEIGHT);
-  lcd.setRotation(0);
-  lcd.fillRect(0, 0, 320, 170, ST77XX_BLACK);
+  lcd.setRotation(3);
+  lcd.fillScreen(ST77XX_BLACK);
   lcd.setTextColor(ST77XX_WHITE);
   lcd.setTextSize(3);
   lcd.setCursor(0, 0);
-  
-  //lcd.print("");
 }
-
 // add anotther physical button, copy ther code where publishAdjustVibrationThreshold(-vtStep, true); exists, 
    // replace it with publishAdjustVibrationThreshold(-vtStep, true) or publishAdjustVibrationThreshold(vtStep, true);. and this should work flawlessly.
       // boolean value takes care of # or explicit
