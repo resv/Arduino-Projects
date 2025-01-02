@@ -61,6 +61,12 @@ String dateTime = "HH:MM:SS";
 String event = "LISTENING";
 int freeHeap = 0; // Global variable to store free heap memory
 
+int retaliationCount = 0;
+String retaliationTime = "00:00:00"; // To store the formatted time
+bool bootTimeCaptured = false; // Ensure boot time is only captured once
+String bootDate = "MM/DD";
+String bootTime = "HH/MM";
+
 // Global Heap Variables
 unsigned long lastHeapLogMillis = 0;
 const unsigned long heapLogInterval = 60000; // Update every 1 minute
@@ -475,6 +481,17 @@ bool fetchNTPTime() {
         dateDate = String(bufferDate);
         dateTime = String(bufferTime);
 
+        // Capture boot time if not already set
+        if (!bootTimeCaptured) {
+            bootDate = dateDate; // Set static boot date
+
+            // Reformat bufferTime to include only HH:MM
+            strftime(bufferTime, sizeof(bufferTime), "%H:%M", estTimeInfo);
+
+            bootTime = String(bufferTime); // Set static boot time
+            bootTimeCaptured = true; // Mark as captured
+        }
+
         return true;  // Fetch successful
     } else {
         Serial.println("Failed to fetch NTP time");
@@ -679,7 +696,7 @@ void LCDClearHeader(){
 }
 
 void LCDClearLog(){
-  lcd.fillRect(0, 24, 320, 85, BLACK); // Assumed font size of 3.
+  lcd.fillRect(0, 24, 320, 80, BLACK); // Assumed font size of 3.
 }
 
 // Clear all Zones LCDClearZone() or pass params zone "((1/2/3), ("ALL" or Blank/isArmed"/"VMVT"/"Temperatures"))"
@@ -719,54 +736,107 @@ void LCDClearZone(int zone = 0, String x = "ALL") {
 }
 
 
+void LCDUpdateHeader(){
+  LCDClearHeader();
+  
+  //Count and Time Conversion
+    // Increment the retaliation count
+    retaliationCount++;
+
+    // Calculate total seconds for the retaliation time
+    int totalSeconds = (4 * retaliationCount) / 60;
+
+    // Format the total seconds into HH:MM:SS
+    int hours = totalSeconds / 3600;
+    int minutes = (totalSeconds % 3600) / 60;
+    int seconds = totalSeconds % 60;
+
+    char timeBuffer[9];
+    snprintf(timeBuffer, sizeof(timeBuffer), "%02d:%02d:%02d", hours, minutes, seconds);
+
+    // Update the global retaliation time
+    retaliationTime = String(timeBuffer);
+
+  lcd.setTextColor(YELLOW);
+  lcd.setTextSize(3);
+  lcd.setCursor(0, 0);
+  lcd.print("#" + String(retaliationCount) + " " + retaliationTime); 
+  
+  lcd.setTextColor(PINK);
+  lcd.setTextSize(2);
+  lcd.setCursor(260, 0);
+  lcd.println(bootDate);
+  lcd.setTextSize(1);
+  lcd.setCursor(290, 17);
+  lcd.println(bootTime);
+}
+
 void LCDDashboard(){
   lcd.init(LCD_WIDTH, LCD_HEIGHT);
-  lcd.setRotation(3);
   lcd.fillScreen(ST77XX_BLACK);
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.setTextSize(2);
-  lcd.setCursor(0, 0);
-  LCDClearZone();
+  lcd.setRotation(3);
 
   // Bottom Grid Draw lines for 3 equal columns
   lcd.drawLine(106, 109, 106, 170, YELLOW); // 1st Vertical line, 1 & 2
   lcd.drawLine(214, 109, 214, 170, YELLOW); // 2nd Vertical line, 2 & 3
-
   // Horizontal line across the screen at y = 108
   lcd.drawLine(0, 105, 320, 105, YELLOW); // Single Horizontal line across the screen
 
-  lcd.setTextSize(3);
-  lcd.setCursor(0, 0);
-  lcd.setTextColor(YELLOW);
-  lcd.println("#23-11/12 23:34he");  // Header
+  LCDUpdateHeader();
+  //MOCK CODE
+  //lcd.setTextSize(3);
+ // lcd.setCursor(0, 0);
+  //lcd.setTextColor(YELLOW);
+  //lcd.println("#23-11/12 23:34he");  // Header
 
-  lcd.setTextSize(2);
-  lcd.setTextColor(WHITE);
-  lcd.println("12/23 12:12:24 D  DETECTED"); // Red for armed, white for disarmed
-  lcd.setTextColor(RED);
-  lcd.println("12/23 12:12:24 D REQUESTED"); // Red for armed, white for disarmed
+  //lcd.setTextSize(2);
+ // lcd.setTextColor(WHITE);
+  //lcd.println("12/23 12:12:24 D  DETECTED"); // Red for armed, white for disarmed
+ // lcd.setTextColor(RED);
+ // lcd.println("12/23 12:12:24 D REQUESTED"); // Red for armed, white for disarmed
 
-  lcd.setTextColor(GREEN);
-  lcd.println("12/23 12:12:24 C CONFIRMED"); // Green for confirmed
+ // lcd.setTextColor(GREEN);
+ // lcd.println("12/23 12:12:24 C CONFIRMED"); // Green for confirmed
 
-  lcd.setTextColor(LIGHT_BLUE);
-  lcd.println("12/23 12:12:24 C INCREASED"); // Blue for increased
-    lcd.setTextColor(DEEP_PURPLE);
-  lcd.println("12/23 12:12:24 A DECREASED"); // Cyan for connected
+ // lcd.setTextColor(LIGHT_BLUE);
+ // lcd.println("12/23 12:12:24 C INCREASED"); // Blue for increased
+ //   lcd.setTextColor(DEEP_PURPLE);
+ // lcd.println("12/23 12:12:24 A DECREASED"); // Cyan for connected
 
-  lcd.setTextColor(CYAN);
+ // lcd.setTextColor(CYAN);
   //lcd.println("12/23 12:12:24 C CONNECTED"); // Cyan for connected
 
   //LCDClearHeader();
-  LCDClearLog();
+ // LCDClearLog();
 
-  lcd.setCursor(0, 107);
-  lcd.setTextColor(WHITE);
-  lcd.println(" SHOCK A  SHOCK B  SHOCK C"); //
-  lcd.println("DISARMED DISARMED DISARMED"); // 
-  lcd.println("0.00/.00 0.00/.00 0.00/.00"); // 
-  lcd.println("27C  78F 27C  78F 27C  78F"); // 
+  //lcd.setCursor(0, 107);
+ // lcd.setTextColor(WHITE);
+ // lcd.println(" SHOCK A  SHOCK B  SHOCK C"); //
+ // lcd.println("DISARMED DISARMED DISARMED"); // 
+ // lcd.println("0.00/.00 0.00/.00 0.00/.00"); // 
+// lcd.println("27C  78F 27C  78F 27C  78F"); // 
 };
+
+
+// Unified function to increment count, calculate time, format it, and print
+void incrementRetaliationCountnTime() {
+    // Increment the retaliation count
+    retaliationCount++;
+
+    // Calculate total seconds for the retaliation time
+    int totalSeconds = (4 * retaliationCount) / 60;
+
+    // Format the total seconds into HH:MM:SS
+    int hours = totalSeconds / 3600;
+    int minutes = (totalSeconds % 3600) / 60;
+    int seconds = totalSeconds % 60;
+
+    char timeBuffer[9];
+    snprintf(timeBuffer, sizeof(timeBuffer), "%02d:%02d:%02d", hours, minutes, seconds);
+
+    // Update the global retaliation time
+    retaliationTime = String(timeBuffer);
+}
 
 // add anotther physical button, copy ther code where publishAdjustVibrationThreshold(-vtStep, true); exists, 
    // replace it with publishAdjustVibrationThreshold(-vtStep, true) or publishAdjustVibrationThreshold(vtStep, true);. and this should work flawlessly.
