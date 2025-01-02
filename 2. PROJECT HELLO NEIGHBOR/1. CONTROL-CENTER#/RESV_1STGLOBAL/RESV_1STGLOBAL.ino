@@ -346,8 +346,6 @@ void setup() {
 
     resetGlobalVariables();
 
-    LCDGrid();
-
     LCDDashboard();
 }
 
@@ -676,88 +674,99 @@ void LCDInitialize(){
   lcd.setCursor(0, 0);
 }
 
-void LCDGrid2(){
-  lcd.init(LCD_WIDTH, LCD_HEIGHT);
-  lcd.setRotation(3);
-  lcd.fillScreen(ST77XX_BLACK);
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.setTextSize(2);
-  lcd.setCursor(0, 0);
-  lcd.println("#23 | 11/12 23:34 | ");  //YELOW
-  lcd.println("12/23 12:12:24 D  DETECTED"); // Red for armed, white for Disarmed
-  lcd.println("12/23 12:12:24 A REQUESTED"); // RED for arm request, white for disarm request
-  lcd.println("12/23 12:12:24 C CONFIRMED"); // GREEN for every confirm
-  lcd.println("12/23 12:12:24 C INCREASED"); // color
-  lcd.println("12/23 12:12:24 C DECREASED"); //colo
-  lcd.println("12/23 12:12:24 C CONNECTED"); // CYAN COLOR
-  lcd.println("8TESTING123456789ABCDEFGHI");
-  lcd.println("9TESTING123456789ABCDEFGHI");
-  lcd.println("ATESTING123456789ABCDEFGHI");
-  lcd.println("BTESTING123456789ABCDEFGHI");
+void LCDClearHeader(){
+  lcd.fillRect(0, 0, 320, 24, BLACK); // Assumed font size of 3.
 }
 
-void LCDGrid(){
-    lcd.init(LCD_WIDTH, LCD_HEIGHT);
-  lcd.setRotation(3);
-  lcd.fillScreen(ST77XX_BLACK);
-  lcd.setTextColor(ST77XX_WHITE);
-  lcd.setTextSize(2);
-  lcd.setCursor(0, 0);
-lcd.setTextColor(YELLOW);
-lcd.println("#23 | 11/12 23:34 | ");  // Header
-
-lcd.setTextColor(WHITE);
-lcd.println("12/23 12:12:24 D  DETECTED"); // Red for armed, white for disarmed
-lcd.setTextColor(RED);
-lcd.println("12/23 12:12:24 D  DETECTED"); // Red for armed, white for disarmed
-
-lcd.setTextColor(WHITE);
-lcd.println("12/23 12:12:24 A REQUESTED"); // Red for arm request, white for disarm request
-lcd.setTextColor(RED);
-lcd.println("12/23 12:12:24 A REQUESTED"); // Red for arm request, white for disarm request
-
-lcd.setTextColor(GREEN);
-lcd.println("12/23 12:12:24 C CONFIRMED"); // Green for confirmed
-
-lcd.setTextColor(LIGHT_BLUE);
-lcd.println("12/23 12:12:24 C INCREASED"); // Blue for increased
-
-lcd.setTextColor(GRAY);
-lcd.println("12/23 12:12:24 C DECREASED"); // Purple for decreased
-
-lcd.setTextColor(CYAN);
-lcd.println("12/23 12:12:24 C CONNECTED"); // Cyan for connected
-
-lcd.setTextColor(MAGENTA);
-lcd.println("12/23 12:12:24 A MAGENTA"); // Cyan for connected
-
-lcd.setTextColor(TAN);
-lcd.println("12/23 12:12:24 C TAN"); // Cyan for connected
+void LCDClearLog(){
+  lcd.fillRect(0, 24, 320, 85, BLACK); // Assumed font size of 3.
 }
+
+// Clear all Zones LCDClearZone() or pass params zone "((1/2/3), ("ALL" or Blank/isArmed"/"VMVT"/"Temperatures"))"
+void LCDClearZone(int zone = 0, String x = "ALL") {
+  if (zone == 0) {
+    // Clear all zones if no specific zone is provided
+    LCDClearZone(1, x);
+    LCDClearZone(2, x);
+    LCDClearZone(3, x);
+    return;
+  }
+
+  int xStart = 0; // Default for Zone 1
+  int width = 105; // Default width
+
+  // Determine xStart and width based on the zone
+  if (zone == 2) {
+    xStart = 107;
+    width = 106;
+  } else if (zone == 3) {
+    xStart = 215;
+    width = 105;
+  }
+
+  // Clear specific sections or the entire zone
+  if (x == "ALL" || x == "") {
+    lcd.fillRect(xStart, 109, width, 170 - 109, BLACK); // Clear the entire zone
+  } else if (x == "ClientID") {
+    lcd.fillRect(xStart, 109, width, 16, BLACK); // Clear the SHOCKER ClientID section
+  } else if (x == "isArmed") {
+    lcd.fillRect(xStart, 125, width, 16, BLACK); // Clear the isArmed section
+  } else if (x == "VMVT") {
+    lcd.fillRect(xStart, 141, width, 16, BLACK); // Clear the VM and VT section
+  } else if (x == "Temperatures") {
+    lcd.fillRect(xStart, 157, width, 16, BLACK); // Clear the Temperatures section
+  }
+}
+
 
 void LCDDashboard(){
   lcd.init(LCD_WIDTH, LCD_HEIGHT);
   lcd.setRotation(3);
-  //lcd.fillScreen(ST77XX_BLACK);
+  lcd.fillScreen(ST77XX_BLACK);
   lcd.setTextColor(ST77XX_WHITE);
   lcd.setTextSize(2);
   lcd.setCursor(0, 0);
+  LCDClearZone();
 
   // Bottom Grid Draw lines for 3 equal columns
-  lcd.drawLine(106, 0, 106, 170, YELLOW); // First vertical line
-  lcd.drawLine(213, 0, 213, 170, YELLOW); // Second vertical line
+  lcd.drawLine(106, 109, 106, 170, YELLOW); // 1st Vertical line, 1 & 2
+  lcd.drawLine(214, 109, 214, 170, YELLOW); // 2nd Vertical line, 2 & 3
 
-  // First column: Horizontal line at 2/3 of the height (bottom)
-  lcd.drawLine(0, 113, 106, 113, YELLOW); // y = 170 * 2/3 = 113
+  // Horizontal line across the screen at y = 108
+  lcd.drawLine(0, 105, 320, 105, YELLOW); // Single Horizontal line across the screen
 
-  // Second column: Horizontal line at 3/4 of the height (bottom)
-  lcd.drawLine(106, 127, 213, 127, YELLOW); // y = 170 * 3/4 = 127
+  lcd.setTextSize(3);
+  lcd.setCursor(0, 0);
+  lcd.setTextColor(YELLOW);
+  lcd.println("#23-11/12 23:34he");  // Header
 
-  // Third column: Horizontal line at 1/2 of the height (bottom)
-  lcd.drawLine(213, 85, 320, 85, YELLOW); // y = 170 * 1/2 = 85
+  lcd.setTextSize(2);
+  lcd.setTextColor(WHITE);
+  lcd.println("12/23 12:12:24 D  DETECTED"); // Red for armed, white for disarmed
+  lcd.setTextColor(RED);
+  lcd.println("12/23 12:12:24 D REQUESTED"); // Red for armed, white for disarmed
 
-}
+  lcd.setTextColor(GREEN);
+  lcd.println("12/23 12:12:24 C CONFIRMED"); // Green for confirmed
 
+  lcd.setTextColor(LIGHT_BLUE);
+  lcd.println("12/23 12:12:24 C INCREASED"); // Blue for increased
+    lcd.setTextColor(DEEP_PURPLE);
+  lcd.println("12/23 12:12:24 A DECREASED"); // Cyan for connected
+
+  lcd.setTextColor(CYAN);
+  //lcd.println("12/23 12:12:24 C CONNECTED"); // Cyan for connected
+
+  //LCDClearHeader();
+  LCDClearLog();
+
+  lcd.setCursor(0, 107);
+  lcd.setTextColor(WHITE);
+  lcd.println(" SHOCK A  SHOCK B  SHOCK C"); //
+  lcd.println("DISARMED DISARMED DISARMED"); // 
+  lcd.println("0.00/.00 0.00/.00 0.00/.00"); // 
+  lcd.println("27C  78F 27C  78F 27C  78F"); // 
+};
 
 // add anotther physical button, copy ther code where publishAdjustVibrationThreshold(-vtStep, true); exists, 
    // replace it with publishAdjustVibrationThreshold(-vtStep, true) or publishAdjustVibrationThreshold(vtStep, true);. and this should work flawlessly.
