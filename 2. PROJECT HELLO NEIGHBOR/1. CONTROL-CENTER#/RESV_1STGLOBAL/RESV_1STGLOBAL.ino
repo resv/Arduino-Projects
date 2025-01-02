@@ -61,7 +61,7 @@ String dateTime = "HH:MM:SS";
 String event = "LISTENING";
 int freeHeap = 0; // Global variable to store free heap memory
 
-int retaliationCount = 20;
+int retaliationCount = 00;
 String retaliationTime = "00:00:00"; // To store the formatted time
 bool bootTimeCaptured = false; // Ensure boot time is only captured once
 String bootDate = "MM/DD";
