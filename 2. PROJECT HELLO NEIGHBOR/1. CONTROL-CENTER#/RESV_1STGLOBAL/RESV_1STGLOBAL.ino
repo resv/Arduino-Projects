@@ -144,10 +144,11 @@ void setup_wifi() {
 
         // Set the cursor for the first line (fixed position)
         lcd.fillScreen(ST77XX_BLACK);
-        lcd.setCursor(40, 30);
+        lcd.setCursor(20, 0);
         lcd.println("WIFI Connecting");
 
         // Calculate width of the SSID string
+        lcd.setCursor(50, 32);
         lcd.println("[" + String(ssid) + "]");
 
         WiFi.disconnect();  // Ensure a clean connection attempt
@@ -164,6 +165,13 @@ void setup_wifi() {
        if (WiFi.status() == WL_CONNECTED) {
             fetchNTPTime(); // Fetch NTP time
             Serial.println("CONNECTED TO [" + String(ssid) + "] [" + WiFi.localIP().toString() + "]");
+
+              lcd.fillScreen(ST77XX_BLACK);
+              lcd.setCursor(60, 0);
+              lcd.println("CONNECTED TO");
+              lcd.setCursor(120, 28);
+              lcd.setTextColor(ST77XX_GREEN);
+              lcd.println(ssid);
 
               // Configure MQTT
               client.setServer(mqtt_server, mqtt_port);
