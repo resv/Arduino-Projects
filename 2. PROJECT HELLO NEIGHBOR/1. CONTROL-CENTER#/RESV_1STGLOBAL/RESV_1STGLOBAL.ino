@@ -22,6 +22,26 @@
 
 Adafruit_ST7789 lcd = Adafruit_ST7789(LCD_CS, LCD_DC, LCD_RST);
 
+// Basic Colors
+uint16_t BLACK   = lcd.color565(0, 0, 0);
+uint16_t BLUE    = lcd.color565(0, 0, 255);
+uint16_t RED     = lcd.color565(255, 0, 0);
+uint16_t GREEN   = lcd.color565(0, 255, 0);
+uint16_t CYAN    = lcd.color565(0, 255, 255);
+uint16_t MAGENTA = lcd.color565(255, 0, 255);
+uint16_t YELLOW  = lcd.color565(255, 255, 0);
+uint16_t WHITE   = lcd.color565(255, 255, 255);
+// Additional Colors
+uint16_t LIGHT_BLUE = lcd.color565(100, 150, 255);
+uint16_t ORANGE  = lcd.color565(255, 165, 0);
+uint16_t PINK    = lcd.color565(255, 105, 180);
+uint16_t PURPLE  = lcd.color565(128, 0, 128);
+uint16_t TAN        = lcd.color565(210, 180, 140);
+uint16_t NAVY       = lcd.color565(0, 0, 128);
+uint16_t BURGUNDY = lcd.color565(128, 0, 32);
+uint16_t DEEP_PURPLE = lcd.color565(75, 0, 130);
+uint16_t GRAY = lcd.color565(128, 128, 128);
+
 // Global Variables for Button Handling
 #define EXTERNAL_BUTTON_PIN 22  // GPIO pin for the external button
 #define ONBOARD_BUTTON_PIN 0   // GPIO pin for the onboard button
@@ -144,7 +164,7 @@ void setup_wifi() {
 
         // Set the cursor for the first line (fixed position)
         lcd.fillScreen(ST77XX_BLACK);
-        lcd.setCursor(20, 0);
+        lcd.setCursor(25, 0);
         lcd.println("WIFI Connecting");
 
         // Calculate width of the SSID string
@@ -325,6 +345,10 @@ void setup() {
     client.loop();
 
     resetGlobalVariables();
+
+    LCDGrid();
+
+    LCDDashboard();
 }
 
 // Main loop function
@@ -651,6 +675,90 @@ void LCDInitialize(){
   lcd.setTextSize(3);
   lcd.setCursor(0, 0);
 }
+
+void LCDGrid2(){
+  lcd.init(LCD_WIDTH, LCD_HEIGHT);
+  lcd.setRotation(3);
+  lcd.fillScreen(ST77XX_BLACK);
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.setTextSize(2);
+  lcd.setCursor(0, 0);
+  lcd.println("#23 | 11/12 23:34 | ");  //YELOW
+  lcd.println("12/23 12:12:24 D  DETECTED"); // Red for armed, white for Disarmed
+  lcd.println("12/23 12:12:24 A REQUESTED"); // RED for arm request, white for disarm request
+  lcd.println("12/23 12:12:24 C CONFIRMED"); // GREEN for every confirm
+  lcd.println("12/23 12:12:24 C INCREASED"); // color
+  lcd.println("12/23 12:12:24 C DECREASED"); //colo
+  lcd.println("12/23 12:12:24 C CONNECTED"); // CYAN COLOR
+  lcd.println("8TESTING123456789ABCDEFGHI");
+  lcd.println("9TESTING123456789ABCDEFGHI");
+  lcd.println("ATESTING123456789ABCDEFGHI");
+  lcd.println("BTESTING123456789ABCDEFGHI");
+}
+
+void LCDGrid(){
+    lcd.init(LCD_WIDTH, LCD_HEIGHT);
+  lcd.setRotation(3);
+  lcd.fillScreen(ST77XX_BLACK);
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.setTextSize(2);
+  lcd.setCursor(0, 0);
+lcd.setTextColor(YELLOW);
+lcd.println("#23 | 11/12 23:34 | ");  // Header
+
+lcd.setTextColor(WHITE);
+lcd.println("12/23 12:12:24 D  DETECTED"); // Red for armed, white for disarmed
+lcd.setTextColor(RED);
+lcd.println("12/23 12:12:24 D  DETECTED"); // Red for armed, white for disarmed
+
+lcd.setTextColor(WHITE);
+lcd.println("12/23 12:12:24 A REQUESTED"); // Red for arm request, white for disarm request
+lcd.setTextColor(RED);
+lcd.println("12/23 12:12:24 A REQUESTED"); // Red for arm request, white for disarm request
+
+lcd.setTextColor(GREEN);
+lcd.println("12/23 12:12:24 C CONFIRMED"); // Green for confirmed
+
+lcd.setTextColor(LIGHT_BLUE);
+lcd.println("12/23 12:12:24 C INCREASED"); // Blue for increased
+
+lcd.setTextColor(GRAY);
+lcd.println("12/23 12:12:24 C DECREASED"); // Purple for decreased
+
+lcd.setTextColor(CYAN);
+lcd.println("12/23 12:12:24 C CONNECTED"); // Cyan for connected
+
+lcd.setTextColor(MAGENTA);
+lcd.println("12/23 12:12:24 A MAGENTA"); // Cyan for connected
+
+lcd.setTextColor(TAN);
+lcd.println("12/23 12:12:24 C TAN"); // Cyan for connected
+}
+
+void LCDDashboard(){
+  lcd.init(LCD_WIDTH, LCD_HEIGHT);
+  lcd.setRotation(3);
+  //lcd.fillScreen(ST77XX_BLACK);
+  lcd.setTextColor(ST77XX_WHITE);
+  lcd.setTextSize(2);
+  lcd.setCursor(0, 0);
+
+  // Bottom Grid Draw lines for 3 equal columns
+  lcd.drawLine(106, 0, 106, 170, YELLOW); // First vertical line
+  lcd.drawLine(213, 0, 213, 170, YELLOW); // Second vertical line
+
+  // First column: Horizontal line at 2/3 of the height (bottom)
+  lcd.drawLine(0, 113, 106, 113, YELLOW); // y = 170 * 2/3 = 113
+
+  // Second column: Horizontal line at 3/4 of the height (bottom)
+  lcd.drawLine(106, 127, 213, 127, YELLOW); // y = 170 * 3/4 = 127
+
+  // Third column: Horizontal line at 1/2 of the height (bottom)
+  lcd.drawLine(213, 85, 320, 85, YELLOW); // y = 170 * 1/2 = 85
+
+}
+
+
 // add anotther physical button, copy ther code where publishAdjustVibrationThreshold(-vtStep, true); exists, 
    // replace it with publishAdjustVibrationThreshold(-vtStep, true) or publishAdjustVibrationThreshold(vtStep, true);. and this should work flawlessly.
       // boolean value takes care of # or explicit
