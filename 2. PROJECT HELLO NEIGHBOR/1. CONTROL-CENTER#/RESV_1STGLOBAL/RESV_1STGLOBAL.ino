@@ -61,7 +61,7 @@ String dateTime = "HH:MM:SS";
 String event = "LISTENING";
 int freeHeap = 0; // Global variable to store free heap memory
 
-int retaliationCount = 0;
+int retaliationCount = 20;
 String retaliationTime = "00:00:00"; // To store the formatted time
 bool bootTimeCaptured = false; // Ensure boot time is only captured once
 String bootDate = "MM/DD";
@@ -329,6 +329,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         isArmed = receivedIsArmed;
         temperatureC = receivedTemperatureC;
         temperatureF = receivedTemperatureF;
+        
         resetGlobalVariables();
     }
 }
@@ -700,12 +701,12 @@ void LCDClearLog(){
 }
 
 // Clear all Zones LCDClearZone() or pass params zone "((1/2/3), ("ALL" or Blank/isArmed"/"VMVT"/"Temperatures"))"
-void LCDClearZone(int zone = 0, String x = "ALL") {
-  if (zone == 0) {
+void LCDClearZone(String zone = "ALL", String x = "ALL") {
+  if (zone == "") {
     // Clear all zones if no specific zone is provided
-    LCDClearZone(1, x);
-    LCDClearZone(2, x);
-    LCDClearZone(3, x);
+    LCDClearZone("A", x);
+    LCDClearZone("B", x);
+    LCDClearZone("C", x);
     return;
   }
 
@@ -713,10 +714,10 @@ void LCDClearZone(int zone = 0, String x = "ALL") {
   int width = 105; // Default width
 
   // Determine xStart and width based on the zone
-  if (zone == 2) {
+  if (zone == "B") {
     xStart = 107;
     width = 106;
-  } else if (zone == 3) {
+  } else if (zone == "C") {
     xStart = 215;
     width = 105;
   }
@@ -735,7 +736,11 @@ void LCDClearZone(int zone = 0, String x = "ALL") {
   }
 }
 
+void LCDUpdateZone(){
 
+}
+
+// Unified function to increment count, calculate time, format it, and print
 void LCDUpdateHeader(){
   LCDClearHeader();
   
@@ -744,7 +749,7 @@ void LCDUpdateHeader(){
     retaliationCount++;
 
     // Calculate total seconds for the retaliation time
-    int totalSeconds = (4 * retaliationCount) / 60;
+    int totalSeconds = 4 * retaliationCount;
 
     // Format the total seconds into HH:MM:SS
     int hours = totalSeconds / 3600;
@@ -817,26 +822,6 @@ void LCDDashboard(){
 // lcd.println("27C  78F 27C  78F 27C  78F"); // 
 };
 
-
-// Unified function to increment count, calculate time, format it, and print
-void incrementRetaliationCountnTime() {
-    // Increment the retaliation count
-    retaliationCount++;
-
-    // Calculate total seconds for the retaliation time
-    int totalSeconds = (4 * retaliationCount) / 60;
-
-    // Format the total seconds into HH:MM:SS
-    int hours = totalSeconds / 3600;
-    int minutes = (totalSeconds % 3600) / 60;
-    int seconds = totalSeconds % 60;
-
-    char timeBuffer[9];
-    snprintf(timeBuffer, sizeof(timeBuffer), "%02d:%02d:%02d", hours, minutes, seconds);
-
-    // Update the global retaliation time
-    retaliationTime = String(timeBuffer);
-}
 
 // add anotther physical button, copy ther code where publishAdjustVibrationThreshold(-vtStep, true); exists, 
    // replace it with publishAdjustVibrationThreshold(-vtStep, true) or publishAdjustVibrationThreshold(vtStep, true);. and this should work flawlessly.
