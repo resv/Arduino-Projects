@@ -148,7 +148,7 @@ void setup_wifi() {
         lcd.println("WIFI Connecting");
 
         // Calculate width of the SSID string
-        lcd.setCursor(50, 32);
+        lcd.setCursor(80, 28);
         lcd.println("[" + String(ssid) + "]");
 
         WiFi.disconnect();  // Ensure a clean connection attempt
@@ -160,6 +160,7 @@ void setup_wifi() {
         while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 5000) {
             delay(500);
             Serial.print(".");
+            lcd.print(".");
         }
 
        if (WiFi.status() == WL_CONNECTED) {
@@ -167,11 +168,14 @@ void setup_wifi() {
             Serial.println("CONNECTED TO [" + String(ssid) + "] [" + WiFi.localIP().toString() + "]");
 
               lcd.fillScreen(ST77XX_BLACK);
-              lcd.setCursor(60, 0);
+              lcd.setCursor(50, 0);
               lcd.println("CONNECTED TO");
-              lcd.setCursor(120, 28);
+              lcd.setCursor(80, 28);
               lcd.setTextColor(ST77XX_GREEN);
-              lcd.println(ssid);
+              lcd.println("[" + String(ssid) + "]");
+              lcd.setCursor(30, 56);
+              lcd.println("[" + WiFi.localIP().toString() + "]");
+              
 
               // Configure MQTT
               client.setServer(mqtt_server, mqtt_port);
