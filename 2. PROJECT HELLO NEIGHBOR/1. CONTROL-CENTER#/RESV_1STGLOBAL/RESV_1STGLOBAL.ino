@@ -55,7 +55,7 @@ float vtStep = 0.01; // Stride or size used to adjust Vibration Threshold
 
 // Global ESP variables
 const char* thisClientID = "RESV-1ST"; // Define the ClientID
-String isArmed = "--";
+String isArmed = "   --";
 String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";
 String event = "LISTENING";
@@ -80,9 +80,10 @@ bool emergencyHeapFlag = false;
 
 // Global Sensor variables
 float vibrationMagnitude = 0.0; // Vibration magnitude
+float vibrationThreshold = .50; // Threshold for shock detection
 float baselineX = 0, baselineY = 0, baselineZ = 0; // Baseline values
 float gyroX = 0.0, gyroY = 0.0, gyroZ = 0.0; // variables for gyro readings
-float vibrationThreshold = 0.5; // Threshold for shock detection
+
 int temperatureC = 0; // Temperature in Celsius (whole number)
 int temperatureF = 0; // Temperature in Fahrenheit (whole number)
 
@@ -763,9 +764,13 @@ void LCDUpdateHeader(){
     retaliationTime = String(timeBuffer);
 
   lcd.setTextColor(YELLOW);
-  lcd.setTextSize(3);
+  lcd.setTextSize(2);
   lcd.setCursor(0, 0);
-  lcd.print("#" + String(retaliationCount) + " " + retaliationTime); 
+  lcd.print("#");
+  lcd.setTextSize(3);
+  lcd.print(String(retaliationCount));
+  lcd.setCursor(115, 0);
+  lcd.print(String(retaliationTime)); 
   
   lcd.setTextColor(PINK);
   lcd.setTextSize(2);
@@ -788,6 +793,9 @@ void LCDDashboard(){
   lcd.drawLine(0, 105, 320, 105, YELLOW); // Single Horizontal line across the screen
 
   LCDUpdateHeader();
+  LCDUpdateZone("A");
+  LCDUpdateZone("B");
+  LCDUpdateZone("C");
   //MOCK CODE
   //lcd.setTextSize(3);
  // lcd.setCursor(0, 0);
@@ -822,7 +830,50 @@ void LCDDashboard(){
 // lcd.println("27C  78F 27C  78F 27C  78F"); // 
 };
 
+void LCDUpdateZone(String zone) {
+    // Determine the starting X position for the zone
+    int xStart = 0; // Default for Zone A
+    if (zone == "B") {
+        xStart = 110;
+    } else if (zone == "C") {
+        xStart = 218;
+    } else if (zone != "A") {
+        Serial.println("Invalid zone specified!");
+        return;
+    }
 
+    // Static Shock Label
+    String shockLabel = " SHOCK " + zone;
+
+    // Print Shock Label
+    lcd.setTextColor(WHITE);
+    lcd.setTextSize(2);
+    lcd.setCursor(xStart, 109); // Y position for the shock label
+    lcd.println(shockLabel);
+
+    // Print Armed/Disarmed Status
+    lcd.setCursor(xStart, 125); // Y position for armed status
+    lcd.setTextColor(isArmed == "ARMED" ? RED : WHITE); // RED for armed, WHITE for disarmed
+    lcd.println(isArmed);
+
+    // Print Vibration Magnitude and Threshold (VM/VT)
+    lcd.setCursor(xStart, 141); // Y position for VM/VT
+    lcd.setTextColor(ORANGE);
+    lcd.print(String(vibrationMagnitude, 2));
+
+    // Intentional spacing
+    lcd.setTextSize(1);
+    lcd.print(" ");
+    lcd.setTextSize(2);
+
+    lcd.setTextColor(LIGHT_BLUE);
+    lcd.println(String(vibrationThreshold, 2));
+
+    // Print Temperatures in Celsius and Fahrenheit
+    lcd.setCursor(xStart, 157); // Y position for temperatures
+    lcd.setTextColor(YELLOW);
+    lcd.println(" " + String(temperatureC) + "C " + String(temperatureF) + "F");
+}
 // add anotther physical button, copy ther code where publishAdjustVibrationThreshold(-vtStep, true); exists, 
    // replace it with publishAdjustVibrationThreshold(-vtStep, true) or publishAdjustVibrationThreshold(vtStep, true);. and this should work flawlessly.
       // boolean value takes care of # or explicit
