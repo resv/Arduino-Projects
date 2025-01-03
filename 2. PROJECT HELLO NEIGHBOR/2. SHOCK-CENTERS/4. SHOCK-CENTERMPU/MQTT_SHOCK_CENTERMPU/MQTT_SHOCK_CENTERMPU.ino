@@ -13,7 +13,7 @@ Adafruit_MPU6050 mpu;
 #define MPU_POWER_PIN 0 // GPIO0 to supply 3.3V power to MPU6050
 
 // Global ESP variables
-const char* thisClientID = "RESV-SHOCKERA"; // Define the ClientID
+const char* thisClientID = "SHOCK-A"; // Define the ClientID
 String isArmed = "ARMED";
 String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";

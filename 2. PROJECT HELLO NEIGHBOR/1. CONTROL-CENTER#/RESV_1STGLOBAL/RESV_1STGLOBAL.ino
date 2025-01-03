@@ -78,6 +78,8 @@ bool warningHeapFlag = false;
 bool criticalHeapFlag = false;
 bool emergencyHeapFlag = false;
 
+String ID = "";
+
 // Global Sensor variables
 float vibrationMagnitude = 0.0; // Vibration magnitude
 float vibrationThreshold = .50; // Threshold for shock detection
@@ -331,8 +333,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         temperatureC = receivedTemperatureC;
         temperatureF = receivedTemperatureF;
         
+        LCDUpdateZone(receivedId);
+        Serial.println(String(receivedId) + "<----SELECTOR");
+        LCDUpdateLog();
         resetGlobalVariables();
     }
+
 }
 
 
@@ -379,10 +385,10 @@ void loop() {
       if (pressDuration >= buttonHoldDurationThreshold && !isButtonHeld) {
           // Long press detected: Publish global request
           isButtonHeld = true; // Prevent multiple triggers
-          //publishArmDisarmEvent(true);
+          publishArmDisarmEvent(true);
           //publishvtStepUpEvent(true);
           //publishAdjustVibrationThreshold(vtStep, true);
-          publishAdjustVibrationThreshold(-vtStep, true);
+          //publishAdjustVibrationThreshold(-vtStep, true);
       }
   }
 
@@ -393,9 +399,9 @@ void loop() {
 
       if (pressDuration > 0 && pressDuration < buttonHoldDurationThreshold) {
           // Short press detected: Publish targeted request
-          //publishArmDisarmEvent(false);
+          publishArmDisarmEvent(false);
           //publishAdjustVibrationThreshold(vtStep, false);
-          publishAdjustVibrationThreshold(-vtStep, false);
+          //publishAdjustVibrationThreshold(-vtStep, false);
       }
   }
 
@@ -502,7 +508,9 @@ bool fetchNTPTime() {
 }
 
 void resetGlobalVariables() {
+    ID = "";
     event = "LISTENING";
+    isArmed = "";
 }
 
 void connectToTopics() {
@@ -658,7 +666,7 @@ void publishArmDisarmEvent(bool isGlobal) {
     if (isGlobal) {
         event = String(thisClientID) + " REQUESTED " + isArmed + " TO #";
     } else {
-        event = String(thisClientID) + " REQUESTED " + isArmed + " TO RESV-SHOCKERA";
+        event = String(thisClientID) + " REQUESTED " + isArmed + " TO SHOCK-A";
     }
 
     // Publish the event
@@ -677,7 +685,7 @@ void publishAdjustVibrationThreshold(float adjustment, bool isGlobal) {
     // Construct the event string
     String direction = (adjustment > 0) ? "+" : "-";
     event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY " + direction + abs(adjustment) + 
-            (isGlobal ? " TO #" : " TO RESV-SHOCKERA");
+            (isGlobal ? " TO #" : " TO SHOCK-A");
 
     // Publish the event
     publishMQTT();
@@ -735,10 +743,6 @@ void LCDClearZone(String zone = "ALL", String x = "ALL") {
   } else if (x == "Temperatures") {
     lcd.fillRect(xStart, 157, width, 16, BLACK); // Clear the Temperatures section
   }
-}
-
-void LCDUpdateZone(){
-
 }
 
 // Unified function to increment count, calculate time, format it, and print
@@ -831,13 +835,15 @@ void LCDDashboard(){
 };
 
 void LCDUpdateZone(String zone) {
-    // Determine the starting X position for the zone
-    int xStart = 0; // Default for Zone A
-    if (zone == "B") {
+    int xStart = -1;
+
+    if (zone == "SHOCK-A") {
+        xStart = 0;
+    } else if (zone == "SHOCK-B") {
         xStart = 110;
-    } else if (zone == "C") {
+    } else if (zone == "SHOCK-C") {
         xStart = 218;
-    } else if (zone != "A") {
+    } else {
         Serial.println("Invalid zone specified!");
         return;
     }
@@ -874,6 +880,29 @@ void LCDUpdateZone(String zone) {
     lcd.setTextColor(YELLOW);
     lcd.println(" " + String(temperatureC) + "C " + String(temperatureF) + "F");
 }
+
+void LCDUpdateLog() {
+    // Clear the log area before updating
+    LCDClearLog();
+
+    // Set the cursor for the log area
+    lcd.setTextColor(WHITE);
+    lcd.setTextSize(2);
+    lcd.setCursor(10, 30); // Adjusted Y position for the log area
+
+    // Print Date and Time
+    lcd.setTextColor(YELLOW);
+    lcd.println(dateDate + " " + dateTime); // Format: MM/DD HH:MM:SS
+
+    // Print ID
+    lcd.setTextColor(GREEN);
+    lcd.println(ID);
+
+    // Print Event
+    lcd.setTextColor(CYAN);
+    lcd.println(event);
+}
+
 // add anotther physical button, copy ther code where publishAdjustVibrationThreshold(-vtStep, true); exists, 
    // replace it with publishAdjustVibrationThreshold(-vtStep, true) or publishAdjustVibrationThreshold(vtStep, true);. and this should work flawlessly.
       // boolean value takes care of # or explicit
