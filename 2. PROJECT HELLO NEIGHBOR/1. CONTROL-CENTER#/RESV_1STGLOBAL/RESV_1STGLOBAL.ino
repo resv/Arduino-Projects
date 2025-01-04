@@ -67,6 +67,11 @@ bool bootTimeCaptured = false; // Ensure boot time is only captured once
 String bootDate = "MM/DD";
 String bootTime = "HH/MM";
 
+#define MAX_LOGS 20 // Maximum number of log entries to display
+String logBuffer[MAX_LOGS]; // Buffer to hold log entries
+int logCount = 0; // Current number of logs
+const int maxLogRows = 4; // Limit to 4 rows for display
+
 // Global Heap Variables
 unsigned long lastHeapLogMillis = 0;
 const unsigned long heapLogInterval = 60000; // Update every 1 minute
@@ -280,6 +285,41 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     resetGlobalVariables();
     return;
 }
+    // Shorten ID and Event
+    if (receivedId) {
+        ID = (String(receivedId) == "SHOCK-A") ? "A" :
+             (String(receivedId) == "SHOCK-B") ? "B" :
+             (String(receivedId) == "SHOCK-C") ? "C" :
+             String(receivedId);
+    } else {
+        ID = "UNKNOWN";
+    }
+
+    // Normalize Event
+    if (receivedEvent) {
+        String smallEvent = String(receivedEvent);  // Create a local copy for event processing
+
+        if (smallEvent.indexOf("DETECTED") != -1) {
+            event = "DETECTED";  // Update the global `event` variable
+        } else if (smallEvent.indexOf("CONFIRMED") != -1) {
+            event = "CONFIRMED";  // Simplified logic
+        } else if (smallEvent.indexOf("REQUESTED") != -1) {
+            event = "REQUESTED";
+        } else if (smallEvent.indexOf("DECREASED") != -1) {
+            event = "DECREASED";
+        } else if (smallEvent.indexOf("INCREASED") != -1) {
+            event = "INCREASED";
+        } else if (smallEvent.indexOf("CONNECTED") != -1) {
+            event = "CONNECTED";
+        } else {
+            event = "UNKNOWN EVENT";  // Default fallback
+        }
+    } else {
+        event = "UNKNOWN";  // If `receivedEvent` is null or empty
+    }
+
+
+
 
     // Debug: Print updated global state
     Serial.println("------------------------ GLOBAL VARIABLES BEFORE EXPLICIT NEW VALUES ------------------------");
@@ -308,12 +348,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.println("receivedTemperatureC: " + String(receivedTemperatureC) + "C / " + String(receivedTemperatureF) + "F");
     Serial.println("receivedFreeHeap: " + String(receivedFreeHeap));
 
-    //Converting to shortened receivedId
-    ID = (String(receivedId) == "SHOCK-A") ? "A" :
-         (String(receivedId) == "SHOCK-B") ? "B" :
-         (String(receivedId) == "SHOCK-C") ? "C" :
-         String(receivedId);  // Use original receivedId if no match
-
     // EXAMPLE OF LOCAL TO GLOBAL ASSIGNMENTS 
     // dateDate = String(receivedDate);
     // dateTime = String(receivedTime);
@@ -335,7 +369,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     if ((String(receivedEvent).indexOf(String(receivedId) + " CONFIRMED " + String(receivedIsArmed)) != -1) || 
         (String(receivedEvent).indexOf(String(receivedId) + " CONFIRMED " + String(receivedIsArmed) + " TO #") != -1)) {
         Serial.println("[" + String(receivedId) + " CONFIRMED " + String(receivedIsArmed) + " RECEIVED]");
-        event = receivedEvent;
+        //event = receivedEvent;
         isArmed = receivedIsArmed;
         vibrationMagnitude = receivedVibrationMagnitude;
         temperatureC = receivedTemperatureC;
@@ -890,26 +924,40 @@ void LCDUpdateZone(String zone) {
 }
 
 void LCDUpdateLog() {
+    // Construct the new log entry from already normalized global variables
+    String newLog = dateDate + " " + dateTime + " " + ID + " " + event;
+
+    // Add the new log to the top of the buffer
+    if (logCount < MAX_LOGS) {
+        // Shift all logs down to make space for the new log
+        for (int i = logCount; i > 0; i--) {
+            logBuffer[i] = logBuffer[i - 1];
+        }
+        logCount++;
+    } else {
+        // Shift all logs down, dropping the oldest log
+        for (int i = MAX_LOGS - 1; i > 0; i--) {
+            logBuffer[i] = logBuffer[i - 1];
+        }
+    }
+    logBuffer[0] = newLog; // Add the new log at the top
+
     // Clear the log area before updating
     LCDClearLog();
 
-    // Set the cursor for the log area
+    // Adjust line height for the font size
+    int lineHeight = 20; // Adjusted for font size 2
+
+    // Display only the top 4 logs
     lcd.setTextColor(WHITE);
-    lcd.setTextSize(2);
-    lcd.setCursor(0, 23); // Adjusted Y position for the log area
-
-    // Print Date and Time
-    lcd.setTextColor(YELLOW);
-    lcd.print(dateDate + " " + dateTime + " "); // Format: MM/DD HH:MM:SS
-
-    // Print ID
-    lcd.setTextColor(GREEN);
-    lcd.println(ID);
-
-    // Print Event
-    lcd.setTextColor(CYAN);
-    lcd.println(event);
+    lcd.setTextSize(2); // Use larger font for logs
+    for (int i = 0; i < maxLogRows && i < logCount; i++) {
+        lcd.setCursor(0, 26 + (i * lineHeight)); // Adjust Y position for each log entry
+        lcd.println(logBuffer[i]);
+    }
 }
+
+
 
 // add anotther physical button, copy ther code where publishAdjustVibrationThreshold(-vtStep, true); exists, 
    // replace it with publishAdjustVibrationThreshold(-vtStep, true) or publishAdjustVibrationThreshold(vtStep, true);. and this should work flawlessly.
