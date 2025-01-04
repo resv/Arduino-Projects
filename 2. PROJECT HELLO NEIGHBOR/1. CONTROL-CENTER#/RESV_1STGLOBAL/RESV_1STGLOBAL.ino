@@ -296,7 +296,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
     // Debug: Print all received values
     Serial.println("------------------------ RECEIVED VALUES ------------------------");
-    Serial.println("receivedID: " + String(receivedId));
+    Serial.println("receivedID: " + String(receivedId) + " (converted receivedID will be shortened to StringLetter)"); 
     Serial.println("receivedDate: " + String(receivedDate));
     Serial.println("receivedTime: " + String(receivedTime));
     Serial.println("receivedEvent: " + String(receivedEvent));
@@ -307,6 +307,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.println("receivedGx: " + String(receivedGx, 2) + " Gy: " + String(receivedGy, 2) + " Gz: " + String(receivedGz, 2));
     Serial.println("receivedTemperatureC: " + String(receivedTemperatureC) + "C / " + String(receivedTemperatureF) + "F");
     Serial.println("receivedFreeHeap: " + String(receivedFreeHeap));
+
+    //Converting to shortened receivedId
+    ID = (String(receivedId) == "SHOCK-A") ? "A" :
+         (String(receivedId) == "SHOCK-B") ? "B" :
+         (String(receivedId) == "SHOCK-C") ? "C" :
+         String(receivedId);  // Use original receivedId if no match
 
     // EXAMPLE OF LOCAL TO GLOBAL ASSIGNMENTS 
     // dateDate = String(receivedDate);
@@ -329,16 +335,17 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     if ((String(receivedEvent).indexOf(String(receivedId) + " CONFIRMED " + String(receivedIsArmed)) != -1) || 
         (String(receivedEvent).indexOf(String(receivedId) + " CONFIRMED " + String(receivedIsArmed) + " TO #") != -1)) {
         Serial.println("[" + String(receivedId) + " CONFIRMED " + String(receivedIsArmed) + " RECEIVED]");
+        event = receivedEvent;
         isArmed = receivedIsArmed;
+        vibrationMagnitude = receivedVibrationMagnitude;
         temperatureC = receivedTemperatureC;
         temperatureF = receivedTemperatureF;
         
-        LCDUpdateZone(receivedId);
-        Serial.println(String(receivedId) + "<----SELECTOR");
+        LCDClearZone(ID);
+        LCDUpdateZone(ID);
         LCDUpdateLog();
         resetGlobalVariables();
     }
-
 }
 
 
@@ -510,7 +517,6 @@ bool fetchNTPTime() {
 void resetGlobalVariables() {
     ID = "";
     event = "LISTENING";
-    isArmed = "";
 }
 
 void connectToTopics() {
@@ -709,41 +715,39 @@ void LCDClearLog(){
   lcd.fillRect(0, 24, 320, 80, BLACK); // Assumed font size of 3.
 }
 
-// Clear all Zones LCDClearZone() or pass params zone "((1/2/3), ("ALL" or Blank/isArmed"/"VMVT"/"Temperatures"))"
-void LCDClearZone(String zone = "ALL", String x = "ALL") {
-  if (zone == "") {
-    // Clear all zones if no specific zone is provided
-    LCDClearZone("A", x);
-    LCDClearZone("B", x);
-    LCDClearZone("C", x);
-    return;
-  }
+//pass ID
+void LCDClearZone(String zone) {
+    // Handle default value for the parameter
+    if (zone == "") zone = "ALL";
 
-  int xStart = 0; // Default for Zone 1
-  int width = 105; // Default width
+    // Clear all zones if "ALL" is specified
+    if (zone == "ALL") {
+        LCDClearZone("A");
+        LCDClearZone("B");
+        LCDClearZone("C");
+        return;
+    }
 
-  // Determine xStart and width based on the zone
-  if (zone == "B") {
-    xStart = 107;
-    width = 106;
-  } else if (zone == "C") {
-    xStart = 215;
-    width = 105;
-  }
+    // Set default xStart and width for SHOCK-A
+    int xStart = 0;
+    int width = 105;
 
-  // Clear specific sections or the entire zone
-  if (x == "ALL" || x == "") {
+    // Determine xStart and width based on the zone
+    if (zone == "B") {
+        xStart = 107;
+        width = 106;
+    } else if (zone == "C") {
+        xStart = 215;
+        width = 105;
+    } else if (zone != "A") {
+        Serial.println("Invalid zone specified!");
+        return;
+    }
+
+    // Clear the entire zone
     lcd.fillRect(xStart, 109, width, 170 - 109, BLACK); // Clear the entire zone
-  } else if (x == "ClientID") {
-    lcd.fillRect(xStart, 109, width, 16, BLACK); // Clear the SHOCKER ClientID section
-  } else if (x == "isArmed") {
-    lcd.fillRect(xStart, 125, width, 16, BLACK); // Clear the isArmed section
-  } else if (x == "VMVT") {
-    lcd.fillRect(xStart, 141, width, 16, BLACK); // Clear the VM and VT section
-  } else if (x == "Temperatures") {
-    lcd.fillRect(xStart, 157, width, 16, BLACK); // Clear the Temperatures section
-  }
 }
+
 
 // Unified function to increment count, calculate time, format it, and print
 void LCDUpdateHeader(){
@@ -837,30 +841,34 @@ void LCDDashboard(){
 void LCDUpdateZone(String zone) {
     int xStart = -1;
 
-    if (zone == "SHOCK-A") {
+    if (zone == "A") {
         xStart = 0;
-    } else if (zone == "SHOCK-B") {
+    } else if (zone == "B") {
         xStart = 110;
-    } else if (zone == "SHOCK-C") {
+    } else if (zone == "C") {
         xStart = 218;
     } else {
         Serial.println("Invalid zone specified!");
         return;
     }
 
-    // Static Shock Label
-    String shockLabel = " SHOCK " + zone;
-
     // Print Shock Label
     lcd.setTextColor(WHITE);
     lcd.setTextSize(2);
     lcd.setCursor(xStart, 109); // Y position for the shock label
-    lcd.println(shockLabel);
+    lcd.println(" SHOCK-" + zone);
 
-    // Print Armed/Disarmed Status
-    lcd.setCursor(xStart, 125); // Y position for armed status
-    lcd.setTextColor(isArmed == "ARMED" ? RED : WHITE); // RED for armed, WHITE for disarmed
-    lcd.println(isArmed);
+    // Print Armed/Disarmed Status with adjusted text
+      // Set text color and cursor position
+      lcd.setTextColor(isArmed == "ARMED" ? RED : WHITE); // RED for armed, WHITE for disarmed
+      lcd.setCursor(xStart, 125);                        // Y position for armed status
+
+      // Print mixed font sizes
+      lcd.setTextSize(1);
+      lcd.print(isArmed == "DISARMED" ? " " : "    ");     // Smaller font space adjustment
+      lcd.setTextSize(2);
+      lcd.println(isArmed);                               // Larger font for status text
+
 
     // Print Vibration Magnitude and Threshold (VM/VT)
     lcd.setCursor(xStart, 141); // Y position for VM/VT
@@ -888,11 +896,11 @@ void LCDUpdateLog() {
     // Set the cursor for the log area
     lcd.setTextColor(WHITE);
     lcd.setTextSize(2);
-    lcd.setCursor(10, 30); // Adjusted Y position for the log area
+    lcd.setCursor(0, 23); // Adjusted Y position for the log area
 
     // Print Date and Time
     lcd.setTextColor(YELLOW);
-    lcd.println(dateDate + " " + dateTime); // Format: MM/DD HH:MM:SS
+    lcd.print(dateDate + " " + dateTime + " "); // Format: MM/DD HH:MM:SS
 
     // Print ID
     lcd.setTextColor(GREEN);
