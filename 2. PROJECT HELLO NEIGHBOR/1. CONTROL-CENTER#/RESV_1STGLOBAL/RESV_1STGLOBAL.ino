@@ -476,9 +476,8 @@ void loop() {
       if (pressDuration >= buttonHoldDurationThreshold && !isButtonHeld) {
           // Long press detected: Publish global request
           isButtonHeld = true; // Prevent multiple triggers
-          //publishArmDisarmEvent(true);
-          //publishvtStepUpEvent(true);
-          publishAdjustVibrationThreshold(vtStep, true);
+          publishArmDisarmEvent(true);
+          //publishAdjustVibrationThreshold(vtStep, true);
           //publishAdjustVibrationThreshold(-vtStep, true);
       }
   }
@@ -490,8 +489,8 @@ void loop() {
 
       if (pressDuration > 0 && pressDuration < buttonHoldDurationThreshold) {
           // Short press detected: Publish targeted request
-          //publishArmDisarmEvent(false);
-          publishAdjustVibrationThreshold(vtStep, false);
+          publishArmDisarmEvent(false);
+          //publishAdjustVibrationThreshold(vtStep, false);
           //publishAdjustVibrationThreshold(-vtStep, false);
       }
   }
