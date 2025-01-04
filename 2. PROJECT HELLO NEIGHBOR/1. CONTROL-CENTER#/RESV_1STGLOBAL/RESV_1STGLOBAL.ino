@@ -192,41 +192,40 @@ void setup_wifi() {
         // Wait for connection or timeout (5 seconds)
         unsigned long startAttemptTime = millis();
         while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 5000) {
-            delay(500);
-            Serial.print(".");
-            lcd.print(".");
+          delay(500);
+          Serial.print(".");
+          lcd.print(".");
         }
 
        if (WiFi.status() == WL_CONNECTED) {
-            fetchNTPTime(); // Fetch NTP time
-            Serial.println("CONNECTED TO [" + String(ssid) + "] [" + WiFi.localIP().toString() + "]");
+          fetchNTPTime(); // Fetch NTP time
+          Serial.println("CONNECTED TO [" + String(ssid) + "] [" + WiFi.localIP().toString() + "]");
 
-              lcd.fillScreen(ST77XX_BLACK);
-              lcd.setCursor(50, 0);
-              lcd.println("CONNECTED TO");
-              lcd.setCursor(80, 28);
-              lcd.setTextColor(ST77XX_GREEN);
-              lcd.println("[" + String(ssid) + "]");
-              lcd.setCursor(30, 56);
-              lcd.println("[" + WiFi.localIP().toString() + "]");
-              
+            lcd.fillScreen(ST77XX_BLACK);
+            lcd.setCursor(50, 0);
+            lcd.println("CONNECTED TO");
+            lcd.setCursor(80, 28);
+            lcd.setTextColor(ST77XX_GREEN);
+            lcd.println("[" + String(ssid) + "]");
+            lcd.setCursor(30, 56);
+            lcd.println("[" + WiFi.localIP().toString() + "]");
+            
 
-              // Configure MQTT
-              client.setServer(mqtt_server, mqtt_port);
-              client.setCallback(mqttCallback); // Set the callback here
-              espClient.setCACert(root_ca); // Attach root CA certificate
-              
-              connectToTopics(); // CONNECT TO ALL TOPICS
-            break; // Exit loop on successful connection
+            // Configure MQTT
+            client.setServer(mqtt_server, mqtt_port);
+            client.setCallback(mqttCallback); // Set the callback here
+            espClient.setCACert(root_ca); // Attach root CA certificate
+            
+            connectToTopics(); // CONNECT TO ALL TOPICS
+          break; // Exit loop on successful connection
         } else {
             Serial.println("FAILED TO CONNECT TO [" + String(ssid) + "]");
             currentWiFiIndex = (currentWiFiIndex + 1) % num_wifi_credentials; // Cycle to the next SSID
         }
     }
-
     if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("ERROR: UNABLE TO CONNECT TO ANY WIFI SSID!");
-        // Handle fallback scenario if needed
+      Serial.println("ERROR: UNABLE TO CONNECT TO ANY WIFI SSID!");
+      // Handle fallback scenario if needed
     }
 }
 
@@ -239,7 +238,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     // Convert payload to a String
     String message;
     for (unsigned int i = 0; i < length; i++) {
-        message += (char)payload[i];
+      message += (char)payload[i];
     }
     Serial.println(message);
 
@@ -248,9 +247,9 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     DeserializationError error = deserializeJson(doc, message);
 
     if (error) {
-        Serial.print("Failed to parse MQTT message: ");
-        Serial.println(error.c_str());
-        return;
+      Serial.print("Failed to parse MQTT message: ");
+      Serial.println(error.c_str());
+      return;
     }
 
     // Extract data into temporary `receivedX` variables
@@ -273,53 +272,49 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
     // Check if all mandatory fields are present
     if (!receivedId || !receivedEvent) {
-    Serial.println("CRITICAL JSON FIELDS MISSING, IGNORING MESSAGE...");
-    Serial.println("ORIGINAL MESSAGE: " + message); // Log the original payload
-    event = String(thisClientID) + "RCVD CRITICAL JSON FIELDS MISSING, IGNORING MESSAGE...";
-    resetGlobalVariables();
-    return;
-}
+      Serial.println("CRITICAL JSON FIELDS MISSING, IGNORING MESSAGE...");
+      Serial.println("ORIGINAL MESSAGE: " + message); // Log the original payload
+      event = String(thisClientID) + "RCVD CRITICAL JSON FIELDS MISSING, IGNORING MESSAGE...";
+      resetGlobalVariables();
+      return;
+    }
     
     // Shorten ID and Event
     if (receivedId) {
       ID = (String(receivedId) == "SHOCK-A") ? "A" :
-          (String(receivedId) == "SHOCK-B") ? "B" :
-          (String(receivedId) == "SHOCK-C") ? "C" :
-          (String(receivedId) == "RESV-1ST") ? "1" :
-          (String(receivedId) == "RESV-2ND") ? "2" :
-          (String(receivedId) == "RESV-3RD") ? "3" :
-          String(receivedId); // Default to the original ID if no match
+        (String(receivedId) == "SHOCK-B") ? "B" :
+        (String(receivedId) == "SHOCK-C") ? "C" :
+        (String(receivedId) == "RESV-1ST") ? "1" :
+        (String(receivedId) == "RESV-2ND") ? "2" :
+        (String(receivedId) == "RESV-3RD") ? "3" :
+        String(receivedId); // Default to the original ID if no match
     } else {
         ID = "UNKNOWN";
     }
 
     // Normalize Event
     if (receivedEvent) {
-        String smallEvent = String(receivedEvent);  // Create a local copy for event processing
+      String smallEvent = String(receivedEvent);  // Create a local copy for event processing
 
-        if (smallEvent.indexOf("DETECTED") != -1) {
-            event = "DETECTED";  // Update the global `event` variable
-        } else if (smallEvent.indexOf("CONFIRMED") != -1) {
-            event = "CONFIRMED";  // Simplified logic
-        } else if (smallEvent.indexOf("REQUESTED") != -1) {
-            event = "REQUESTED";
-        } else if (smallEvent.indexOf("DECREASED") != -1) {
-            event = "DECREASED";
-        } else if (smallEvent.indexOf("INCREASED") != -1) {
-            event = "INCREASED";
-        } else if (smallEvent.indexOf("CONNECTED") != -1) {
-            event = "CONNECTED";
-        } else {
-            event = "UNKNOWN EVENT";  // Default fallback
-        }
+      if (smallEvent.indexOf("DETECTED") != -1) {
+          event = "DETECTED";  // Update the global `event` variable
+      } else if (smallEvent.indexOf("CONFIRMED") != -1) {
+          event = "CONFIRMED";  // Simplified logic
+      } else if (smallEvent.indexOf("REQUESTED") != -1) {
+          event = "REQUESTED";
+      } else if (smallEvent.indexOf("DECREASED") != -1) {
+          event = "DECREASED";
+      } else if (smallEvent.indexOf("INCREASED") != -1) {
+          event = "INCREASED";
+      } else if (smallEvent.indexOf("CONNECTED") != -1) {
+          event = "CONNECTED";
+      } else {
+          event = "UNKNOWN EVENT";  // Default fallback
+      }
     } else {
-        event = "UNKNOWN";  // If `receivedEvent` is null or empty
+      event = "UNKNOWN";  // If `receivedEvent` is null or empty
     }
 
-
-
-
-    // Debug: Print updated global state
     // Debug: Print updated global state and received values
     Serial.println("-- GLOBAL VARIABLES BEFORE EXPLICIT NEW VALUES / RECEIVED VALUES ---");
     Serial.println("ID: " + ID + " | receivedId: " + String(receivedId) + " (converted receivedID will be shortened to StringLetter)");
@@ -355,43 +350,85 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     // temperatureF = receivedTemperatureF;
     // freeHeap = receivedFreeHeap;
 
+    //CALL BACK FOR REQUEST AND NOT THIS CLIENT ID, WE CAPTURE OFFICIAL END TO END COMMS
+    if (String(receivedEvent).indexOf("REQUESTED") != -1 && String(receivedId) == thisClientID) {
+      LCDUpdateLog();
+      resetGlobalVariables();
+    }
+
     // CALLBACK FOR EXPLICIT OR GLOBAL ARM/DISARM REQUESTS, ASSIGNVALUE, SEND CONFIRMATION
     if (String(receivedEvent).indexOf("CONFIRMED") != -1) {
-        // Extract state from receivedEvent if needed
-        isArmed = receivedIsArmed; // Only if separate logic needs it
-        vibrationMagnitude = receivedVibrationMagnitude;
-        temperatureC = receivedTemperatureC;
-        temperatureF = receivedTemperatureF;
-        LCDClearZone(ID);
-        LCDUpdateZone(ID);
-        LCDUpdateLog();
-        resetGlobalVariables();
+      // Extract state from receivedEvent if needed
+      isArmed = receivedIsArmed; // Only if separate logic needs it
+      vibrationMagnitude = receivedVibrationMagnitude;
+      temperatureC = receivedTemperatureC;
+      temperatureF = receivedTemperatureF;
+      LCDClearZone(ID);
+      LCDUpdateZone(ID);
+      LCDUpdateLog();
+      resetGlobalVariables();
     }
 
-    if (String(receivedEvent).indexOf("REQUESTED") != -1 && String(receivedId) == thisClientID) {
-        LCDUpdateLog();
-        resetGlobalVariables();
-    }
-
+    // CALLBACK FOR CONNECTED AND NOT THIS CLIENT ID, WE CAPTURE OFFICIAL END TO END
     if (String(receivedEvent).indexOf("CONNECTED") != -1 && String(receivedId) != thisClientID) {
-        isArmed = receivedIsArmed; // Only if separate logic needs it
-        vibrationMagnitude = receivedVibrationMagnitude;
-        temperatureC = receivedTemperatureC;
-        temperatureF = receivedTemperatureF;
-        LCDUpdateLog();
-        resetGlobalVariables();
+      isArmed = receivedIsArmed; // Only if separate logic needs it
+      vibrationMagnitude = receivedVibrationMagnitude;
+      temperatureC = receivedTemperatureC;
+      temperatureF = receivedTemperatureF;
+      LCDUpdateLog();
+      resetGlobalVariables();
     }
 
-      if (String(receivedEvent).indexOf("DETECTED") != -1 && String(receivedId) != thisClientID) {
-        isArmed = receivedIsArmed; // Only if separate logic needs it
-        vibrationMagnitude = receivedVibrationMagnitude;
-        temperatureC = receivedTemperatureC;
-        temperatureF = receivedTemperatureF;
-        LCDClearZone(ID);
-        LCDUpdateZone(ID);
-        LCDUpdateLog();
-        LCDUpdateHeader();
-        resetGlobalVariables();
+    // CALLBACK FOR DETECTED AND NOT THIS CLIENT ID, WE CAPTURE OFFICIAL END TO END
+    if (String(receivedEvent).indexOf("DETECTED") != -1 && String(receivedId) != thisClientID) {
+      isArmed = receivedIsArmed; // Only if separate logic needs it
+      vibrationMagnitude = receivedVibrationMagnitude;
+      temperatureC = receivedTemperatureC;
+      temperatureF = receivedTemperatureF;
+      LCDClearZone(ID);
+      LCDUpdateZone(ID);
+      LCDUpdateLog();
+      LCDUpdateHeader();
+      resetGlobalVariables();
+    }
+
+    // CALL BACK FOR ADJUSTED WE CAPTURE OFFICIAL END TO END COMMS
+    if (String(receivedEvent).indexOf("ADJUSTED") != -1 && String(receivedId) != thisClientID) {
+      isArmed = receivedIsArmed; // Only if separate logic needs it
+      vibrationMagnitude = receivedVibrationMagnitude;
+      vibrationThreshold = receivedVibrationThreshold;
+      temperatureC = receivedTemperatureC;
+      temperatureF = receivedTemperatureF;
+      LCDClearZone(ID);
+      LCDUpdateZone(ID);
+      LCDUpdateLog();
+      resetGlobalVariables();
+    }
+
+    // CALL BACK FOR INCREASED WE CAPTURE OFFICIAL END TO END COMMS
+    if (String(receivedEvent).indexOf("INCREASED") != -1 && String(receivedId) != thisClientID) {
+      isArmed = receivedIsArmed; // Only if separate logic needs it
+      vibrationMagnitude = receivedVibrationMagnitude;
+      vibrationThreshold = receivedVibrationThreshold;
+      temperatureC = receivedTemperatureC;
+      temperatureF = receivedTemperatureF;
+      LCDClearZone(ID);
+      LCDUpdateZone(ID);
+      LCDUpdateLog();
+      resetGlobalVariables();
+    }
+
+    // CALL BACK FOR DECREASED WE CAPTURE OFFICIAL END TO END COMMS
+    if (String(receivedEvent).indexOf("DECREASED") != -1 && String(receivedId) != thisClientID) {
+      isArmed = receivedIsArmed; // Only if separate logic needs it
+      vibrationMagnitude = receivedVibrationMagnitude;
+      vibrationThreshold = receivedVibrationThreshold;
+      temperatureC = receivedTemperatureC;
+      temperatureF = receivedTemperatureF;
+      LCDClearZone(ID);
+      LCDUpdateZone(ID);
+      LCDUpdateLog();
+      resetGlobalVariables();
     }
 }
 
@@ -439,9 +476,9 @@ void loop() {
       if (pressDuration >= buttonHoldDurationThreshold && !isButtonHeld) {
           // Long press detected: Publish global request
           isButtonHeld = true; // Prevent multiple triggers
-          publishArmDisarmEvent(true);
+          //publishArmDisarmEvent(true);
           //publishvtStepUpEvent(true);
-          //publishAdjustVibrationThreshold(vtStep, true);
+          publishAdjustVibrationThreshold(vtStep, true);
           //publishAdjustVibrationThreshold(-vtStep, true);
       }
   }
@@ -453,8 +490,8 @@ void loop() {
 
       if (pressDuration > 0 && pressDuration < buttonHoldDurationThreshold) {
           // Short press detected: Publish targeted request
-          publishArmDisarmEvent(false);
-          //publishAdjustVibrationThreshold(vtStep, false);
+          //publishArmDisarmEvent(false);
+          publishAdjustVibrationThreshold(vtStep, false);
           //publishAdjustVibrationThreshold(-vtStep, false);
       }
   }
@@ -798,8 +835,8 @@ void LCDClearZone(String zone) {
 
 // Unified function to increment count, calculate time, format it, and print
 void LCDUpdateHeader(){
-  LCDClearHeader();
-  
+    LCDClearHeader();
+
   //Count and Time Conversion
     // Increment the retaliation count
     retaliationCount++;
@@ -817,72 +854,39 @@ void LCDUpdateHeader(){
 
     // Update the global retaliation time
     retaliationTime = String(timeBuffer);
-
-  lcd.setTextColor(YELLOW);
-  lcd.setTextSize(2);
-  lcd.setCursor(0, 0);
-  lcd.print("#");
-  lcd.setTextSize(3);
-  lcd.print(String(retaliationCount));
-  lcd.setCursor(115, 0);
-  lcd.print(String(retaliationTime)); 
-  
-  lcd.setTextColor(PINK);
-  lcd.setTextSize(2);
-  lcd.setCursor(260, 0);
-  lcd.println(bootDate);
-  lcd.setTextSize(1);
-  lcd.setCursor(290, 17);
-  lcd.println(bootTime);
 }
 
 void LCDDashboard(){
-  lcd.init(LCD_WIDTH, LCD_HEIGHT);
-  lcd.fillScreen(ST77XX_BLACK);
-  lcd.setRotation(3);
+    lcd.init(LCD_WIDTH, LCD_HEIGHT);
+    lcd.fillScreen(ST77XX_BLACK);
+    lcd.setRotation(3);
 
-  // Bottom Grid Draw lines for 3 equal columns
-  lcd.drawLine(106, 109, 106, 170, YELLOW); // 1st Vertical line, 1 & 2
-  lcd.drawLine(214, 109, 214, 170, YELLOW); // 2nd Vertical line, 2 & 3
-  // Horizontal line across the screen at y = 108
-  lcd.drawLine(0, 105, 320, 105, YELLOW); // Single Horizontal line across the screen
+    // Bottom Grid Draw lines for 3 equal columns
+    lcd.drawLine(106, 109, 106, 170, YELLOW); // 1st Vertical line, 1 & 2
+    lcd.drawLine(214, 109, 214, 170, YELLOW); // 2nd Vertical line, 2 & 3
+    // Horizontal line across the screen at y = 108
+    lcd.drawLine(0, 105, 320, 105, YELLOW); // Single Horizontal line across the screen
 
-  LCDUpdateHeader();
-  LCDUpdateZone("A");
-  LCDUpdateZone("B");
-  LCDUpdateZone("C");
-  //MOCK CODE
-  //lcd.setTextSize(3);
- // lcd.setCursor(0, 0);
-  //lcd.setTextColor(YELLOW);
-  //lcd.println("#23-11/12 23:34he");  // Header
+    lcd.setTextColor(YELLOW);
+    lcd.setTextSize(2);
+    lcd.setCursor(0, 0);
+    lcd.print("#");
+    lcd.setTextSize(3);
+    lcd.print(String(retaliationCount));
+    lcd.setCursor(115, 0);
+    lcd.print(String(retaliationTime)); 
 
-  //lcd.setTextSize(2);
- // lcd.setTextColor(WHITE);
-  //lcd.println("12/23 12:12:24 D  DETECTED"); // Red for armed, white for disarmed
- // lcd.setTextColor(RED);
- // lcd.println("12/23 12:12:24 D REQUESTED"); // Red for armed, white for disarmed
+    lcd.setTextColor(PINK);
+    lcd.setTextSize(2);
+    lcd.setCursor(260, 0);
+    lcd.println(bootDate);
+    lcd.setTextSize(1);
+    lcd.setCursor(290, 17);
+    lcd.println(bootTime);
 
- // lcd.setTextColor(GREEN);
- // lcd.println("12/23 12:12:24 C CONFIRMED"); // Green for confirmed
-
- // lcd.setTextColor(LIGHT_BLUE);
- // lcd.println("12/23 12:12:24 C INCREASED"); // Blue for increased
- //   lcd.setTextColor(DEEP_PURPLE);
- // lcd.println("12/23 12:12:24 A DECREASED"); // Cyan for connected
-
- // lcd.setTextColor(CYAN);
-  //lcd.println("12/23 12:12:24 C CONNECTED"); // Cyan for connected
-
-  //LCDClearHeader();
- // LCDClearLog();
-
-  //lcd.setCursor(0, 107);
- // lcd.setTextColor(WHITE);
- // lcd.println(" SHOCK A  SHOCK B  SHOCK C"); //
- // lcd.println("DISARMED DISARMED DISARMED"); // 
- // lcd.println("0.00/.00 0.00/.00 0.00/.00"); // 
-// lcd.println("27C  78F 27C  78F 27C  78F"); // 
+    LCDUpdateZone("A");
+    LCDUpdateZone("B");
+    LCDUpdateZone("C");
 };
 
 void LCDUpdateZone(String zone) {
