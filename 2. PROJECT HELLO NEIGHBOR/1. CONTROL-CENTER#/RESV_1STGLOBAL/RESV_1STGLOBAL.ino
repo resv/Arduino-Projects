@@ -55,22 +55,22 @@ float vtStep = 0.01; // Stride or size used to adjust Vibration Threshold
 
 // Global ESP variables
 const char* thisClientID = "RESV-1ST"; // Define the ClientID
-String isArmed = "   --";
+String isArmed = " --";
 String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";
 String event = "LISTENING";
 int freeHeap = 0; // Global variable to store free heap memory
 
-int retaliationCount = 00;
+int retaliationCount = 0;
 String retaliationTime = "00:00:00"; // To store the formatted time
 bool bootTimeCaptured = false; // Ensure boot time is only captured once
 String bootDate = "MM/DD";
 String bootTime = "HH/MM";
 
 #define MAX_LOGS 20 // Maximum number of log entries to display
-String logBuffer[MAX_LOGS]; // Buffer to hold log entries
+String logTextBuffer[MAX_LOGS]; // Buffer for log text
+uint16_t logColorBuffer[MAX_LOGS]; // Buffer for log colors
 int logCount = 0; // Current number of logs
-const int maxLogRows = 4; // Limit to 4 rows for display
 
 // Global Heap Variables
 unsigned long lastHeapLogMillis = 0;
@@ -271,12 +271,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     int receivedTemperatureF = doc["TF"];
     int receivedFreeHeap = doc["FH"];
 
-    // Add a check at the start of the callback
-    if (String(receivedId) == thisClientID) {
-        Serial.println("IGNORING SELF-PUBLISHED MESSAGE.");
-        return;
-    }
-
     // Check if all mandatory fields are present
     if (!receivedId || !receivedEvent) {
     Serial.println("CRITICAL JSON FIELDS MISSING, IGNORING MESSAGE...");
@@ -285,12 +279,16 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     resetGlobalVariables();
     return;
 }
+    
     // Shorten ID and Event
     if (receivedId) {
-        ID = (String(receivedId) == "SHOCK-A") ? "A" :
-             (String(receivedId) == "SHOCK-B") ? "B" :
-             (String(receivedId) == "SHOCK-C") ? "C" :
-             String(receivedId);
+      ID = (String(receivedId) == "SHOCK-A") ? "A" :
+          (String(receivedId) == "SHOCK-B") ? "B" :
+          (String(receivedId) == "SHOCK-C") ? "C" :
+          (String(receivedId) == "RESV-1ST") ? "1" :
+          (String(receivedId) == "RESV-2ND") ? "2" :
+          (String(receivedId) == "RESV-3RD") ? "3" :
+          String(receivedId); // Default to the original ID if no match
     } else {
         ID = "UNKNOWN";
     }
@@ -322,33 +320,25 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 
     // Debug: Print updated global state
-    Serial.println("------------------------ GLOBAL VARIABLES BEFORE EXPLICIT NEW VALUES ------------------------");
-    Serial.println("Date: " + dateDate);
-    Serial.println("Time: " + dateTime);
-    Serial.println("Event: " + event);
-    Serial.println("IsArmed: " + isArmed);
-    Serial.println("Vibration Magnitude: " + String(vibrationMagnitude, 2));
-    Serial.println("Vibration Threshold: " + String(vibrationThreshold, 2));
-    Serial.println("Acceleration - AX: " + String(baselineX, 2) + " AY: " + String(baselineY, 2) + " AZ: " + String(baselineZ, 2));
-    Serial.println("Gyroscope - GX: " + String(gyroX, 2) + " GY: " + String(gyroY, 2) + " GZ: " + String(gyroZ, 2));
-    Serial.println("Temperature: " + String(temperatureC) + "C / " + String(temperatureF) + "F");
-    Serial.println("Free Heap: " + String(freeHeap));
-
-    // Debug: Print all received values
-    Serial.println("------------------------ RECEIVED VALUES ------------------------");
-    Serial.println("receivedID: " + String(receivedId) + " (converted receivedID will be shortened to StringLetter)"); 
-    Serial.println("receivedDate: " + String(receivedDate));
-    Serial.println("receivedTime: " + String(receivedTime));
-    Serial.println("receivedEvent: " + String(receivedEvent));
-    Serial.println("receivedIsArmed: " + String(receivedIsArmed));
-    Serial.println("receivedVibrationMagnitude: " + String(receivedVibrationMagnitude, 2));
-    Serial.println("receivedVibrationThreshold: " + String(receivedVibrationThreshold, 2));
-    Serial.println("receivedAx: " + String(receivedAx, 2) + " Ay: " + String(receivedAy, 2) + " Az: " + String(receivedAz, 2));
-    Serial.println("receivedGx: " + String(receivedGx, 2) + " Gy: " + String(receivedGy, 2) + " Gz: " + String(receivedGz, 2));
-    Serial.println("receivedTemperatureC: " + String(receivedTemperatureC) + "C / " + String(receivedTemperatureF) + "F");
-    Serial.println("receivedFreeHeap: " + String(receivedFreeHeap));
+    // Debug: Print updated global state and received values
+    Serial.println("-- GLOBAL VARIABLES BEFORE EXPLICIT NEW VALUES / RECEIVED VALUES ---");
+    Serial.println("ID: " + ID + " | receivedId: " + String(receivedId) + " (converted receivedID will be shortened to StringLetter)");
+    Serial.println("Date: " + dateDate + " | receivedDate: " + String(receivedDate));
+    Serial.println("Time: " + dateTime + " | receivedTime: " + String(receivedTime));
+    Serial.println("Event: " + event + " | receivedEvent: " + String(receivedEvent));
+    Serial.println("IsArmed: " + isArmed + " | receivedIsArmed: " + String(receivedIsArmed));
+    Serial.println("Vibration Magnitude: " + String(vibrationMagnitude, 2) + " | receivedVibrationMagnitude: " + String(receivedVibrationMagnitude, 2));
+    Serial.println("Vibration Threshold: " + String(vibrationThreshold, 2) + " | receivedVibrationThreshold: " + String(receivedVibrationThreshold, 2));
+    Serial.println("Acceleration - AX: " + String(baselineX, 2) + " AY: " + String(baselineY, 2) + " AZ: " + String(baselineZ, 2) +
+                    " | receivedAx: " + String(receivedAx, 2) + " Ay: " + String(receivedAy, 2) + " Az: " + String(receivedAz, 2));
+    Serial.println("Gyroscope - GX: " + String(gyroX, 2) + " GY: " + String(gyroY, 2) + " GZ: " + String(gyroZ, 2) +
+                    " | receivedGx: " + String(receivedGx, 2) + " Gy: " + String(receivedGy, 2) + " Gz: " + String(receivedGz, 2));
+    Serial.println("Temperature: " + String(temperatureC) + "C / " + String(temperatureF) + "F" +
+                    " | receivedTemperatureC: " + String(receivedTemperatureC) + "C / " + String(receivedTemperatureF) + "F");
+    Serial.println("Free Heap: " + String(freeHeap) + " | receivedFreeHeap: " + String(receivedFreeHeap));
 
     // EXAMPLE OF LOCAL TO GLOBAL ASSIGNMENTS 
+    // ID = String(receivedId);
     // dateDate = String(receivedDate);
     // dateTime = String(receivedTime);
     // event = String(receivedEvent);
@@ -366,18 +356,41 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     // freeHeap = receivedFreeHeap;
 
     // CALLBACK FOR EXPLICIT OR GLOBAL ARM/DISARM REQUESTS, ASSIGNVALUE, SEND CONFIRMATION
-    if ((String(receivedEvent).indexOf(String(receivedId) + " CONFIRMED " + String(receivedIsArmed)) != -1) || 
-        (String(receivedEvent).indexOf(String(receivedId) + " CONFIRMED " + String(receivedIsArmed) + " TO #") != -1)) {
-        Serial.println("[" + String(receivedId) + " CONFIRMED " + String(receivedIsArmed) + " RECEIVED]");
-        //event = receivedEvent;
-        isArmed = receivedIsArmed;
+    if (String(receivedEvent).indexOf("CONFIRMED") != -1) {
+        // Extract state from receivedEvent if needed
+        isArmed = receivedIsArmed; // Only if separate logic needs it
         vibrationMagnitude = receivedVibrationMagnitude;
         temperatureC = receivedTemperatureC;
         temperatureF = receivedTemperatureF;
-        
         LCDClearZone(ID);
         LCDUpdateZone(ID);
         LCDUpdateLog();
+        resetGlobalVariables();
+    }
+
+    if (String(receivedEvent).indexOf("REQUESTED") != -1 && String(receivedId) == thisClientID) {
+        LCDUpdateLog();
+        resetGlobalVariables();
+    }
+
+    if (String(receivedEvent).indexOf("CONNECTED") != -1 && String(receivedId) != thisClientID) {
+        isArmed = receivedIsArmed; // Only if separate logic needs it
+        vibrationMagnitude = receivedVibrationMagnitude;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
+        LCDUpdateLog();
+        resetGlobalVariables();
+    }
+
+      if (String(receivedEvent).indexOf("DETECTED") != -1 && String(receivedId) != thisClientID) {
+        isArmed = receivedIsArmed; // Only if separate logic needs it
+        vibrationMagnitude = receivedVibrationMagnitude;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
+        LCDClearZone(ID);
+        LCDUpdateZone(ID);
+        LCDUpdateLog();
+        LCDUpdateHeader();
         resetGlobalVariables();
     }
 }
@@ -923,41 +936,51 @@ void LCDUpdateZone(String zone) {
     lcd.println(" " + String(temperatureC) + "C " + String(temperatureF) + "F");
 }
 
-void LCDUpdateLog() {
-    // Construct the new log entry from already normalized global variables
-    String newLog = dateDate + " " + dateTime + " " + ID + " " + event;
+// Required to store what color to use for older UpdateLog entries
+struct LogColorDB {
+    String text;
+    uint16_t color;
+};
 
-    // Add the new log to the top of the buffer
+void LCDUpdateLog() {
+    const int maxLogRows = 4;
+
+    // Determine the color for the current event
+    uint16_t eventColor;
+    if (event == "ARMED" || event == "DISARMED" || event == "REQUESTED" || event == "CONFIRMED" || event == "DETECTED") {
+        eventColor = (isArmed == "ARMED" ? RED : WHITE);
+    } else if (event == "CONNECTED") {
+        eventColor = PINK; // Set color to CYAN for CONNECTED event
+    } else {
+        eventColor = WHITE; // Default color
+    }
+
+    // Add new log entry
     if (logCount < MAX_LOGS) {
-        // Shift all logs down to make space for the new log
         for (int i = logCount; i > 0; i--) {
-            logBuffer[i] = logBuffer[i - 1];
+            logTextBuffer[i] = logTextBuffer[i - 1];
+            logColorBuffer[i] = logColorBuffer[i - 1];
         }
         logCount++;
     } else {
-        // Shift all logs down, dropping the oldest log
         for (int i = MAX_LOGS - 1; i > 0; i--) {
-            logBuffer[i] = logBuffer[i - 1];
+            logTextBuffer[i] = logTextBuffer[i - 1];
+            logColorBuffer[i] = logColorBuffer[i - 1];
         }
     }
-    logBuffer[0] = newLog; // Add the new log at the top
+    logTextBuffer[0] = dateDate + " " + dateTime + " " + ID + " " + event;
+    logColorBuffer[0] = eventColor;
 
-    // Clear the log area before updating
+    // Clear and display logs
     LCDClearLog();
-
-    // Adjust line height for the font size
+    lcd.setTextSize(2);
     int lineHeight = 20; // Adjusted for font size 2
-
-    // Display only the top 4 logs
-    lcd.setTextColor(WHITE);
-    lcd.setTextSize(2); // Use larger font for logs
     for (int i = 0; i < maxLogRows && i < logCount; i++) {
+        lcd.setTextColor(logColorBuffer[i]);
         lcd.setCursor(0, 26 + (i * lineHeight)); // Adjust Y position for each log entry
-        lcd.println(logBuffer[i]);
+        lcd.println(logTextBuffer[i]);
     }
 }
-
-
 
 // add anotther physical button, copy ther code where publishAdjustVibrationThreshold(-vtStep, true); exists, 
    // replace it with publishAdjustVibrationThreshold(-vtStep, true) or publishAdjustVibrationThreshold(vtStep, true);. and this should work flawlessly.
