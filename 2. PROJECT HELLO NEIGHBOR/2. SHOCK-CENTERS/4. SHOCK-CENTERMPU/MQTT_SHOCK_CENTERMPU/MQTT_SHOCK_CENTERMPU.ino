@@ -14,7 +14,7 @@ Adafruit_MPU6050 mpu;
 
 // Global ESP variables
 const char* thisClientID = "SHOCK-A"; // Define the ClientID
-String isArmed = "ARMED";
+String isArmed = "DISARMED";
 String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";
 String event = "LISTENING";
@@ -338,19 +338,26 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     }
 
     // CALLBACK FOR vtThreshold adjustment +/-
-    if (String(receivedId) != thisClientID && 
-        (String(receivedEvent).indexOf(" ADJUSTED VIBRATION THRESHOLD BY ") != -1 &&
-        (String(receivedEvent).indexOf(thisClientID) != -1 || 
-          String(receivedEvent).indexOf(" ADJUSTED VIBRATION THRESHOLD BY TO " + String("#")) != -1))) {
-        
-        event = String(receivedEvent);
-        sheetAddQueue(createPayload(true));
-        vibrationThreshold = receivedVibrationThreshold;
-        event = String(thisClientID) + " VIBRATION THRESHOLD SET TO " + String(vibrationThreshold, 2);
+     // Handle vibration threshold adjustment
+    if (String(receivedEvent).indexOf("ADJUSTED VIBRATION THRESHOLD") != -1) {
+        // REQUIRED TO PUBLISH AND SHEET BECAUSE WE GOTA SEND IT TO ESP TO OFFICIATE ADJUSTMENT REQUEST COMMS
+        event = receivedEvent;
         publishMQTT();
         sheetAddQueue(createPayload(true));
-        
-        // Reset variables
+        if (receivedVibrationThreshold > vibrationThreshold) {
+            event = String(thisClientID) + " INCREASED VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
+        } else if (receivedVibrationThreshold < vibrationThreshold) {
+            event = String(thisClientID) + " DECREASED VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
+        } else {
+            event = String(thisClientID) + " VIBRATION THRESHOLD REMAINS UNCHANGED AT " + String(receivedVibrationThreshold, 2);
+        }
+
+        // Update the current vibration threshold
+        vibrationThreshold = receivedVibrationThreshold;
+
+        // Publish the updated event and log the change
+        publishMQTT();
+        sheetAddQueue(createPayload(true));
         resetGlobalVariables();
     }
 }

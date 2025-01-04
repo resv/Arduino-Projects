@@ -302,10 +302,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
           event = "CONFIRMED";  // Simplified logic
       } else if (smallEvent.indexOf("REQUESTED") != -1) {
           event = "REQUESTED";
-      } else if (smallEvent.indexOf("DECREASED") != -1) {
-          event = "DECREASED";
+      } else if (smallEvent.indexOf("ADJUSTED") != -1) {
+          event = "ADJUSTED";
       } else if (smallEvent.indexOf("INCREASED") != -1) {
           event = "INCREASED";
+      } else if (smallEvent.indexOf("DECREASED") != -1) {
+          event = "DECREASED";
       } else if (smallEvent.indexOf("CONNECTED") != -1) {
           event = "CONNECTED";
       } else {
@@ -399,8 +401,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       vibrationThreshold = receivedVibrationThreshold;
       temperatureC = receivedTemperatureC;
       temperatureF = receivedTemperatureF;
-      LCDClearZone(ID);
-      LCDUpdateZone(ID);
       LCDUpdateLog();
       resetGlobalVariables();
     }
@@ -772,15 +772,18 @@ void publishAdjustVibrationThreshold(float adjustment, bool isGlobal) {
         Serial.println("Vibration threshold cannot be negative. Reset to 0.");
     }
 
-    // Construct the event string
+    // Determine direction and update XYZ dynamically
     String direction = (adjustment > 0) ? "+" : "-";
-    event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY " + direction + abs(adjustment) + 
+  
+    // Construct the event string
+    event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY " + direction + abs(adjustment) +  
             (isGlobal ? " TO #" : " TO SHOCK-A");
 
     // Publish the event
     publishMQTT();
     resetGlobalVariables();
 }
+
 
 void LCDInitialize(){
   lcd.init(LCD_WIDTH, LCD_HEIGHT);
@@ -792,7 +795,7 @@ void LCDInitialize(){
 }
 
 void LCDClearHeader(){
-  lcd.fillRect(0, 0, 320, 24, BLACK); // Assumed font size of 3.
+  lcd.fillRect(0, 0, 259, 24, BLACK); // Assumed font size of 3.
 }
 
 void LCDClearLog(){
@@ -854,6 +857,15 @@ void LCDUpdateHeader(){
 
     // Update the global retaliation time
     retaliationTime = String(timeBuffer);
+
+    lcd.setTextColor(YELLOW);
+    lcd.setTextSize(2);
+    lcd.setCursor(0, 0);
+    lcd.print("#");
+    lcd.setTextSize(3);
+    lcd.print(String(retaliationCount));
+    lcd.setCursor(115, 0);
+    lcd.print(String(retaliationTime)); 
 }
 
 void LCDDashboard(){
@@ -954,7 +966,13 @@ void LCDUpdateLog() {
     if (event == "ARMED" || event == "DISARMED" || event == "REQUESTED" || event == "CONFIRMED" || event == "DETECTED") {
         eventColor = (isArmed == "ARMED" ? RED : WHITE);
     } else if (event == "CONNECTED") {
-        eventColor = PINK; // Set color to CYAN for CONNECTED event
+        eventColor = PINK;
+    } else if (event == "ADJUSTED") {
+        eventColor = GREEN; // Green for ADJUSTED
+    } else if (event == "INCREASED") {
+        eventColor = LIGHT_BLUE; // Light Blue for INCREASED
+    } else if (event == "DECREASED") {
+        eventColor = DEEP_PURPLE; // Deep Purple for DECREASED
     } else {
         eventColor = WHITE; // Default color
     }
