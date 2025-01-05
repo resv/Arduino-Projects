@@ -1,5 +1,3 @@
-#include <Adafruit_MPU6050.h>
-#include <Adafruit_Sensor.h>
 #include <Wire.h>
 #include <WiFi.h> // Add Wi-Fi library
 #include "esp_log.h"
@@ -78,7 +76,6 @@ const unsigned long heapLogInterval = 60000; // Update every 1 minute
 const int warningHeapThreshold = 15000;
 const int criticalHeapThreshold = 10000;
 const int emergencyHeapThreshold = 8000;
-
 bool warningHeapFlag = false;
 bool criticalHeapFlag = false;
 bool emergencyHeapFlag = false;
@@ -458,6 +455,11 @@ void setup() {
 void loop() {
   unsigned long currentMillis = millis();
 
+  // Handles reconnect to MQTT if lost
+  if (!client.connected()) {
+        connectToTopics();
+  }
+
   // Handle MQTT keep-alive and callbacks
   client.loop();
 
@@ -526,6 +528,7 @@ void loop() {
           Serial.println("WIFI RECONNECTING...");
           setup_wifi();  // Call your existing setup_wifi function
           event = String(thisClientID) + " CONNECTED";
+          publishMQTT();
           resetGlobalVariables(); 
       }
   }

@@ -13,7 +13,7 @@ Adafruit_MPU6050 mpu;
 #define MPU_POWER_PIN 0 // GPIO0 to supply 3.3V power to MPU6050
 
 // Global ESP variables
-const char* thisClientID = "SHOCK-A"; // Define the ClientID
+const char* thisClientID = "SHOCK-B"; // Define the ClientID
 String isArmed = "DISARMED";
 String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";
@@ -27,7 +27,6 @@ const unsigned long heapLogInterval = 60000; // Update every 1 minute
 const int warningHeapThreshold = 15000;
 const int criticalHeapThreshold = 10000;
 const int emergencyHeapThreshold = 8000;
-
 bool warningHeapFlag = false;
 bool criticalHeapFlag = false;
 bool emergencyHeapFlag = false;
@@ -425,6 +424,11 @@ void printSensorData(bool shockDetected, float vibrationMagnitude, sensors_event
 void loop() {
   unsigned long currentMillis = millis();
 
+  // Handles reconnect to MQTT if lost
+  if (!client.connected()) {
+        connectToTopics();
+  }
+
   // Handle MQTT keep-alive and callbacks
   client.loop();
 
@@ -703,10 +707,6 @@ void publishMQTT() {
         Serial.println("Error: Cannot publish detection - WiFi/MQTT not connected.");
     }
 }
-
-// publish connected
-
-// publish confrim
 
 // Function to handle motor toggling behavior
 void handleVibrationMotor() {
