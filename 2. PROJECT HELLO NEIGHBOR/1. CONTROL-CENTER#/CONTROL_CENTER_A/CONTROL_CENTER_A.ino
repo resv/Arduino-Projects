@@ -1,3 +1,5 @@
+// THINGS TO EXPLICITLY CHANGE ON CENTERAL HUBS WILL HAVE A LONG *************************************************
+
 #include <Wire.h>
 #include <WiFi.h> // Add Wi-Fi library
 #include "esp_log.h"
@@ -40,11 +42,12 @@ uint16_t BURGUNDY = lcd.color565(128, 0, 32);
 uint16_t DEEP_PURPLE = lcd.color565(75, 0, 130);
 uint16_t GRAY = lcd.color565(128, 128, 128);
 
-// Global Variables for Button Handling
-#define ONBOARD_BUTTON_PIN 0   // GPIO pin for the onboard button
-#define TOUCH_SENSOR_PIN_5 5  // VT INCREASE (1st sees pin5 at TOP)
-#define TOUCH_SENSOR_PIN_21 21  // VT DECREASE (RESV-1st sees 21 at middle)
-#define TOUCH_SENSOR_PIN_22 22  // ARM/DISARM TOUCH (RESV-1st sees 22 at bottom)
+// RESV-1ST Global Variables for Button Handling UNCOMMENT OR FIX PHYSICALLY
+#define ONBOARD_BUTTON_PIN 0   // GPIO pin for the onboard button  **************************************************************************************************
+#define TOUCH_SENSOR_PIN_5 5  // VT INCREASE (1st sees pin5 at TOP) **************************************************************************************************
+#define TOUCH_SENSOR_PIN_21 21  // VT DECREASE (RESV-1st sees 21 at middle) **************************************************************************************************
+#define TOUCH_SENSOR_PIN_22 22  // ARM/DISARM TOUCH (RESV-1st sees 22 at bottom) **************************************************************************************************
+
 
 // Global variables for Button 0 (Onboard Button for Arm/Disarm)
 bool buttonPressed0 = false;           // Track if Button 0 is pressed
@@ -75,8 +78,10 @@ unsigned long lastButtonPressTime = 0;
 unsigned long buttonHoldDurationThreshold = 1500; // Button duration threshold (in milliseconds) 1.5 seconds
 float vtStep = 0.01; // Stride or size used to adjust Vibration Threshold
 
+String pairedClientID = "SHOCK-B"; // RESV-1st = SHOCK-A, RESV-2ND = SHOCK-B, RESV-3RD = SHOCK-C **************************************************************************************************
+
 // Global ESP variables
-const char* thisClientID = "RESV-1ST"; // Define the ClientID
+const char* thisClientID = "RESV-2ND"; //  RESV-1ST / RESV-2ND / RESV-3RD **************************************************************************************************
 String isArmed = " --";
 String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";
@@ -108,7 +113,7 @@ String ID = "";
 
 // Global Sensor variables
 float vibrationMagnitude = 0.0; // Vibration magnitude
-float vibrationThreshold = .50; // Threshold for shock detection
+float vibrationThreshold = .15; // Threshold for shock detection
 float baselineX = 0, baselineY = 0, baselineZ = 0; // Baseline values
 float gyroX = 0.0, gyroY = 0.0, gyroZ = 0.0; // variables for gyro readings
 
@@ -841,7 +846,7 @@ void publishArmDisarmEvent(bool isGlobal) {
     if (isGlobal) {
         event = String(thisClientID) + " REQUESTED " + isArmed + " TO #";
     } else {
-        event = String(thisClientID) + " REQUESTED " + isArmed + " TO SHOCK-A";
+        event = String(thisClientID) + " REQUESTED " + isArmed + " TO " + String(pairedClientID);
     }
 
     // Publish the event
@@ -862,7 +867,7 @@ void publishAdjustVibrationThreshold(float adjustment, bool isGlobal) {
   
     // Construct the event string
     event = String(thisClientID) + " ADJUSTED VIBRATION THRESHOLD BY " + direction + abs(adjustment) +  
-            (isGlobal ? " TO #" : " TO SHOCK-A");
+            (isGlobal ? " TO #" : " TO " + String(pairedClientID));
 
     // Publish the event
     publishMQTT();
