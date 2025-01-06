@@ -1020,20 +1020,24 @@ void LCDUpdateZone(String zone) {
 
     // Print Vibration Magnitude and Threshold (VM/VT)
     lcd.setCursor(xStart, 141); // Y position for VM/VT
-    lcd.setTextColor(ORANGE);
-    lcd.print(String(vibrationMagnitude, 2));
+    if (vibrationMagnitude >= vibrationThreshold) {
+        lcd.setTextColor(RED); // Set color to RED if VM >= VT
+    } else {
+        lcd.setTextColor(ORANGE); // Set color to ORANGE otherwise
+    }
+    lcd.print(String(vibrationMagnitude, 2)); // Print vibration magnitude
 
     // Intentional spacing
     lcd.setTextSize(1);
     lcd.print(" ");
     lcd.setTextSize(2);
 
-    lcd.setTextColor(LIGHT_BLUE);
+    lcd.setTextColor(GREEN);
     lcd.println(String(vibrationThreshold, 2));
 
     // Print Temperatures in Celsius and Fahrenheit
     lcd.setCursor(xStart, 157); // Y position for temperatures
-    lcd.setTextColor(YELLOW);
+    lcd.setTextColor(GRAY);
     lcd.println(" " + String(temperatureC) + "C " + String(temperatureF) + "F");
 }
 
