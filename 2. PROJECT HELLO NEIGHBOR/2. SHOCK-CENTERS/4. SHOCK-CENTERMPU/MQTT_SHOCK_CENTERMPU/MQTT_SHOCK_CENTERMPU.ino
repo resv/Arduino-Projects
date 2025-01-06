@@ -35,7 +35,7 @@ bool emergencyHeapFlag = false;
 float vibrationMagnitude = 0.0; // Vibration magnitude
 float baselineX = 0, baselineY = 0, baselineZ = 0; // Baseline values
 float gyroX = 0.0, gyroY = 0.0, gyroZ = 0.0; // variables for gyro readings
-float vibrationThreshold = 0.5; // Threshold for shock detection
+float vibrationThreshold = 0.15; // Threshold for shock detection
 int temperatureC = 0; // Temperature in Celsius (whole number)
 int temperatureF = 0; // Temperature in Fahrenheit (whole number)
 
@@ -316,13 +316,23 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     // freeHeap = receivedFreeHeap;
 
     // CALLBACK FOR EXPLICIT OR GLOBAL ARM/DISARM REQUESTS, ASSIGNVALUE, SEND CONFIRMATION
-    if ((String(receivedEvent).indexOf("REQUESTED " + String(receivedIsArmed) + " TO " + thisClientID) != -1) || 
-        (String(receivedEvent).indexOf("REQUESTED " + String(receivedIsArmed) + " TO #") != -1)) {
+    if (String(receivedEvent).indexOf("REQUESTED " + String(receivedIsArmed) + " TO " + thisClientID) != -1){
         event = receivedEvent;
-        publishMQTT();
+        //publishMQTT();
         sheetAddQueue(createPayload(true)); 
         isArmed = receivedIsArmed;
         event = String(thisClientID) + " CONFIRMED " + String(receivedIsArmed);
+        publishMQTT();
+        sheetAddQueue(createPayload(true)); 
+        resetGlobalVariables();
+    }
+
+    if (String(receivedEvent).indexOf("REQUESTED " + String(receivedIsArmed) + " TO #") != -1) {
+        event = receivedEvent;
+        //publishMQTT();
+        sheetAddQueue(createPayload(true)); 
+        isArmed = receivedIsArmed;
+        event = String(thisClientID) + " CONFIRMED GLOBAL " + String(receivedIsArmed);
         publishMQTT();
         sheetAddQueue(createPayload(true)); 
         resetGlobalVariables();
@@ -337,34 +347,53 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     }
 
     // CALLBACK FOR vtThreshold adjustment +/-
-      // Check if the adjustment is for this ESP or global
-      if (String(receivedEvent).indexOf("ADJUSTED VIBRATION THRESHOLD") != -1) {
-          // Check if the event ends with "TO thisClientID" or "TO #"
-          bool isForThisESP = String(receivedEvent).endsWith("TO " + String(thisClientID));
-          bool isGlobal = String(receivedEvent).endsWith("TO #");
-          event = receivedEvent;
-          publishMQTT();
-          sheetAddQueue(createPayload(true));
+    if (String(receivedEvent).indexOf("ADJUSTED VIBRATION THRESHOLD") != -1) {
+    // Check if the event contains "thisClientID" or "#"
+              if (String(receivedEvent).indexOf(thisClientID) != -1) {
+                  event = receivedEvent; // Log the received event
+                  //publishMQTT();         // Notify via MQTT
+                  sheetAddQueue(createPayload(true)); // Add to sheet queue
 
-          // Handle adjustments if valid for this ESP or globally
-          if (isForThisESP || isGlobal) {
-              // Determine the nature of the adjustment (increase, decrease, or unchanged)
-              if (receivedVibrationThreshold > vibrationThreshold) {
-                  event = String(thisClientID) + " INCREASED VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
-              } else if (receivedVibrationThreshold < vibrationThreshold) {
-                  event = String(thisClientID) + " DECREASED VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
-              } else {
-                  event = String(thisClientID) + " VIBRATION THRESHOLD REMAINS UNCHANGED AT " + String(receivedVibrationThreshold, 2);
+                  // Determine the nature of the adjustment (increase, decrease, unchanged)
+                  if (receivedVibrationThreshold > vibrationThreshold) {
+                      event = String(thisClientID) + " INCREASED VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
+                  } else if (receivedVibrationThreshold < vibrationThreshold) {
+                      event = String(thisClientID) + " DECREASED VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
+                  } else {
+                      event = String(thisClientID) + " VIBRATION THRESHOLD REMAINS UNCHANGED AT " + String(receivedVibrationThreshold, 2);
+                  }
+
+                  // Update the vibration threshold
+                  vibrationThreshold = receivedVibrationThreshold;
+
+                  // Publish the updated event and log to Sheets
+                  publishMQTT();
+                  sheetAddQueue(createPayload(true));
+                  resetGlobalVariables();
               }
 
-              // Update the vibration threshold
-              vibrationThreshold = receivedVibrationThreshold;
+              if (String(receivedEvent).indexOf("#") != -1) {
+                  event = receivedEvent; // Log the received event
+                  //publishMQTT();         // Notify via MQTT
+                  sheetAddQueue(createPayload(true)); // Add to sheet queue
 
-              // Publish the updated event and log to Sheets
-              publishMQTT();
-              sheetAddQueue(createPayload(true));
-              resetGlobalVariables();
-          }
+                  // Determine the nature of the adjustment (increase, decrease, unchanged)
+                  if (receivedVibrationThreshold > vibrationThreshold) {
+                      event = String(thisClientID) + " INCREASED GLOBAL VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
+                  } else if (receivedVibrationThreshold < vibrationThreshold) {
+                      event = String(thisClientID) + " DECREASED GLOBAL VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
+                  } else {
+                      event = String(thisClientID) + " VIBRATION THRESHOLD REMAINS UNCHANGED AT " + String(receivedVibrationThreshold, 2);
+                  }
+
+                  // Update the vibration threshold
+                  vibrationThreshold = receivedVibrationThreshold;
+
+                  // Publish the updated event and log to Sheets
+                  publishMQTT();
+                  sheetAddQueue(createPayload(true));
+                  resetGlobalVariables();
+              }
       }
 }
 
