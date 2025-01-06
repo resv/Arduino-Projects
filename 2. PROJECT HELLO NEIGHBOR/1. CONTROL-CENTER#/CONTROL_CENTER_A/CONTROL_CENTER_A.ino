@@ -78,10 +78,10 @@ unsigned long lastButtonPressTime = 0;
 unsigned long buttonHoldDurationThreshold = 1500; // Button duration threshold (in milliseconds) 1.5 seconds
 float vtStep = 0.01; // Stride or size used to adjust Vibration Threshold
 
-String pairedClientID = "SHOCK-B"; // RESV-1st = SHOCK-A, RESV-2ND = SHOCK-B, RESV-3RD = SHOCK-C **************************************************************************************************
+String pairedClientID = "SHOCK-A"; // RESV-1st = SHOCK-A, RESV-2ND = SHOCK-B, RESV-3RD = SHOCK-C **************************************************************************************************
 
 // Global ESP variables
-const char* thisClientID = "RESV-2ND"; //  RESV-1ST / RESV-2ND / RESV-3RD **************************************************************************************************
+const char* thisClientID = "RESV-1ST"; //  RESV-1ST / RESV-2ND / RESV-3RD **************************************************************************************************
 String isArmed = " --";
 String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";
@@ -1098,8 +1098,7 @@ void LCDUpdateLog() {
     }
 }
 
-// add anotther physical button, copy ther code where publishAdjustVibrationThreshold(-vtStep, true); exists, 
-   // replace it with publishAdjustVibrationThreshold(-vtStep, true) or publishAdjustVibrationThreshold(vtStep, true);. and this should work flawlessly.
-      // boolean value takes care of # or explicit
-// vt step is currently set to 0.01 that is very small.. we may want to increase it..
-//need to add another method to reset vt threshold? maybe.. we have step down so many not.. 
+// fix physical button B mid
+// NTP delay to longer on control centers
+//cycle NTP carriers
+// change color for A B C on log

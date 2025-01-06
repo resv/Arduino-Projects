@@ -1098,8 +1098,7 @@ void LCDUpdateLog() {
     }
 }
 
-// add anotther physical button, copy ther code where publishAdjustVibrationThreshold(-vtStep, true); exists, 
-   // replace it with publishAdjustVibrationThreshold(-vtStep, true) or publishAdjustVibrationThreshold(vtStep, true);. and this should work flawlessly.
-      // boolean value takes care of # or explicit
-// vt step is currently set to 0.01 that is very small.. we may want to increase it..
-//need to add another method to reset vt threshold? maybe.. we have step down so many not.. 
+// fix physical button B mid
+// NTP delay to longer on control centers
+//cycle NTP carriers
+// change color for A B C on log
