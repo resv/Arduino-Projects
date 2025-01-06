@@ -337,28 +337,32 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     }
 
     // CALLBACK FOR vtThreshold adjustment +/-
-     // Handle vibration threshold adjustment
-    if (String(receivedEvent).indexOf("ADJUSTED VIBRATION THRESHOLD") != -1) {
-        // REQUIRED TO PUBLISH AND SHEET BECAUSE WE GOTA SEND IT TO ESP TO OFFICIATE ADJUSTMENT REQUEST COMMS
-        event = receivedEvent;
-        publishMQTT();
-        sheetAddQueue(createPayload(true));
-        if (receivedVibrationThreshold > vibrationThreshold) {
-            event = String(thisClientID) + " INCREASED VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
-        } else if (receivedVibrationThreshold < vibrationThreshold) {
-            event = String(thisClientID) + " DECREASED VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
-        } else {
-            event = String(thisClientID) + " VIBRATION THRESHOLD REMAINS UNCHANGED AT " + String(receivedVibrationThreshold, 2);
-        }
+      // Check if the adjustment is for this ESP or global
+      if (String(receivedEvent).indexOf("ADJUSTED VIBRATION THRESHOLD") != -1) {
+          // Check if the event ends with "TO thisClientID" or "TO #"
+          bool isForThisESP = String(receivedEvent).endsWith("TO " + String(thisClientID));
+          bool isGlobal = String(receivedEvent).endsWith("TO #");
 
-        // Update the current vibration threshold
-        vibrationThreshold = receivedVibrationThreshold;
+          // Handle adjustments if valid for this ESP or globally
+          if (isForThisESP || isGlobal) {
+              // Determine the nature of the adjustment (increase, decrease, or unchanged)
+              if (receivedVibrationThreshold > vibrationThreshold) {
+                  event = String(thisClientID) + " INCREASED VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
+              } else if (receivedVibrationThreshold < vibrationThreshold) {
+                  event = String(thisClientID) + " DECREASED VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
+              } else {
+                  event = String(thisClientID) + " VIBRATION THRESHOLD REMAINS UNCHANGED AT " + String(receivedVibrationThreshold, 2);
+              }
 
-        // Publish the updated event and log the change
-        publishMQTT();
-        sheetAddQueue(createPayload(true));
-        resetGlobalVariables();
-    }
+              // Update the vibration threshold
+              vibrationThreshold = receivedVibrationThreshold;
+
+              // Publish the updated event and log to Sheets
+              publishMQTT();
+              sheetAddQueue(createPayload(true));
+              resetGlobalVariables();
+          }
+      }
 }
 
 
