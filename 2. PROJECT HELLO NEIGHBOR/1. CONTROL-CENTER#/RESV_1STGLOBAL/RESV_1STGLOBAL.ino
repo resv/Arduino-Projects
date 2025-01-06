@@ -42,9 +42,31 @@ uint16_t GRAY = lcd.color565(128, 128, 128);
 
 // Global Variables for Button Handling
 #define ONBOARD_BUTTON_PIN 0   // GPIO pin for the onboard button
-#define TOUCH_SENSOR_PIN_1 22  // GPIO pin for the external button
-#define TOUCH_SENSOR_PIN_2 21  // GPIO pin for the external button
-#define TOUCH_SENSOR_PIN_3 5  // GPIO pin for the external button
+#define TOUCH_SENSOR_PIN_5 5  // VT INCREASE (1st sees pin5 at TOP)
+#define TOUCH_SENSOR_PIN_21 21  // VT DECREASE (RESV-1st sees 21 at middle)
+#define TOUCH_SENSOR_PIN_22 22  // ARM/DISARM TOUCH (RESV-1st sees 22 at bottom)
+
+// Global variables for Button 0 (Onboard Button for Arm/Disarm)
+bool buttonPressed0 = false;           // Track if Button 0 is pressed
+unsigned long buttonPressStart0 = 0;   // Track the time Button 0 was pressed
+bool isButtonHeld0 = false;            // Track if Button 0 is held for a long press
+
+// Global variables for Button 1 (TOUCH_SENSOR_PIN_22 for Arm/Disarm)
+bool buttonPressed1 = false;           // Track if Button 1 is pressed
+unsigned long buttonPressStart1 = 0;   // Track the time Button 1 was pressed
+bool isButtonHeld1 = false;            // Track if Button 1 is held for a long press
+
+// Global variables for Button 2 (TOUCH_SENSOR_PIN_5 for Arm/Disarm)
+bool buttonPressed2 = false;           // Track if Button 2 is pressed
+unsigned long buttonPressStart2 = 0;   // Track the time Button 2 was pressed
+bool isButtonHeld2 = false;            // Track if Button 2 is held for a long press
+
+// Global variables for Button 3 (TOUCH_SENSOR_PIN_21 for Increase Vibration Threshold)
+bool buttonPressed3 = false;           // Track if Button 3 is pressed
+unsigned long buttonPressStart3 = 0;   // Track the time Button 3 was pressed
+bool isButtonHeld3 = false;            // Track if Button 3 is held for a long press
+
+
 unsigned long buttonPressStart = 0; // Track when the button was pressed
 bool isButtonHeld = false;         // Track if the button is being held
 bool buttonPressed = false;        // Track button state
@@ -439,9 +461,9 @@ void setup() {
 
     //Button setup
     pinMode(ONBOARD_BUTTON_PIN, INPUT_PULLUP); // Ensure the button pin is set to INPUT_PULLUP
-    pinMode(TOUCH_SENSOR_PIN_1, INPUT);
-    pinMode(TOUCH_SENSOR_PIN_2, INPUT);
-    pinMode(TOUCH_SENSOR_PIN_3, INPUT);
+    pinMode(TOUCH_SENSOR_PIN_22, INPUT);
+    pinMode(TOUCH_SENSOR_PIN_21, INPUT);
+    pinMode(TOUCH_SENSOR_PIN_5, INPUT);
 
     LCDInitialize();
 
@@ -468,38 +490,94 @@ void loop() {
   // Handle MQTT keep-alive and callbacks
   client.loop();
 
- // Read button states
-    bool onboardButtonState = digitalRead(ONBOARD_BUTTON_PIN) == LOW; // Active LOW
-    bool touchSensorState3 = digitalRead(TOUCH_SENSOR_PIN_3) == HIGH;  // Active HIGH
+              // Handle Button 0 (ONBOARD_BUTTON_PIN for Arm/Disarm)
+              if (digitalRead(ONBOARD_BUTTON_PIN) == LOW && !buttonPressed0) {
+                  buttonPressed0 = true;
+                  buttonPressStart0 = millis();
+                  isButtonHeld0 = false;
+              }
 
-    // Check both buttons (Onboard and Touch Sensor)
-    if ((onboardButtonState || touchSensorState3) && !buttonPressed) {
-        // Button just pressed
-        buttonPressed = true;
-        buttonPressStart = currentMillis;
-        isButtonHeld = false; // Reset the long-press flag
-    }
+              if (buttonPressed0 && digitalRead(ONBOARD_BUTTON_PIN) == LOW) {
+                  if (millis() - buttonPressStart0 >= buttonHoldDurationThreshold && !isButtonHeld0) {
+                      isButtonHeld0 = true;
+                      publishArmDisarmEvent(true); // Trigger global Arm/Disarm event (long press).
+                  }
+              }
 
-    if (buttonPressed && (onboardButtonState || touchSensorState3)) {
-        // Button is being held down
-        unsigned long pressDuration = currentMillis - buttonPressStart;
-        if (pressDuration >= buttonHoldDurationThreshold && !isButtonHeld) {
-            isButtonHeld = true; // Prevent multiple triggers
-            Serial.println("Long Press Detected");
-            publishArmDisarmEvent(true); // Long press triggers global action
-        }
-    }
+              if (digitalRead(ONBOARD_BUTTON_PIN) == HIGH && buttonPressed0) {
+                  buttonPressed0 = false;
+                  if (!isButtonHeld0 && millis() - buttonPressStart0 < buttonHoldDurationThreshold) {
+                      publishArmDisarmEvent(false); // Trigger local Arm/Disarm event (short press).
+                  }
+                  isButtonHeld0 = false; // Reset after release.
+              }
 
-    if (!(onboardButtonState || touchSensorState3) && buttonPressed) {
-        // Button released
-        buttonPressed = false;
-        unsigned long pressDuration = currentMillis - buttonPressStart;
+              // Handle Button 1 (TOUCH_SENSOR_PIN_22 for Arm/Disarm)
+              if (digitalRead(TOUCH_SENSOR_PIN_22) == HIGH && !buttonPressed1) {
+                  buttonPressed1 = true;
+                  buttonPressStart1 = millis();
+                  isButtonHeld1 = false;
+              }
 
-        if (pressDuration > 0 && pressDuration < buttonHoldDurationThreshold) {
-            Serial.println("Short Press Detected");
-            publishArmDisarmEvent(false); // Short press triggers targeted action
-        }
-    }
+              if (buttonPressed1 && digitalRead(TOUCH_SENSOR_PIN_22) == HIGH) {
+                  if (millis() - buttonPressStart1 >= buttonHoldDurationThreshold && !isButtonHeld1) {
+                      isButtonHeld1 = true;
+                      publishArmDisarmEvent(true); // Trigger global Arm/Disarm event (long press).
+                  }
+              }
+
+              if (digitalRead(TOUCH_SENSOR_PIN_22) == LOW && buttonPressed1) {
+                  buttonPressed1 = false;
+                  if (!isButtonHeld1 && millis() - buttonPressStart1 < buttonHoldDurationThreshold) {
+                      publishArmDisarmEvent(false); // Trigger local Arm/Disarm event (short press).
+                  }
+                  isButtonHeld1 = false; // Reset after release.
+              }
+
+              // Handle Button 2 (TOUCH_SENSOR_PIN_5 for Increase Vibration Threshold)
+              if (digitalRead(TOUCH_SENSOR_PIN_5) == HIGH && !buttonPressed2) {
+                  buttonPressed2 = true;
+                  buttonPressStart2 = millis();
+                  isButtonHeld2 = false;
+              }
+
+              if (buttonPressed2 && digitalRead(TOUCH_SENSOR_PIN_5) == HIGH) {
+                  if (millis() - buttonPressStart2 >= buttonHoldDurationThreshold && !isButtonHeld2) {
+                      isButtonHeld2 = true;
+                      publishAdjustVibrationThreshold(vtStep, true); // Trigger global increase (long press).
+                  }
+              }
+
+              if (digitalRead(TOUCH_SENSOR_PIN_5) == LOW && buttonPressed2) {
+                  buttonPressed2 = false;
+                  if (!isButtonHeld2 && millis() - buttonPressStart2 < buttonHoldDurationThreshold) {
+                      publishAdjustVibrationThreshold(vtStep, false); // Trigger local increase (short press).
+                  }
+                  isButtonHeld2 = false; // Reset after release.
+              }
+
+              // Handle Button 3 (TOUCH_SENSOR_PIN_21 for Decrease Vibration Threshold)
+              if (digitalRead(TOUCH_SENSOR_PIN_21) == HIGH && !buttonPressed3) {
+                  buttonPressed3 = true;
+                  buttonPressStart3 = millis();
+                  isButtonHeld3 = false;
+              }
+
+              if (buttonPressed3 && digitalRead(TOUCH_SENSOR_PIN_21) == HIGH) {
+                  if (millis() - buttonPressStart3 >= buttonHoldDurationThreshold && !isButtonHeld3) {
+                      isButtonHeld3 = true;
+                      publishAdjustVibrationThreshold(-vtStep, true); // Trigger global decrease (long press).
+                  }
+              }
+
+              if (digitalRead(TOUCH_SENSOR_PIN_21) == LOW && buttonPressed3) {
+                  buttonPressed3 = false;
+                  if (!isButtonHeld3 && millis() - buttonPressStart3 < buttonHoldDurationThreshold) {
+                      publishAdjustVibrationThreshold(-vtStep, false); // Trigger local decrease (short press).
+                  }
+                  isButtonHeld3 = false; // Reset after release.
+              }
+
 
 
 
