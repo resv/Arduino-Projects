@@ -41,8 +41,10 @@ uint16_t DEEP_PURPLE = lcd.color565(75, 0, 130);
 uint16_t GRAY = lcd.color565(128, 128, 128);
 
 // Global Variables for Button Handling
-#define EXTERNAL_BUTTON_PIN 22  // GPIO pin for the external button
 #define ONBOARD_BUTTON_PIN 0   // GPIO pin for the onboard button
+#define TOUCH_SENSOR_PIN_1 22  // GPIO pin for the external button
+#define TOUCH_SENSOR_PIN_2 21  // GPIO pin for the external button
+#define TOUCH_SENSOR_PIN_3 5  // GPIO pin for the external button
 unsigned long buttonPressStart = 0; // Track when the button was pressed
 bool isButtonHeld = false;         // Track if the button is being held
 bool buttonPressed = false;        // Track button state
@@ -437,6 +439,9 @@ void setup() {
 
     //Button setup
     pinMode(ONBOARD_BUTTON_PIN, INPUT_PULLUP); // Ensure the button pin is set to INPUT_PULLUP
+    pinMode(TOUCH_SENSOR_PIN_1, INPUT);
+    pinMode(TOUCH_SENSOR_PIN_2, INPUT);
+    pinMode(TOUCH_SENSOR_PIN_3, INPUT);
 
     LCDInitialize();
 
@@ -463,39 +468,39 @@ void loop() {
   // Handle MQTT keep-alive and callbacks
   client.loop();
 
-  // Button press logic
-  bool currentButtonState = digitalRead(ONBOARD_BUTTON_PIN) == LOW; // Active LOW
-  if (currentButtonState && !buttonPressed) {
-      // Button just pressed
-      buttonPressed = true;
-      buttonPressStart = currentMillis;
-      isButtonHeld = false; // Reset the long-press flag
-  }
+ // Read button states
+    bool onboardButtonState = digitalRead(ONBOARD_BUTTON_PIN) == LOW; // Active LOW
+    bool touchSensorState3 = digitalRead(TOUCH_SENSOR_PIN_3) == HIGH;  // Active HIGH
 
-  if (buttonPressed && currentButtonState) {
-      // Button is being held down
-      unsigned long pressDuration = currentMillis - buttonPressStart;
-      if (pressDuration >= buttonHoldDurationThreshold && !isButtonHeld) {
-          // Long press detected: Publish global request
-          isButtonHeld = true; // Prevent multiple triggers
-          publishArmDisarmEvent(true);
-          //publishAdjustVibrationThreshold(vtStep, true);
-          //publishAdjustVibrationThreshold(-vtStep, true);
-      }
-  }
+    // Check both buttons (Onboard and Touch Sensor)
+    if ((onboardButtonState || touchSensorState3) && !buttonPressed) {
+        // Button just pressed
+        buttonPressed = true;
+        buttonPressStart = currentMillis;
+        isButtonHeld = false; // Reset the long-press flag
+    }
 
-  if (!currentButtonState && buttonPressed) {
-      // Button released
-      buttonPressed = false;
-      unsigned long pressDuration = currentMillis - buttonPressStart;
+    if (buttonPressed && (onboardButtonState || touchSensorState3)) {
+        // Button is being held down
+        unsigned long pressDuration = currentMillis - buttonPressStart;
+        if (pressDuration >= buttonHoldDurationThreshold && !isButtonHeld) {
+            isButtonHeld = true; // Prevent multiple triggers
+            Serial.println("Long Press Detected");
+            publishArmDisarmEvent(true); // Long press triggers global action
+        }
+    }
 
-      if (pressDuration > 0 && pressDuration < buttonHoldDurationThreshold) {
-          // Short press detected: Publish targeted request
-          publishArmDisarmEvent(false);
-          //publishAdjustVibrationThreshold(vtStep, false);
-          //publishAdjustVibrationThreshold(-vtStep, false);
-      }
-  }
+    if (!(onboardButtonState || touchSensorState3) && buttonPressed) {
+        // Button released
+        buttonPressed = false;
+        unsigned long pressDuration = currentMillis - buttonPressStart;
+
+        if (pressDuration > 0 && pressDuration < buttonHoldDurationThreshold) {
+            Serial.println("Short Press Detected");
+            publishArmDisarmEvent(false); // Short press triggers targeted action
+        }
+    }
+
 
 
   // Update internal clock every second
