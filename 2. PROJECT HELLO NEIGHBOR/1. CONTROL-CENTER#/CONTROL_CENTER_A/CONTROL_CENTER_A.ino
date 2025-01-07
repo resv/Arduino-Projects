@@ -992,6 +992,19 @@ void LCDDashboard(){
 };
 
 void LCDUpdateZone(String zone) {
+
+     // Print ALL Shock Labels WHITE first
+    lcd.setTextColor(WHITE);
+    lcd.setTextSize(2);
+    lcd.setCursor(0, 109); 
+    lcd.println(" SHOCK-A");
+    lcd.setTextColor(WHITE);
+    lcd.setCursor(110, 109);
+    lcd.println(" SHOCK-B");
+    lcd.setTextColor(WHITE);
+    lcd.setCursor(218, 109);
+    lcd.println(" SHOCK-C");
+
     int xStart = -1;
 
     if (zone == "A") {
@@ -1006,7 +1019,7 @@ void LCDUpdateZone(String zone) {
     }
 
     // Print Shock Label
-    lcd.setTextColor(WHITE);
+    lcd.setTextColor(YELLOW);
     lcd.setTextSize(2);
     lcd.setCursor(xStart, 109); // Y position for the shock label
     lcd.println(" SHOCK-" + zone);
