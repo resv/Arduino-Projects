@@ -200,15 +200,17 @@ void setup_wifi() {
         const char* ssid = wifi_credentials[currentWiFiIndex][0];
         const char* password = wifi_credentials[currentWiFiIndex][1];
 
-        Serial.print("CONNECTING TO [" + String(ssid) + "]");
+        Serial.print(String(thisClientID) + " CONNECTING TO [" + String(ssid) + "]");
 
         // Set the cursor for the first line (fixed position)
         lcd.fillScreen(ST77XX_BLACK);
-        lcd.setCursor(25, 0);
+        lcd.setCursor(50, 0);
+        lcd.println(String(thisClientID));
+        lcd.setCursor(25, 28);
         lcd.println("WIFI Connecting");
 
         // Calculate width of the SSID string
-        lcd.setCursor(80, 28);
+        lcd.setCursor(80, 56);
         lcd.println("[" + String(ssid) + "]");
 
         WiFi.disconnect();  // Ensure a clean connection attempt
@@ -225,15 +227,17 @@ void setup_wifi() {
 
        if (WiFi.status() == WL_CONNECTED) {
           fetchNTPTime(); // Fetch NTP time
-          Serial.println("CONNECTED TO [" + String(ssid) + "] [" + WiFi.localIP().toString() + "]");
+          Serial.println(String(thisClientID) + " CONNECTED TO [" + String(ssid) + "] [" + WiFi.localIP().toString() + "]");
 
             lcd.fillScreen(ST77XX_BLACK);
             lcd.setCursor(50, 0);
+            lcd.println(String(thisClientID));
+            lcd.setCursor(50, 28);
             lcd.println("CONNECTED TO");
-            lcd.setCursor(80, 28);
+            lcd.setCursor(80, 56);
             lcd.setTextColor(ST77XX_GREEN);
             lcd.println("[" + String(ssid) + "]");
-            lcd.setCursor(30, 56);
+            lcd.setCursor(30, 84);
             lcd.println("[" + WiFi.localIP().toString() + "]");
             
 
@@ -245,7 +249,7 @@ void setup_wifi() {
             connectToTopics(); // CONNECT TO ALL TOPICS
           break; // Exit loop on successful connection
         } else {
-            Serial.println("FAILED TO CONNECT TO [" + String(ssid) + "]");
+            Serial.println(String(thisClientID) + " FAILED TO CONNECT TO [" + String(ssid) + "]");
             currentWiFiIndex = (currentWiFiIndex + 1) % num_wifi_credentials; // Cycle to the next SSID
         }
     }
@@ -278,7 +282,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       return;
     }
 
-    // Extract data into temporary `receivedX` variables
+    // Extract data into temporary receivedX variables
     const char* receivedId = doc["ID"];
     const char* receivedDate = doc["DD"];
     const char* receivedTime = doc["DT"];
@@ -323,7 +327,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       String smallEvent = String(receivedEvent);  // Create a local copy for event processing
 
       if (smallEvent.indexOf("DETECTED") != -1) {
-          event = "DETECTED";  // Update the global `event` variable
+          event = "DETECTED";  // Update the global event variable
       } else if (smallEvent.indexOf("CONFIRMED") != -1) {
           event = "CONFIRMED";  // Simplified logic
       } else if (smallEvent.indexOf("REQUESTED") != -1) {
@@ -340,7 +344,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
           event = "UNKNOWN EVENT";  // Default fallback
       }
     } else {
-      event = "UNKNOWN";  // If `receivedEvent` is null or empty
+      event = "UNKNOWN";  // If receivedEvent is null or empty
     }
 
     // Debug: Print updated global state and received values
@@ -380,7 +384,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
     //CALL BACK FOR REQUEST AND NOT THIS CLIENT ID, WE CAPTURE OFFICIAL END TO END COMMS
     if (String(receivedEvent).indexOf("REQUESTED") != -1 && String(receivedId) == thisClientID) {
-      LCDUpdateLog();
+      LCDUpdateLog(false);
       resetGlobalVariables();
     }
 
@@ -393,7 +397,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       temperatureF = receivedTemperatureF;
       LCDClearZone(ID);
       LCDUpdateZone(ID);
-      LCDUpdateLog();
+      LCDUpdateLog(false);
       resetGlobalVariables();
     }
 
@@ -403,7 +407,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       vibrationMagnitude = receivedVibrationMagnitude;
       temperatureC = receivedTemperatureC;
       temperatureF = receivedTemperatureF;
-      LCDUpdateLog();
+      LCDUpdateLog(false);
       resetGlobalVariables();
     }
 
@@ -415,19 +419,19 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       temperatureF = receivedTemperatureF;
       LCDClearZone(ID);
       LCDUpdateZone(ID);
-      LCDUpdateLog();
+      LCDUpdateLog(false);
       LCDUpdateHeader();
       resetGlobalVariables();
     }
 
     // CALL BACK FOR ADJUSTED WE CAPTURE OFFICIAL END TO END COMMS
-    if (String(receivedEvent).indexOf("ADJUSTED") != -1 && String(receivedId) != thisClientID) {
+    if (String(receivedEvent).indexOf("ADJUSTED") != -1 && String(receivedEvent) != thisClientID) {
       isArmed = receivedIsArmed; // Only if separate logic needs it
       vibrationMagnitude = receivedVibrationMagnitude;
       vibrationThreshold = receivedVibrationThreshold;
       temperatureC = receivedTemperatureC;
       temperatureF = receivedTemperatureF;
-      LCDUpdateLog();
+      LCDUpdateLog(false);
       resetGlobalVariables();
     }
 
@@ -440,7 +444,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       temperatureF = receivedTemperatureF;
       LCDClearZone(ID);
       LCDUpdateZone(ID);
-      LCDUpdateLog();
+      LCDUpdateLog(false);
       resetGlobalVariables();
     }
 
@@ -453,7 +457,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       temperatureF = receivedTemperatureF;
       LCDClearZone(ID);
       LCDUpdateZone(ID);
-      LCDUpdateLog();
+      LCDUpdateLog(true);
       resetGlobalVariables();
     }
 }
@@ -593,7 +597,7 @@ void loop() {
       if (internalEpochTime > 0) {
           internalEpochTime += 1; // Increment by 1 second
 
-          // Update `dateDate` and `dateTime` with valid values
+          // Update dateDate and dateTime with valid values
           struct tm* estTimeInfo = localtime(&internalEpochTime);
           char bufferDate[11], bufferTime[9];
           strftime(bufferDate, sizeof(bufferDate), "%m/%d", estTimeInfo);
@@ -662,7 +666,7 @@ bool fetchNTPTime() {
         }
         internalEpochTime += offsetHours * 3600; // Apply EST offset
 
-        // Update `dateDate` and `dateTime` with parsed EST values
+        // Update dateDate and dateTime with parsed EST values
         struct tm* estTimeInfo = localtime(&internalEpochTime);
         char bufferDate[11], bufferTime[9];
         strftime(bufferDate, sizeof(bufferDate), "%m/%d", estTimeInfo);
@@ -776,7 +780,7 @@ String createPayload(bool forJson) {
 
 void publishMQTT() {
     if (WiFi.status() == WL_CONNECTED && client.connected()) {
-        client.publish(mqtt_topic_CENTRAL_HUB, createPayload(true).c_str()); // Pass `true` for JSON payload
+        client.publish(mqtt_topic_CENTRAL_HUB, createPayload(true).c_str()); // Pass true for JSON payload
     } else {
         Serial.println("Error: Cannot publish detection - WiFi/MQTT not connected.");
     }
@@ -992,6 +996,19 @@ void LCDDashboard(){
 };
 
 void LCDUpdateZone(String zone) {
+
+     // Print ALL Shock Labels WHITE first
+    lcd.setTextColor(WHITE);
+    lcd.setTextSize(2);
+    lcd.setCursor(0, 109); 
+    lcd.println(" SHOCK-A");
+    lcd.setTextColor(WHITE);
+    lcd.setCursor(110, 109);
+    lcd.println(" SHOCK-B");
+    lcd.setTextColor(WHITE);
+    lcd.setCursor(218, 109);
+    lcd.println(" SHOCK-C");
+
     int xStart = -1;
 
     if (zone == "A") {
@@ -1006,7 +1023,7 @@ void LCDUpdateZone(String zone) {
     }
 
     // Print Shock Label
-    lcd.setTextColor(WHITE);
+    lcd.setTextColor(YELLOW);
     lcd.setTextSize(2);
     lcd.setCursor(xStart, 109); // Y position for the shock label
     lcd.println(" SHOCK-" + zone);
@@ -1028,7 +1045,7 @@ void LCDUpdateZone(String zone) {
     if (vibrationMagnitude >= vibrationThreshold) {
         lcd.setTextColor(RED); // Set color to RED if VM >= VT
     } else {
-        lcd.setTextColor(ORANGE); // Set color to ORANGE otherwise
+        lcd.setTextColor(WHITE); // Set color to ORANGE otherwise
     }
     lcd.print(String(vibrationMagnitude, 2)); // Print vibration magnitude
 
@@ -1052,51 +1069,113 @@ struct LogColorDB {
     uint16_t color;
 };
 
-void LCDUpdateLog() {
-    const int maxLogRows = 4;
-
-    // Determine the color for the current event
-    uint16_t eventColor;
-    if (event == "ARMED" || event == "DISARMED" || event == "REQUESTED" || event == "CONFIRMED" || event == "DETECTED") {
-        eventColor = (isArmed == "ARMED" ? RED : WHITE);
-    } else if (event == "CONNECTED") {
-        eventColor = PINK;
-    } else if (event == "ADJUSTED") {
-        eventColor = GREEN; // Green for ADJUSTED
-    } else if (event == "INCREASED") {
-        eventColor = LIGHT_BLUE; // Light Blue for INCREASED
-    } else if (event == "DECREASED") {
-        eventColor = DEEP_PURPLE; // Deep Purple for DECREASED
-    } else {
-        eventColor = WHITE; // Default color
-    }
+void LCDUpdateLog(bool isGlobal) {
+    const int maxLogRows = 4;           // Maximum number of rows to display on the LCD log section
+    String globalIndicator = isGlobal ? "G" : ""; // Extra info: " G" for GLOBAL, blank for LOCAL
+    const String SPACE = " "; // Single space as a delimiter
+    const int lineHeight = 20;         // Line height for each log entry
 
     // Add new log entry
     if (logCount < MAX_LOGS) {
         for (int i = logCount; i > 0; i--) {
-            logTextBuffer[i] = logTextBuffer[i - 1];
+            logTextBuffer[i] = logTextBuffer[i - 1]; // Shift older entries down
             logColorBuffer[i] = logColorBuffer[i - 1];
         }
         logCount++;
     } else {
+        // If the buffer is full, rotate the logs (discard the oldest entry)
         for (int i = MAX_LOGS - 1; i > 0; i--) {
             logTextBuffer[i] = logTextBuffer[i - 1];
             logColorBuffer[i] = logColorBuffer[i - 1];
         }
     }
-    logTextBuffer[0] = dateDate + " " + dateTime + " " + ID + " " + event;
-    logColorBuffer[0] = eventColor;
 
-    // Clear and display logs
+    // Format the new log entry
+    logTextBuffer[0] = dateDate + SPACE + dateTime + SPACE + ID + SPACE + event + SPACE + globalIndicator;
+
+    // Set a default color for the event (you can customize further below)
+    if (event == "ARMED" || event == "DISARMED" || event == "REQUESTED" || event == "CONFIRMED" || event == "DETECTED") {
+        logColorBuffer[0] = (isArmed == "ARMED" ? RED : WHITE);
+    } else if (event == "CONNECTED") {
+        logColorBuffer[0] = PINK;
+    } else if (event == "ADJUSTED") {
+        logColorBuffer[0] = ORANGE;
+    } else if (event == "INCREASED") {
+        logColorBuffer[0] = LIGHT_BLUE;
+    } else if (event == "DECREASED") {
+        logColorBuffer[0] = PURPLE;
+    } else {
+        logColorBuffer[0] = WHITE; // Default color
+    }
+
+    // Clear the log area
     LCDClearLog();
-    lcd.setTextSize(2);
-    int lineHeight = 20; // Adjusted for font size 2
+
+    // Display logs with customization
+    lcd.setTextSize(2); // Default text size
     for (int i = 0; i < maxLogRows && i < logCount; i++) {
+        // Unpack the log entry
+        String logEntry = logTextBuffer[i];
+        String logDate = logEntry.substring(0, 5); // Extract "MM/DD"
+        String logTime = logEntry.substring(6, 14); // Extract "HH:MM:SS"
+        String logID = logEntry.substring(15, 16); // Extract ID (e.g., A, B, C, or 1)
+        String logEvent = logEntry.substring(17, logEntry.lastIndexOf(" ")); // Extract event
+        String logglobalIndicator = logEntry.substring(logEntry.lastIndexOf(" ") + 1); // Extract globalIndicator (e.g., G or blank)
+
+        // Set text color for each component and print on the same line
+        lcd.setCursor(0, 26 + (i * lineHeight)); // Set cursor only once per line
+
+        // Print date
+        lcd.setTextColor(GRAY);
+        lcd.print(logDate);
+
+        // Print space as delimiter
+        lcd.setTextSize(1);
+        lcd.print(SPACE);
+
+        // Print time
+        lcd.setTextSize(2);
+        lcd.setTextColor(WHITE);
+        lcd.print(logTime);
+
+        // Print space as delimiter
+        lcd.setTextSize(1);
+        lcd.print(SPACE);
+
+        // Print ID with color mapping
+        lcd.setTextSize(2);
+        if (logID == "1" || logID == "A") {
+            lcd.setTextColor(GREEN);
+        } else if (logID == "2" || logID == "B") {
+            lcd.setTextColor(CYAN);
+        } else if (logID == "3" || logID == "C") {
+            lcd.setTextColor(GRAY);
+        } else {
+            lcd.setTextColor(WHITE); // Default color for unknown IDs
+        }
+        lcd.print(logID);
+
+        // Print space as delimiter
+        lcd.setTextSize(1);
+        lcd.print(SPACE);
+
+        // Print event
+        lcd.setTextSize(2);
         lcd.setTextColor(logColorBuffer[i]);
-        lcd.setCursor(0, 26 + (i * lineHeight)); // Adjust Y position for each log entry
-        lcd.println(logTextBuffer[i]);
+        lcd.print(logEvent);
+
+        // Print space as delimiter
+        lcd.setTextSize(1);
+        lcd.print(SPACE);
+
+        // Print extra info (if any)
+        lcd.setTextColor(YELLOW);
+        lcd.setTextSize(2);
+        lcd.print(logglobalIndicator);
     }
 }
+
+
 
 // fix physical button B mid
 // NTP delay to longer on control centers
