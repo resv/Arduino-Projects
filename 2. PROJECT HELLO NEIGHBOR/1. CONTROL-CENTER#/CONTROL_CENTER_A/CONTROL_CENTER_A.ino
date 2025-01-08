@@ -81,7 +81,7 @@ float vtStep = 0.01; // Stride or size used to adjust Vibration Threshold
 String pairedClientID = "SHOCK-A"; // RESV-1st = SHOCK-A, RESV-2ND = SHOCK-B, RESV-3RD = SHOCK-C **************************************************************************************************
 
 // Global ESP variables
-const char* thisClientID = "RESV-1st"; //  RESV-1ST / RESV-2ND / RESV-3RD **************************************************************************************************
+const char* thisClientID = "RESV-1ST"; //  RESV-1ST / RESV-2ND / RESV-3RD **************************************************************************************************
 String isArmed = " --";
 String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";
