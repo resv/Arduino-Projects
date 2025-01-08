@@ -200,15 +200,17 @@ void setup_wifi() {
         const char* ssid = wifi_credentials[currentWiFiIndex][0];
         const char* password = wifi_credentials[currentWiFiIndex][1];
 
-        Serial.print("CONNECTING TO [" + String(ssid) + "]");
+        Serial.print(String(thisClientID) + " CONNECTING TO [" + String(ssid) + "]");
 
         // Set the cursor for the first line (fixed position)
         lcd.fillScreen(ST77XX_BLACK);
-        lcd.setCursor(25, 0);
+        lcd.setCursor(50, 0);
+        lcd.println(String(thisClientID));
+        lcd.setCursor(25, 28);
         lcd.println("WIFI Connecting");
 
         // Calculate width of the SSID string
-        lcd.setCursor(80, 28);
+        lcd.setCursor(80, 56);
         lcd.println("[" + String(ssid) + "]");
 
         WiFi.disconnect();  // Ensure a clean connection attempt
@@ -225,15 +227,17 @@ void setup_wifi() {
 
        if (WiFi.status() == WL_CONNECTED) {
           fetchNTPTime(); // Fetch NTP time
-          Serial.println("CONNECTED TO [" + String(ssid) + "] [" + WiFi.localIP().toString() + "]");
+          Serial.println(String(thisClientID) + " CONNECTED TO [" + String(ssid) + "] [" + WiFi.localIP().toString() + "]");
 
             lcd.fillScreen(ST77XX_BLACK);
             lcd.setCursor(50, 0);
+            lcd.println(String(thisClientID));
+            lcd.setCursor(50, 28);
             lcd.println("CONNECTED TO");
-            lcd.setCursor(80, 28);
+            lcd.setCursor(80, 56);
             lcd.setTextColor(ST77XX_GREEN);
             lcd.println("[" + String(ssid) + "]");
-            lcd.setCursor(30, 56);
+            lcd.setCursor(30, 84);
             lcd.println("[" + WiFi.localIP().toString() + "]");
             
 
@@ -245,7 +249,7 @@ void setup_wifi() {
             connectToTopics(); // CONNECT TO ALL TOPICS
           break; // Exit loop on successful connection
         } else {
-            Serial.println("FAILED TO CONNECT TO [" + String(ssid) + "]");
+            Serial.println(String(thisClientID) + " FAILED TO CONNECT TO [" + String(ssid) + "]");
             currentWiFiIndex = (currentWiFiIndex + 1) % num_wifi_credentials; // Cycle to the next SSID
         }
     }
@@ -421,7 +425,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     }
 
     // CALL BACK FOR ADJUSTED WE CAPTURE OFFICIAL END TO END COMMS
-    if (String(receivedEvent).indexOf("ADJUSTED") != -1 && String(receivedId) != thisClientID) {
+    if (String(receivedEvent).indexOf("ADJUSTED") != -1 && String(receivedEvent) != thisClientID) {
       isArmed = receivedIsArmed; // Only if separate logic needs it
       vibrationMagnitude = receivedVibrationMagnitude;
       vibrationThreshold = receivedVibrationThreshold;
@@ -1079,7 +1083,7 @@ void LCDUpdateLog() {
     } else if (event == "INCREASED") {
         eventColor = LIGHT_BLUE; // Light Blue for INCREASED
     } else if (event == "DECREASED") {
-        eventColor = DEEP_PURPLE; // Deep Purple for DECREASED
+        eventColor = PURPLE; // Deep Purple for DECREASED
     } else {
         eventColor = WHITE; // Default color
     }
