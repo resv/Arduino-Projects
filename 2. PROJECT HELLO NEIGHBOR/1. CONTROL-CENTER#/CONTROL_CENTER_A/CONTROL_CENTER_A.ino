@@ -383,23 +383,48 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     // freeHeap = receivedFreeHeap;
 
     //CALL BACK FOR REQUEST AND NOT THIS CLIENT ID, WE CAPTURE OFFICIAL END TO END COMMS
-    if (String(receivedEvent).indexOf("REQUESTED") != -1 && String(receivedId) == thisClientID) {
-      LCDUpdateLog(false);
-      resetGlobalVariables();
-    }
+    //if (String(receivedEvent).indexOf("REQUESTED") != -1 && String(receivedId) == thisClientID) {
+   //   LCDUpdateLog(false);
+   //   resetGlobalVariables();
+ //   }
+
+      if (String(receivedEvent).indexOf("REQUESTED") != -1) {
+          if (String(receivedEvent).indexOf("REQUESTED") != -1 && String(receivedEvent).indexOf("#") != -1) {
+              LCDUpdateLog(true);
+              resetGlobalVariables();
+          } else {
+              LCDUpdateLog(false);
+              resetGlobalVariables();
+          }
+      }
+
+
+
 
     // CALLBACK FOR EXPLICIT OR GLOBAL ARM/DISARM REQUESTS, ASSIGNVALUE, SEND CONFIRMATION
     if (String(receivedEvent).indexOf("CONFIRMED") != -1) {
-      // Extract state from receivedEvent if needed
-      isArmed = receivedIsArmed; // Only if separate logic needs it
-      vibrationMagnitude = receivedVibrationMagnitude;
-      temperatureC = receivedTemperatureC;
-      temperatureF = receivedTemperatureF;
-      LCDClearZone(ID);
-      LCDUpdateZone(ID);
-      LCDUpdateLog(false);
-      resetGlobalVariables();
+        if (String(receivedEvent).indexOf("CONFIRMED") != -1 && String(receivedEvent).indexOf("#") != -1){
+          // Extract state from receivedEvent if needed
+          isArmed = receivedIsArmed; // Only if separate logic needs it
+          vibrationMagnitude = receivedVibrationMagnitude;
+          temperatureC = receivedTemperatureC;
+          temperatureF = receivedTemperatureF;
+          LCDClearZone(ID);
+          LCDUpdateZone(ID);
+          LCDUpdateLog(true);
+          resetGlobalVariables();
+        } else {
+          isArmed = receivedIsArmed; // Only if separate logic needs it
+          vibrationMagnitude = receivedVibrationMagnitude;
+          temperatureC = receivedTemperatureC;
+          temperatureF = receivedTemperatureF;
+          LCDClearZone(ID);
+          LCDUpdateZone(ID);
+          LCDUpdateLog(false);
+          resetGlobalVariables();
+        }
     }
+
 
     // CALLBACK FOR CONNECTED AND NOT THIS CLIENT ID, WE CAPTURE OFFICIAL END TO END
     if (String(receivedEvent).indexOf("CONNECTED") != -1 && String(receivedId) != thisClientID) {
@@ -1071,7 +1096,7 @@ struct LogColorDB {
 
 void LCDUpdateLog(bool isGlobal) {
     const int maxLogRows = 4;           // Maximum number of rows to display on the LCD log section
-    String globalIndicator = isGlobal ? "G" : ""; // Extra info: " G" for GLOBAL, blank for LOCAL
+    String globalIndicator = isGlobal ? "#" : ""; // Extra info: " G" for GLOBAL, blank for LOCAL
     const String SPACE = " "; // Single space as a delimiter
     const int lineHeight = 20;         // Line height for each log entry
 
@@ -1147,7 +1172,7 @@ void LCDUpdateLog(bool isGlobal) {
         if (logID == "1" || logID == "A") {
             lcd.setTextColor(GREEN);
         } else if (logID == "2" || logID == "B") {
-            lcd.setTextColor(CYAN);
+            lcd.setTextColor(MAGENTA);
         } else if (logID == "3" || logID == "C") {
             lcd.setTextColor(GRAY);
         } else {

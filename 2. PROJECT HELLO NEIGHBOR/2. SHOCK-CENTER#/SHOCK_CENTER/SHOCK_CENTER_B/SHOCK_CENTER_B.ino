@@ -332,7 +332,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         //publishMQTT();
         sheetAddQueue(createPayload(true)); 
         isArmed = receivedIsArmed;
-        event = String(thisClientID) + " CONFIRMED GLOBAL " + String(receivedIsArmed);
+        event = String(thisClientID) + " CONFIRMED # " + String(receivedIsArmed);
         publishMQTT();
         sheetAddQueue(createPayload(true)); 
         resetGlobalVariables();
@@ -379,9 +379,9 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
                   // Determine the nature of the adjustment (increase, decrease, unchanged)
                   if (receivedVibrationThreshold > vibrationThreshold) {
-                      event = String(thisClientID) + " INCREASED GLOBAL VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
+                      event = String(thisClientID) + " INCREASED # VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
                   } else if (receivedVibrationThreshold < vibrationThreshold) {
-                      event = String(thisClientID) + " DECREASED GLOBAL VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
+                      event = String(thisClientID) + " DECREASED # VIBRATION THRESHOLD TO " + String(receivedVibrationThreshold, 2);
                   } else {
                       event = String(thisClientID) + " VIBRATION THRESHOLD REMAINS UNCHANGED AT " + String(receivedVibrationThreshold, 2);
                   }
