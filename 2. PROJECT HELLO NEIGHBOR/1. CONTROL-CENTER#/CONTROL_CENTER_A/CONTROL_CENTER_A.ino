@@ -43,11 +43,10 @@ uint16_t DEEP_PURPLE = lcd.color565(75, 0, 130);
 uint16_t GRAY = lcd.color565(128, 128, 128);
 
 // RESV-1ST Global Variables for Button Handling UNCOMMENT OR FIX PHYSICALLY
-#define ONBOARD_BUTTON_PIN 0   // GPIO pin for the onboard button  **************************************************************************************************
-#define TOUCH_SENSOR_PIN_5 5  // VT INCREASE (1st sees pin5 at TOP) **************************************************************************************************
-#define TOUCH_SENSOR_PIN_21 21  // VT DECREASE (RESV-1st sees 21 at middle) **************************************************************************************************
-#define TOUCH_SENSOR_PIN_22 22  // ARM/DISARM TOUCH (RESV-1st sees 22 at bottom) **************************************************************************************************
-
+#define ONBOARD_BUTTON_PIN 0   // GPIO pin for the onboard button
+#define TOUCH_SENSOR_PIN_5 5  // VT INCREASE (1st sees pin5 at TOP)
+#define TOUCH_SENSOR_PIN_21 21  // VT DECREASE (RESV-1st sees 21 at middle) 
+#define TOUCH_SENSOR_PIN_22 22  // ARM/DISARM TOUCH (RESV-1st sees 22 at bottom)
 
 // Global variables for Button 0 (Onboard Button for Arm/Disarm)
 bool buttonPressed0 = false;           // Track if Button 0 is pressed
@@ -68,7 +67,6 @@ bool isButtonHeld2 = false;            // Track if Button 2 is held for a long p
 bool buttonPressed3 = false;           // Track if Button 3 is pressed
 unsigned long buttonPressStart3 = 0;   // Track the time Button 3 was pressed
 bool isButtonHeld3 = false;            // Track if Button 3 is held for a long press
-
 
 unsigned long buttonPressStart = 0; // Track when the button was pressed
 bool isButtonHeld = false;         // Track if the button is being held
@@ -116,10 +114,8 @@ float vibrationMagnitude = 0.0; // Vibration magnitude
 float vibrationThreshold = .15; // Threshold for shock detection
 float baselineX = 0, baselineY = 0, baselineZ = 0; // Baseline values
 float gyroX = 0.0, gyroY = 0.0, gyroZ = 0.0; // variables for gyro readings
-
 int temperatureC = 0; // Temperature in Celsius (whole number)
 int temperatureF = 0; // Temperature in Fahrenheit (whole number)
-
 
 // NTP Variables
 unsigned long lastNTPFetchMillis = 0; // Tracks the last NTP fetch time
@@ -128,7 +124,6 @@ const unsigned long internalClockInterval = 1000; // 1-second interval for updat
 time_t internalEpochTime = 0; // Internal clock epoch time in seconds
 unsigned long lastNTPRetryMillis = 0;  // Track last retry attempt
 const unsigned long ntpRetryInterval = 60000;  // Retry every 1 minute if initial fetch fails
-
 
 // GSheets Variables
 #define MAX_PAYLOAD_SIZE 256
@@ -160,7 +155,6 @@ PubSubClient client(espClient); // creates instance object client for PubSubClie
 // Non-blocking reconnect variables
 unsigned long mqttReconnectTimer = 0;
 const unsigned long mqttReconnectInterval = 5000; // Retry every 5 seconds
-
 
 // Root certificate
 const char* root_ca = R"EOF(
@@ -259,7 +253,6 @@ void setup_wifi() {
     }
 }
 
-
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.print(String(thisClientID) + " RCVD [");
     Serial.print(topic);
@@ -350,19 +343,19 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     // Debug: Print updated global state and received values
     Serial.println("-- GLOBAL VARIABLES BEFORE EXPLICIT NEW VALUES / RECEIVED VALUES ---");
     Serial.println("ID: " + ID + " | receivedId: " + String(receivedId) + " (converted receivedID will be shortened to StringLetter)");
-    Serial.println("Date: " + dateDate + " | receivedDate: " + String(receivedDate));
-    Serial.println("Time: " + dateTime + " | receivedTime: " + String(receivedTime));
+    //Serial.println("Date: " + dateDate + " | receivedDate: " + String(receivedDate));
+    //Serial.println("Time: " + dateTime + " | receivedTime: " + String(receivedTime));
     Serial.println("Event: " + event + " | receivedEvent: " + String(receivedEvent));
-    Serial.println("IsArmed: " + isArmed + " | receivedIsArmed: " + String(receivedIsArmed));
-    Serial.println("Vibration Magnitude: " + String(vibrationMagnitude, 2) + " | receivedVibrationMagnitude: " + String(receivedVibrationMagnitude, 2));
-    Serial.println("Vibration Threshold: " + String(vibrationThreshold, 2) + " | receivedVibrationThreshold: " + String(receivedVibrationThreshold, 2));
-    Serial.println("Acceleration - AX: " + String(baselineX, 2) + " AY: " + String(baselineY, 2) + " AZ: " + String(baselineZ, 2) +
-                    " | receivedAx: " + String(receivedAx, 2) + " Ay: " + String(receivedAy, 2) + " Az: " + String(receivedAz, 2));
-    Serial.println("Gyroscope - GX: " + String(gyroX, 2) + " GY: " + String(gyroY, 2) + " GZ: " + String(gyroZ, 2) +
-                    " | receivedGx: " + String(receivedGx, 2) + " Gy: " + String(receivedGy, 2) + " Gz: " + String(receivedGz, 2));
-    Serial.println("Temperature: " + String(temperatureC) + "C / " + String(temperatureF) + "F" +
-                    " | receivedTemperatureC: " + String(receivedTemperatureC) + "C / " + String(receivedTemperatureF) + "F");
-    Serial.println("Free Heap: " + String(freeHeap) + " | receivedFreeHeap: " + String(receivedFreeHeap));
+    //Serial.println("IsArmed: " + isArmed + " | receivedIsArmed: " + String(receivedIsArmed));
+    //Serial.println("Vibration Magnitude: " + String(vibrationMagnitude, 2) + " | receivedVibrationMagnitude: " + String(receivedVibrationMagnitude, 2));
+    //Serial.println("Vibration Threshold: " + String(vibrationThreshold, 2) + " | receivedVibrationThreshold: " + String(receivedVibrationThreshold, 2));
+    //Serial.println("Acceleration - AX: " + String(baselineX, 2) + " AY: " + String(baselineY, 2) + " AZ: " + String(baselineZ, 2) +
+    //                " | receivedAx: " + String(receivedAx, 2) + " Ay: " + String(receivedAy, 2) + " Az: " + String(receivedAz, 2));
+    //Serial.println("Gyroscope - GX: " + String(gyroX, 2) + " GY: " + String(gyroY, 2) + " GZ: " + String(gyroZ, 2) +
+    //                " | receivedGx: " + String(receivedGx, 2) + " Gy: " + String(receivedGy, 2) + " Gz: " + String(receivedGz, 2));
+    //Serial.println("Temperature: " + String(temperatureC) + "C / " + String(temperatureF) + "F" +
+    //                " | receivedTemperatureC: " + String(receivedTemperatureC) + "C / " + String(receivedTemperatureF) + "F");
+    //Serial.println("Free Heap: " + String(freeHeap) + " | receivedFreeHeap: " + String(receivedFreeHeap));
 
     // EXAMPLE OF LOCAL TO GLOBAL ASSIGNMENTS 
     // ID = String(receivedId);
@@ -382,24 +375,15 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     // temperatureF = receivedTemperatureF;
     // freeHeap = receivedFreeHeap;
 
-    //CALL BACK FOR REQUEST AND NOT THIS CLIENT ID, WE CAPTURE OFFICIAL END TO END COMMS
-    //if (String(receivedEvent).indexOf("REQUESTED") != -1 && String(receivedId) == thisClientID) {
-   //   LCDUpdateLog(false);
-   //   resetGlobalVariables();
- //   }
-
-      if (String(receivedEvent).indexOf("REQUESTED") != -1) {
-          if (String(receivedEvent).indexOf("REQUESTED") != -1 && String(receivedEvent).indexOf("#") != -1) {
-              LCDUpdateLog(true);
-              resetGlobalVariables();
-          } else {
-              LCDUpdateLog(false);
-              resetGlobalVariables();
-          }
-      }
-
-
-
+    if (String(receivedEvent).indexOf("REQUESTED") != -1) {
+        if (String(receivedEvent).indexOf("REQUESTED") != -1 && String(receivedEvent).indexOf("#") != -1) {
+            LCDUpdateLog(true);
+            resetGlobalVariables();
+        } else {
+            LCDUpdateLog(false);
+            resetGlobalVariables();
+        }
+    }
 
     // CALLBACK FOR EXPLICIT OR GLOBAL ARM/DISARM REQUESTS, ASSIGNVALUE, SEND CONFIRMATION
     if (String(receivedEvent).indexOf("CONFIRMED") != -1) {
@@ -425,7 +409,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         }
     }
 
-
     // CALLBACK FOR CONNECTED AND NOT THIS CLIENT ID, WE CAPTURE OFFICIAL END TO END
     if (String(receivedEvent).indexOf("CONNECTED") != -1 && String(receivedId) != thisClientID) {
       isArmed = receivedIsArmed; // Only if separate logic needs it
@@ -450,43 +433,76 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     }
 
     // CALL BACK FOR ADJUSTED WE CAPTURE OFFICIAL END TO END COMMS
-    if (String(receivedEvent).indexOf("ADJUSTED") != -1 && String(receivedEvent) != thisClientID) {
-      isArmed = receivedIsArmed; // Only if separate logic needs it
-      vibrationMagnitude = receivedVibrationMagnitude;
-      vibrationThreshold = receivedVibrationThreshold;
-      temperatureC = receivedTemperatureC;
-      temperatureF = receivedTemperatureF;
-      LCDUpdateLog(false);
-      resetGlobalVariables();
+    if (String(receivedEvent).indexOf("ADJUSTED") != -1 && String(receivedId) != thisClientID) {
+      if (String(receivedEvent).indexOf("#") != -1) {
+        isArmed = receivedIsArmed; // Only if separate logic needs it
+        vibrationMagnitude = receivedVibrationMagnitude;
+        vibrationThreshold = receivedVibrationThreshold;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
+        LCDUpdateLog(true);
+        resetGlobalVariables();
+      } else {
+        isArmed = receivedIsArmed; // Only if separate logic needs it
+        vibrationMagnitude = receivedVibrationMagnitude;
+        vibrationThreshold = receivedVibrationThreshold;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
+        LCDUpdateLog(false);
+        resetGlobalVariables();
+      }
     }
 
     // CALL BACK FOR INCREASED WE CAPTURE OFFICIAL END TO END COMMS
     if (String(receivedEvent).indexOf("INCREASED") != -1 && String(receivedId) != thisClientID) {
-      isArmed = receivedIsArmed; // Only if separate logic needs it
-      vibrationMagnitude = receivedVibrationMagnitude;
-      vibrationThreshold = receivedVibrationThreshold;
-      temperatureC = receivedTemperatureC;
-      temperatureF = receivedTemperatureF;
-      LCDClearZone(ID);
-      LCDUpdateZone(ID);
-      LCDUpdateLog(false);
-      resetGlobalVariables();
+      if (String(receivedEvent).indexOf("#") != -1) {
+        isArmed = receivedIsArmed; // Only if separate logic needs it
+        vibrationMagnitude = receivedVibrationMagnitude;
+        vibrationThreshold = receivedVibrationThreshold;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
+        LCDClearZone(ID);
+        LCDUpdateZone(ID);
+        LCDUpdateLog(true);
+        resetGlobalVariables();
+      } else {
+        isArmed = receivedIsArmed; // Only if separate logic needs it
+        vibrationMagnitude = receivedVibrationMagnitude;
+        vibrationThreshold = receivedVibrationThreshold;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
+        LCDClearZone(ID);
+        LCDUpdateZone(ID);
+        LCDUpdateLog(false);
+        resetGlobalVariables();
+      }
     }
 
     // CALL BACK FOR DECREASED WE CAPTURE OFFICIAL END TO END COMMS
     if (String(receivedEvent).indexOf("DECREASED") != -1 && String(receivedId) != thisClientID) {
-      isArmed = receivedIsArmed; // Only if separate logic needs it
-      vibrationMagnitude = receivedVibrationMagnitude;
-      vibrationThreshold = receivedVibrationThreshold;
-      temperatureC = receivedTemperatureC;
-      temperatureF = receivedTemperatureF;
-      LCDClearZone(ID);
-      LCDUpdateZone(ID);
-      LCDUpdateLog(true);
-      resetGlobalVariables();
+      if (String(receivedEvent).indexOf("#") != -1) {
+        isArmed = receivedIsArmed; // Only if separate logic needs it
+        vibrationMagnitude = receivedVibrationMagnitude;
+        vibrationThreshold = receivedVibrationThreshold;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
+        LCDClearZone(ID);
+        LCDUpdateZone(ID);
+        LCDUpdateLog(true);
+        resetGlobalVariables();
+      } else {
+        isArmed = receivedIsArmed; // Only if separate logic needs it
+        vibrationMagnitude = receivedVibrationMagnitude;
+        vibrationThreshold = receivedVibrationThreshold;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
+        LCDClearZone(ID);
+        LCDUpdateZone(ID);
+        LCDUpdateLog(false);
+        resetGlobalVariables();
+      }
     }
 }
-
 
 // Setup function
 void setup() {
@@ -903,7 +919,6 @@ void publishAdjustVibrationThreshold(float adjustment, bool isGlobal) {
     resetGlobalVariables();
 }
 
-
 void LCDInitialize(){
   lcd.init(LCD_WIDTH, LCD_HEIGHT);
   lcd.setRotation(3);
@@ -953,7 +968,6 @@ void LCDClearZone(String zone) {
     // Clear the entire zone
     lcd.fillRect(xStart, 109, width, 170 - 109, BLACK); // Clear the entire zone
 }
-
 
 // Unified function to increment count, calculate time, format it, and print
 void LCDUpdateHeader(){
@@ -1021,7 +1035,6 @@ void LCDDashboard(){
 };
 
 void LCDUpdateZone(String zone) {
-
      // Print ALL Shock Labels WHITE first
     lcd.setTextColor(WHITE);
     lcd.setTextSize(2);
@@ -1205,4 +1218,3 @@ void LCDUpdateLog(bool isGlobal) {
 // fix physical button B mid
 // NTP delay to longer on control centers
 //cycle NTP carriers
-// change color for A B C on log

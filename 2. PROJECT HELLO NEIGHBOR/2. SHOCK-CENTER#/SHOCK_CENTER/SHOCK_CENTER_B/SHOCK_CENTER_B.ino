@@ -1,3 +1,5 @@
+// THINGS TO EXPLICITLY CHANGE ON CENTERAL HUBS WILL HAVE A LONG *************************************************
+
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
@@ -8,12 +10,11 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
-
 Adafruit_MPU6050 mpu;
 #define MPU_POWER_PIN 0 // GPIO0 to supply 3.3V power to MPU6050
 
 // Global ESP variables
-const char* thisClientID = "SHOCK-B"; // Define the ClientID*********************************************
+const char* thisClientID = "SHOCK-B"; // Define the ClientID *********************************************
 String isArmed = "DISARMED";
 String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";
@@ -57,7 +58,7 @@ unsigned long internalClockMillis = 0; // Tracks time since last internal clock 
 const unsigned long internalClockInterval = 1000; // 1-second interval for updating the internal clock
 time_t internalEpochTime = 0; // Internal clock epoch time in seconds
 unsigned long lastNTPRetryMillis = 0;  // Track last retry attempt
-const unsigned long ntpRetryInterval = 60000;  // Retry every 1 minute if initial fetch fails
+const unsigned long ntpRetryInterval = 10000;  // Retry every 10 seconds if initial fetch fails
 
 // Variables for non-blocking recalibration
 bool shockDetected = false;
@@ -100,7 +101,6 @@ PubSubClient client(espClient); // creates instance object client for PubSubClie
 // Non-blocking reconnect variables
 unsigned long mqttReconnectTimer = 0;
 const unsigned long mqttReconnectInterval = 5000; // Retry every 5 seconds
-
 
 // Root certificate
 const char* root_ca = R"EOF(
@@ -397,9 +397,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       }
 }
 
-
-
-
 // Setup function
 void setup() {
     Serial.begin(115200);
@@ -443,7 +440,6 @@ void setup() {
     sheetAddQueue(createPayload(true)); 
     resetGlobalVariables();
 }
-
 
 // Function to print sensor data
 void printSensorData(bool shockDetected, float vibrationMagnitude, sensors_event_t& accel, sensors_event_t& gyro) {
