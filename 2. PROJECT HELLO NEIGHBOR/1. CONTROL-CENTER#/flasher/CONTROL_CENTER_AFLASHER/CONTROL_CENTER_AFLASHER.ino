@@ -1017,12 +1017,12 @@ void LCDDashboard(){
     lcd.setRotation(3);
 
     // Bottom Grid Draw lines for 3 equal columns
-    lcd.drawLine(106, 109, 106, 170, YELLOW); // 1st Vertical line, 1 & 2
-    lcd.drawLine(214, 109, 214, 170, YELLOW); // 2nd Vertical line, 2 & 3
+    lcd.drawLine(106, 109, 106, 168, YELLOW); // 1st Vertical line, 1 & 2
+    lcd.drawLine(214, 109, 214, 168, YELLOW); // 2nd Vertical line, 2 & 3
     // Horizontal line across the screen at y = 108
     lcd.drawLine(0, 105, 320, 105, YELLOW); // Single Horizontal line across the screen
     // | lines for each zone:
-    lcd.drawLine(53, 141, 53, 157, GRAY; // 1st Vertical line, 1 & 2
+    lcd.drawLine(52, 141, 52, 157, GRAY); // 1st Vertical line, 1 & 2
     lcd.drawLine(160, 141, 160, 157, GRAY); // 1st Vertical line, 1 & 2
     lcd.drawLine(268, 141, 268, 157, GRAY); // 1st Vertical line, 1 & 2
 
@@ -1247,10 +1247,10 @@ const unsigned long actionDuration = 5000; // Duration for the action (e.g., 5 s
         }
 
         if (ZoneAvibrationThreshold != vibrationThreshold){
-            lcd.fillRect(xStart + 58, 141, 46, 16, BLACK);
+            lcd.fillRect(xStart + 57, 141, 46, 16, BLACK);
             // perform more custom actions here
             ZoneAvibrationThreshold = vibrationThreshold;
-            lcd.setCursor(xStart + 58, 141);
+            lcd.setCursor(xStart + 57, 141);
             // decide where the set cursor location will be
             lcd.setTextColor(GREEN);
             lcd.println(String(ZoneAvibrationThreshold, 2));
