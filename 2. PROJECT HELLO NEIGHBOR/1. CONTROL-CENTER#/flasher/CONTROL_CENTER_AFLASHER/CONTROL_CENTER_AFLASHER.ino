@@ -1022,9 +1022,9 @@ void LCDDashboard(){
     // Horizontal line across the screen at y = 108
     lcd.drawLine(0, 105, 320, 105, YELLOW); // Single Horizontal line across the screen
     // | lines for each zone:
-    lcd.drawLine(52, 141, 52, 157, PINK); // 1st Vertical line, 1 & 2
-    lcd.drawLine(160, 141, 160, 157, PINK); // 1st Vertical line, 1 & 2
-    lcd.drawLine(268, 141, 268, 157, PINK); // 1st Vertical line, 1 & 2
+    lcd.drawLine(53, 141, 53, 157, GRAY; // 1st Vertical line, 1 & 2
+    lcd.drawLine(160, 141, 160, 157, GRAY); // 1st Vertical line, 1 & 2
+    lcd.drawLine(268, 141, 268, 157, GRAY); // 1st Vertical line, 1 & 2
 
     lcd.setTextColor(YELLOW);
     lcd.setTextSize(2);
