@@ -1022,9 +1022,9 @@ void LCDDashboard(){
     // Horizontal line across the screen at y = 108
     lcd.drawLine(0, 105, 320, 105, YELLOW); // Single Horizontal line across the screen
     // | lines for each zone:
-    lcd.drawLine(48, 141, 50, 157, PINK); // 1st Vertical line, 1 & 2
-    lcd.drawLine(161, 141, 161, 157, PINK); // 1st Vertical line, 1 & 2
-    lcd.drawLine(269, 141, 269, 157, PINK); // 1st Vertical line, 1 & 2
+    lcd.drawLine(52, 141, 52, 157, PINK); // 1st Vertical line, 1 & 2
+    lcd.drawLine(159, 141, 159, 157, PINK); // 1st Vertical line, 1 & 2
+    lcd.drawLine(267, 141, 267, 157, PINK); // 1st Vertical line, 1 & 2
 
     lcd.setTextColor(YELLOW);
     lcd.setTextSize(2);
@@ -1269,19 +1269,24 @@ const unsigned long actionDuration = 5000; // Duration for the action (e.g., 5 s
         lcd.setCursor(xStart + 13, 109); // Y position for the shock label
         lcd.println("SHOCK-" + zone);
 
-        if (ZoneAisArmed != isArmed){
-          lcd.fillRect(xStart, 125, 106, 16, BLACK);
+        if (ZoneAisArmed != isArmed) {
+          lcd.fillRect(xStart, 125, 106, 16, BLACK); // Clear the area for status text
+          ZoneAisArmed = isArmed;
           // perform more custom actions here
           // Flash on detection regardless of isArmed value 5x for 2seconds at 200ms rate
-            ZoneAisArmed = isArmed;
-            lcd.setTextColor(ZoneAisArmed == "ARMED" ? RED : WHITE); // RED for armed, WHITE for disarmed
-            lcd.setCursor(ZoneAisArmed == "ARMED" ? xStart + 63, 125 : xStart + 7, 125);
-            lcd.setTextSize(2);
-            lcd.println(ZoneAisArmed);                               // Larger font for status text
-            // set zoneFlashFlag(zone) = true
+          // Set text color and cursor position dynamically
+          if (ZoneAisArmed == "ARMED") {
+              lcd.setTextColor(RED);            // RED for armed
+              lcd.setCursor(xStart + 28, 125);  // Cursor at xStart + 80
+          } else {
+              lcd.setTextColor(WHITE);          // WHITE for disarmed
+              lcd.setCursor(xStart + 7, 125);   // Cursor at xStart + 7
+          }
+          lcd.println(ZoneAisArmed); // Display "ARMED" or "DISARMED"
         }
+
         if (ZoneAvibrationMagnitude != vibrationMagnitude){
-          lcd.fillRect(xStart + 3, 141, 46, 16, LIGHT_BLUE);
+          lcd.fillRect(xStart + 3, 141, 46, 16, BLACK);
           // perform more custom actions here
           // Flash on detection regardless of isArmed value 5x for 2seconds at 200ms rate
           ZoneAvibrationMagnitude = vibrationMagnitude;
@@ -1295,11 +1300,10 @@ const unsigned long actionDuration = 5000; // Duration for the action (e.g., 5 s
         }
 
         if (ZoneAvibrationThreshold != vibrationThreshold){
-          lcd.fillRect(xStart + 58, 141, 45, 16, DEEP_PURPLE);
+          lcd.fillRect(xStart + 57, 141, 46, 16, BLACK);
           // perform more custom actions here
           ZoneAvibrationThreshold = vibrationThreshold;
-          lcd.setCursor(xStart + 58, 141);
-              lcd.setTextSize(2);
+          lcd.setCursor(xStart + 57, 141);
               // decide where the set cursor location will be
               lcd.setTextColor(GREEN);
               lcd.println(String(ZoneAvibrationThreshold, 2));
@@ -1350,10 +1354,10 @@ const unsigned long actionDuration = 5000; // Duration for the action (e.g., 5 s
         }
 
         if (ZoneAvibrationThreshold != vibrationThreshold){
-          lcd.fillRect(xStart + 59, 141, 45, 16, DEEP_PURPLE);
+          lcd.fillRect(xStart + 57, 141, 45, 16, DEEP_PURPLE);
           // perform more custom actions here
           ZoneAvibrationThreshold = vibrationThreshold;
-          lcd.setCursor(xStart + 59, 141);
+          lcd.setCursor(xStart + 57, 141);
               lcd.setTextSize(2);
               // decide where the set cursor location will be
               lcd.setTextColor(GREEN);
@@ -1373,31 +1377,6 @@ const unsigned long actionDuration = 5000; // Duration for the action (e.g., 5 s
         return;
     }
 
-    if (!actionActive) {
-        // Start the action when this function is called
-        lastUpdateMillis = millis();
-        actionActive = true;
-        Serial.println("Action started for zone: " + zone);
-
-        // Perform immediate actions here
-        // e.g., Initialize the LCD update for the zone
-        // lcd.setCursor(...);
-        // lcd.print(...);
-    }
-
-    if (actionActive) {
-        // Check if the duration has expired
-        if (millis() - lastUpdateMillis < actionDuration) {
-            // Perform the ongoing action
-            Serial.println("Action ongoing for zone: " + zone);
-        } else {
-            // End the action
-            actionActive = false;
-            Serial.println("Action completed for zone: " + zone);
-
-            // Perform cleanup or finalize actions if needed
-        }
-    }
 }
 
 
