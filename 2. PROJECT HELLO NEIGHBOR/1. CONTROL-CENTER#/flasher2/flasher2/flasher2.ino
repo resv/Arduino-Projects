@@ -80,7 +80,7 @@ String pairedClientID = "SHOCK-A"; // RESV-1st = SHOCK-A, RESV-2ND = SHOCK-B, RE
 
 // Global ESP variables
 const char* thisClientID = "RESV-1ST"; //  RESV-1ST / RESV-2ND / RESV-3RD **************************************************************************************************
-String isArmed = "N/A";
+String isArmed = " --";
 String dateDate = "MM/DD";
 String dateTime = "HH:MM:SS";
 String event = "LISTENING";
@@ -377,6 +377,11 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
     if (String(receivedEvent).indexOf("REQUESTED") != -1) {
         if (String(receivedEvent).indexOf("REQUESTED") != -1 && String(receivedEvent).indexOf("#") != -1) {
+          isArmed = receivedIsArmed; // Only if separate logic needs it
+        vibrationMagnitude = receivedVibrationMagnitude;
+        vibrationThreshold = receivedVibrationThreshold;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
             LCDUpdateLog(true);
             resetGlobalVariables();
         } else {
@@ -389,22 +394,22 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     if (String(receivedEvent).indexOf("CONFIRMED") != -1) {
         if (String(receivedEvent).indexOf("CONFIRMED") != -1 && String(receivedEvent).indexOf("#") != -1){
           // Extract state from receivedEvent if needed
-          isArmed = receivedIsArmed; // Only if separate logic needs it
-          vibrationMagnitude = receivedVibrationMagnitude;
-          vibrationThreshold = receivedVibrationThreshold;
-          temperatureC = receivedTemperatureC;
-          temperatureF = receivedTemperatureF;
-          LCDClearZone(ID);
+         isArmed = receivedIsArmed; // Only if separate logic needs it
+        vibrationMagnitude = receivedVibrationMagnitude;
+        vibrationThreshold = receivedVibrationThreshold;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
+          //LCDClearZone(ID);
           LCDUpdateZone(ID);
           LCDUpdateLog(true);
           resetGlobalVariables();
         } else {
           isArmed = receivedIsArmed; // Only if separate logic needs it
-          vibrationMagnitude = receivedVibrationMagnitude;
-          vibrationThreshold = receivedVibrationThreshold;
-          temperatureC = receivedTemperatureC;
-          temperatureF = receivedTemperatureF;
-          LCDClearZone(ID);
+        vibrationMagnitude = receivedVibrationMagnitude;
+        vibrationThreshold = receivedVibrationThreshold;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
+          //LCDClearZone(ID);
           LCDUpdateZone(ID);
           LCDUpdateLog(false);
           resetGlobalVariables();
@@ -414,12 +419,11 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     // CALLBACK FOR CONNECTED AND NOT THIS CLIENT ID, WE CAPTURE OFFICIAL END TO END
     if (String(receivedEvent).indexOf("CONNECTED") != -1 && String(receivedId) != thisClientID) {
       isArmed = receivedIsArmed; // Only if separate logic needs it
-      vibrationMagnitude = receivedVibrationMagnitude;
-      vibrationThreshold = receivedVibrationThreshold;
-      temperatureC = receivedTemperatureC;
-      temperatureF = receivedTemperatureF;
-      LCDClearZone(ID);
-      LCDUpdateZone(ID);
+      isArmed = receivedIsArmed; // Only if separate logic needs it
+        vibrationMagnitude = receivedVibrationMagnitude;
+        vibrationThreshold = receivedVibrationThreshold;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
       LCDUpdateLog(false);
       resetGlobalVariables();
     }
@@ -427,11 +431,11 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     // CALLBACK FOR DETECTED AND NOT THIS CLIENT ID, WE CAPTURE OFFICIAL END TO END
     if (String(receivedEvent).indexOf("DETECTED") != -1 && String(receivedId) != thisClientID) {
       isArmed = receivedIsArmed; // Only if separate logic needs it
-      vibrationMagnitude = receivedVibrationMagnitude;
-      vibrationThreshold = receivedVibrationThreshold;
-      temperatureC = receivedTemperatureC;
-      temperatureF = receivedTemperatureF;
-      LCDClearZone(ID);
+        vibrationMagnitude = receivedVibrationMagnitude;
+        vibrationThreshold = receivedVibrationThreshold;
+        temperatureC = receivedTemperatureC;
+        temperatureF = receivedTemperatureF;
+      //LCDClearZone(ID);
       LCDUpdateZone(ID);
       LCDUpdateLog(false);
       LCDUpdateHeader();
@@ -467,7 +471,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         vibrationThreshold = receivedVibrationThreshold;
         temperatureC = receivedTemperatureC;
         temperatureF = receivedTemperatureF;
-        LCDClearZone(ID);
+        //LCDClearZone(ID);
         LCDUpdateZone(ID);
         LCDUpdateLog(true);
         resetGlobalVariables();
@@ -477,7 +481,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         vibrationThreshold = receivedVibrationThreshold;
         temperatureC = receivedTemperatureC;
         temperatureF = receivedTemperatureF;
-        LCDClearZone(ID);
+        //LCDClearZone(ID);
         LCDUpdateZone(ID);
         LCDUpdateLog(false);
         resetGlobalVariables();
@@ -492,7 +496,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         vibrationThreshold = receivedVibrationThreshold;
         temperatureC = receivedTemperatureC;
         temperatureF = receivedTemperatureF;
-        LCDClearZone(ID);
+        //LCDClearZone(ID);
         LCDUpdateZone(ID);
         LCDUpdateLog(true);
         resetGlobalVariables();
@@ -502,7 +506,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         vibrationThreshold = receivedVibrationThreshold;
         temperatureC = receivedTemperatureC;
         temperatureF = receivedTemperatureF;
-        LCDClearZone(ID);
+        //LCDClearZone(ID);
         LCDUpdateZone(ID);
         LCDUpdateLog(false);
         resetGlobalVariables();
@@ -957,24 +961,22 @@ void LCDClearZone(String zone) {
 
     // Set default xStart and width for SHOCK-A
     int xStart = 0;
+    int width = 105;
 
     // Determine xStart and width based on the zone
     if (zone == "B") {
-        xStart = 108;
+        xStart = 107;
+        width = 106;
     } else if (zone == "C") {
         xStart = 215;
+        width = 105;
     } else if (zone != "A") {
         Serial.println("Invalid zone specified!");
         return;
     }
 
-    // Clear the entire Single zone
-    lcd.fillRect(xStart, 106, 105, 64, BLACK); // Clear the entire zone
-
-    // Clear all title rows for all zones
-    lcd.fillRect(0, 106, 105, 18, BLACK); // Clear the entire zone
-    lcd.fillRect(108, 106, 106, 18, BLACK); // Clear the entire zone
-    lcd.fillRect(215, 106, 105, 18, BLACK); // Clear the entire zone
+    // Clear the entire zone
+    lcd.fillRect(xStart, 109, width, 170 - 109, BLACK); // Clear the entire zone
 }
 
 // Unified function to increment count, calculate time, format it, and print
@@ -1015,11 +1017,14 @@ void LCDDashboard(){
     lcd.setRotation(3);
 
     // Bottom Grid Draw lines for 3 equal columns
-    lcd.drawLine(106, 109, 106, 170, YELLOW); // 1st Vertical line, 1 & 2
-    lcd.drawLine(214, 109, 214, 170, YELLOW); // 2nd Vertical line, 2 & 3
+    lcd.drawLine(106, 109, 106, 168, YELLOW); // 1st Vertical line, 1 & 2
+    lcd.drawLine(214, 109, 214, 168, YELLOW); // 2nd Vertical line, 2 & 3
     // Horizontal line across the screen at y = 108
     lcd.drawLine(0, 105, 320, 105, YELLOW); // Single Horizontal line across the screen
     // | lines for each zone:
+    lcd.drawLine(52, 141, 52, 157, GRAY); // 1st Vertical line, 1 & 2
+    lcd.drawLine(160, 141, 160, 157, GRAY); // 1st Vertical line, 1 & 2
+    lcd.drawLine(268, 141, 268, 157, GRAY); // 1st Vertical line, 1 & 2
 
     lcd.setTextColor(YELLOW);
     lcd.setTextSize(2);
@@ -1043,88 +1048,12 @@ void LCDDashboard(){
     LCDUpdateZone("C");
 };
 
-void LCDUpdateZone(String zone) {
-     // Print ALL Shock Labels WHITE first
-    lcd.setTextSize(2);
-    lcd.setTextColor(WHITE);
-    lcd.setCursor(0 + 13, 109); 
-    lcd.println("SHOCK-A");
-    lcd.setCursor(108 + 13, 109);
-    lcd.println("SHOCK-B");
-    lcd.setCursor(215 + 13, 109);
-    lcd.println("SHOCK-C");
-
-    // | lines for each zone:
-    lcd.drawLine(52, 141, 52, 157, GRAY); // 1st Vertical line, 1 & 2
-    lcd.drawLine(160, 141, 160, 157, GRAY); // 1st Vertical line, 1 & 2
-    lcd.drawLine(268, 141, 268, 157, GRAY); // 1st Vertical line, 1 & 2
-
-    int xStart = -1;
-
-    if (zone == "A") {
-        xStart = 0;
-    } else if (zone == "B") {
-        xStart = 108;
-    } else if (zone == "C") {
-        xStart = 215;
-    } else {
-        Serial.println("Invalid zone specified!");
-        return;
-    }
-
-    
-    lcd.fillRect(xStart, 106, 105, 18, BURGUNDY); // HIGHLIGHTER TARGETED
-
-    // Print Targeted Shock Label
-    lcd.setTextColor(YELLOW);
-    lcd.setTextSize(2);
-    lcd.setCursor(xStart + 13, 109); // Y position for the shock label
-    lcd.println("SHOCK-" + zone);
-
-    // Print Armed/Disarmed Status with adjusted text
-    if (isArmed == "ARMED") {
-        lcd.setTextColor(RED);            // RED for armed
-        lcd.setCursor(xStart + 26, 125);  // Cursor at xStart + 26
-    }
-    if (isArmed == "DISARMED") {
-        lcd.setTextColor(WHITE);          // WHITE for disarmed
-        lcd.setCursor(xStart + 7, 125);   // Cursor at xStart + 7
-    }
-    if (isArmed == "N/A") {
-        lcd.setTextColor(GRAY);          // WHITE for disarmed
-        lcd.setCursor(xStart + 36, 125);   // Cursor at xStart + 7
-    }
-    lcd.println(isArmed); // Print "ARMED" or "DISARMED"
-    
-
-    // Print Vibration Magnitude(VM)
-    lcd.setCursor(xStart + 3, 141); // Y position for VM/VT
-    if (vibrationMagnitude >= vibrationThreshold) {
-        lcd.setTextColor(RED); // Set color to RED if VM >= VT
-    } else {
-        lcd.setTextColor(WHITE); // Set color to ORANGE otherwise
-    }
-    lcd.print(String(vibrationMagnitude, 2)); // Print vibration magnitude
-
-    // Print Vibration Threshold (VT)
-    lcd.setCursor(xStart + 57, 141); // Y position for VM/VT
-    lcd.setTextColor(GREEN);
-    lcd.println(String(vibrationThreshold, 2));
-
-    // Print Temperatures in Celsius and Fahrenheit
-    lcd.setCursor(xStart + 10, 157); // Y position for temperatures
-    lcd.setTextColor(GRAY);
-    lcd.println(String(temperatureC) + "C ");
-
-    lcd.setCursor(xStart + 65, 157); // Y position for temperatures
-    lcd.println(String(temperatureF) + "F");
-}
-
 // Required to store what color to use for older UpdateLog entries
 struct LogColorDB {
     String text;
     uint16_t color;
 };
+
 
 void LCDUpdateLog(bool isGlobal) {
     const int maxLogRows = 4;           // Maximum number of rows to display on the LCD log section
@@ -1231,6 +1160,234 @@ void LCDUpdateLog(bool isGlobal) {
         lcd.print(logglobalIndicator);
     }
 }
+
+// Global Zone Variables
+
+// Zone A Variables
+String ZoneATitle = ""; // Title for Zone A
+String ZoneAisArmed = ""; // Armed/Disarmed status
+float ZoneAvibrationMagnitude = 0.0; // Current vibration magnitude
+float ZoneAvibrationThreshold = 0.0; // Vibration threshold
+int ZoneAtemperatureC = 0; // Temperature in Celsius
+int ZoneAtemperatureF = 0; // Temperature in Fahrenheit
+
+// Zone B Variables
+String ZoneBTitle = ""; // Title for Zone B
+String ZoneBisArmed = ""; // Armed/Disarmed status
+float ZoneBvibrationMagnitude = 0.0; // Current vibration magnitude
+float ZoneBvibrationThreshold = 0.0; // Vibration threshold
+int ZoneBTemperatureC = 0; // Temperature in Celsius
+int ZoneBTemperatureF = 0; // Temperature in Fahrenheit
+
+// Zone C Variables
+String ZoneCTitle = ""; // Title for Zone C
+String ZoneCisArmed = ""; // Armed/Disarmed status
+float ZoneCvibrationMagnitude = 0.0; // Current vibration magnitude
+float ZoneCvibrationThreshold = 0.0; // Vibration threshold
+int ZoneCTemperatureC = 0; // Temperature in Celsius
+int ZoneCTemperatureF = 0; // Temperature in Fahrenheit
+
+void LCDUpdateZone(String zone) {
+
+static unsigned long lastUpdateMillis = 0; // Track the last update time (static to retain value across calls)
+static bool actionActive = false;         // Track if the action is active (static to retain value across calls)
+const unsigned long actionDuration = 5000; // Duration for the action (e.g., 5 seconds)
+
+    // Print ALL Shock Labels WHITE first
+  //  lcd.setTextColor(WHITE);
+  //  lcd.setTextSize(2);
+  //  lcd.setCursor(0, 109); 
+ //   lcd.println(" SHOCK-A");
+   // lcd.setTextColor(WHITE);
+ //   lcd.setCursor(110, 109);
+  //  lcd.println(" SHOCK-B");
+   // lcd.setTextColor(WHITE);
+    //lcd.setCursor(218, 109);
+  //  lcd.println(" SHOCK-C");
+
+
+    int xStart = -1;
+
+    // Assign values based on the zone
+    if (zone == "A") {
+        xStart = 0;
+        lcd.setTextColor(YELLOW);
+        lcd.setTextSize(2);
+        lcd.setCursor(xStart + 13, 109); // Y position for the shock label
+        lcd.println("SHOCK-" + zone);
+
+        if (ZoneAisArmed != isArmed) {
+            lcd.fillRect(xStart, 125, 106, 16, BLACK); // Clear the area for status text
+            ZoneAisArmed = isArmed;
+            // perform more custom actions here
+            // Flash on detection regardless of isArmed value 5x for 2seconds at 200ms rate
+            // Set text color and cursor position dynamically
+            if (ZoneAisArmed == "ARMED") {
+                lcd.setTextColor(RED);            // RED for armed
+                lcd.setCursor(xStart + 26, 125);  // Cursor at xStart + 80
+            } else {
+                lcd.setTextColor(WHITE);          // WHITE for disarmed
+                lcd.setCursor(xStart + 7, 125);   // Cursor at xStart + 7
+            }
+            lcd.println(ZoneAisArmed); // Display "ARMED" or "DISARMED"
+        }
+
+        if (ZoneAvibrationMagnitude != vibrationMagnitude){
+            lcd.fillRect(xStart + 3, 141, 46, 16, BLACK);
+            // perform more custom actions here
+            // Flash on detection regardless of isArmed value 5x for 2seconds at 200ms rate
+            ZoneAvibrationMagnitude = vibrationMagnitude;
+            lcd.setCursor(xStart + 3, 141); // Y position for VM/VT
+            if (ZoneAvibrationMagnitude >= ZoneAvibrationThreshold) {
+                lcd.setTextColor(RED); // Set color to RED if VM >= VT
+            } else {
+                lcd.setTextColor(WHITE); // Set color to ORANGE otherwise
+            }
+            lcd.print(String(ZoneAvibrationMagnitude, 2)); // Print vibration magnitude
+        }
+
+        if (ZoneAvibrationThreshold != vibrationThreshold){
+            lcd.fillRect(xStart + 57, 141, 46, 16, BLACK);
+            // perform more custom actions here
+            ZoneAvibrationThreshold = vibrationThreshold;
+            lcd.setCursor(xStart + 57, 141);
+            // decide where the set cursor location will be
+            lcd.setTextColor(GREEN);
+            lcd.println(String(ZoneAvibrationThreshold, 2));
+        }
+        if (ZoneAtemperatureC != temperatureC || ZoneAtemperatureF != temperatureF) {
+            lcd.fillRect(xStart, 157, 106, 16, BLACK);
+            ZoneAtemperatureC = temperatureC;
+            ZoneAtemperatureF = temperatureF;
+            // perform more custom actions here
+            lcd.setCursor(xStart + 10, 157); // Y position for temperatures
+            lcd.setTextColor(GRAY);
+            lcd.println(String(ZoneAtemperatureC) + "C ");
+            lcd.setCursor(xStart + 65, 157); // Y position for temperatures
+            lcd.println(String(ZoneAtemperatureF) + "F");
+        }
+    } else if (zone == "B") {
+        xStart = 107;
+        lcd.setTextColor(YELLOW);
+        lcd.setTextSize(2);
+        lcd.setCursor(xStart + 13, 109); // Y position for the shock label
+        lcd.println("SHOCK-" + zone);
+
+        if (ZoneAisArmed != isArmed) {
+            lcd.fillRect(xStart, 125, 106, 16, BLACK); // Clear the area for status text
+            ZoneAisArmed = isArmed;
+            // perform more custom actions here
+            // Flash on detection regardless of isArmed value 5x for 2seconds at 200ms rate
+            // Set text color and cursor position dynamically
+            if (ZoneAisArmed == "ARMED") {
+                lcd.setTextColor(RED);            // RED for armed
+                lcd.setCursor(xStart + 26, 125);  // Cursor at xStart + 80
+            } else {
+                lcd.setTextColor(WHITE);          // WHITE for disarmed
+                lcd.setCursor(xStart + 7, 125);   // Cursor at xStart + 7
+            }
+            lcd.println(ZoneAisArmed); // Display "ARMED" or "DISARMED"
+        }
+
+        if (ZoneAvibrationMagnitude != vibrationMagnitude){
+            lcd.fillRect(xStart + 3, 141, 46, 16, BLACK);
+            // perform more custom actions here
+            // Flash on detection regardless of isArmed value 5x for 2seconds at 200ms rate
+            ZoneAvibrationMagnitude = vibrationMagnitude;
+            lcd.setCursor(xStart + 3, 141); // Y position for VM/VT
+            if (ZoneAvibrationMagnitude >= ZoneAvibrationThreshold) {
+                lcd.setTextColor(RED); // Set color to RED if VM >= VT
+            } else {
+                lcd.setTextColor(WHITE); // Set color to ORANGE otherwise
+            }
+            lcd.print(String(ZoneAvibrationMagnitude, 2)); // Print vibration magnitude
+        }
+
+        if (ZoneAvibrationThreshold != vibrationThreshold){
+            lcd.fillRect(xStart + 58, 141, 46, 16, BLACK);
+            // perform more custom actions here
+            ZoneAvibrationThreshold = vibrationThreshold;
+            lcd.setCursor(xStart + 58, 141);
+            // decide where the set cursor location will be
+            lcd.setTextColor(GREEN);
+            lcd.println(String(ZoneAvibrationThreshold, 2));
+        }
+
+        if (ZoneAtemperatureC != temperatureC || ZoneAtemperatureF != temperatureF) {
+            lcd.fillRect(xStart, 157, 106, 16, BLACK);
+            ZoneAtemperatureC = temperatureC;
+            ZoneAtemperatureF = temperatureF;
+            // perform more custom actions here
+            lcd.setCursor(xStart + 10, 157); // Y position for temperatures
+            lcd.setTextColor(GRAY);
+            lcd.println(String(ZoneAtemperatureC) + "C ");
+            lcd.setCursor(xStart + 65, 157); // Y position for temperatures
+            lcd.println(String(ZoneAtemperatureF) + "F");
+        }
+    } else if (zone == "C") {
+        xStart = 215;
+        lcd.setTextColor(YELLOW);
+        lcd.setTextSize(2);
+        lcd.setCursor(xStart + 13, 109); // Y position for the shock label
+        lcd.println("SHOCK-" + zone);
+
+        if (ZoneAisArmed != isArmed) {
+            lcd.fillRect(xStart, 125, 106, 16, BLACK); // Clear the area for status text
+            ZoneAisArmed = isArmed;
+            // perform more custom actions here
+            // Flash on detection regardless of isArmed value 5x for 2seconds at 200ms rate
+            // Set text color and cursor position dynamically
+            if (ZoneAisArmed == "ARMED") {
+                lcd.setTextColor(RED);            // RED for armed
+                lcd.setCursor(xStart + 23, 125);  // Cursor at xStart + 80
+            } else {
+                lcd.setTextColor(WHITE);          // WHITE for disarmed
+                lcd.setCursor(xStart + 6, 125);   // Cursor at xStart + 7
+            }
+            lcd.println(ZoneAisArmed); // Display "ARMED" or "DISARMED"
+        }
+
+        if (ZoneAvibrationMagnitude != vibrationMagnitude){
+            lcd.fillRect(xStart + 3, 141, 46, 16, BLACK);
+            // perform more custom actions here
+            // Flash on detection regardless of isArmed value 5x for 2seconds at 200ms rate
+            ZoneAvibrationMagnitude = vibrationMagnitude;
+            lcd.setCursor(xStart + 3, 141); // Y position for VM/VT
+            if (ZoneAvibrationMagnitude >= ZoneAvibrationThreshold) {
+                lcd.setTextColor(RED); // Set color to RED if VM >= VT
+            } else {
+                lcd.setTextColor(WHITE); // Set color to ORANGE otherwise
+            }
+            lcd.print(String(ZoneAvibrationMagnitude, 2)); // Print vibration magnitude
+        }
+
+        if (ZoneAvibrationThreshold != vibrationThreshold){
+            lcd.fillRect(xStart + 57, 141, 46, 16, BLACK);
+            // perform more custom actions here
+            ZoneAvibrationThreshold = vibrationThreshold;
+            lcd.setCursor(xStart + 57, 141);
+            // decide where the set cursor location will be
+            lcd.setTextColor(GREEN);
+            lcd.println(String(ZoneAvibrationThreshold, 2));
+        }
+        if (ZoneAtemperatureC != temperatureC || ZoneAtemperatureF != temperatureF) {
+            lcd.fillRect(xStart, 157, 106, 16, BLACK);
+            ZoneAtemperatureC = temperatureC;
+            ZoneAtemperatureF = temperatureF;
+            // perform more custom actions here
+            lcd.setCursor(xStart + 10, 157); // Y position for temperatures
+            lcd.setTextColor(GRAY);
+            lcd.println(String(ZoneAtemperatureC) + "C ");
+            lcd.setCursor(xStart + 65, 157); // Y position for temperatures
+            lcd.println(String(ZoneAtemperatureF) + "F");
+        }
+    } else {
+        Serial.println("Invalid zone specified!");
+        return;
+    }
+
+}
+
 
 
 
