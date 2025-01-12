@@ -1023,7 +1023,7 @@ void LCDDashboard(){
     lcd.drawLine(0, 105, 320, 105, YELLOW); // Single Horizontal line across the screen
     // | lines for each zone:
     lcd.drawLine(52, 141, 52, 157, PINK); // 1st Vertical line, 1 & 2
-    lcd.drawLine(159, 141, 159, 157, PINK); // 1st Vertical line, 1 & 2
+    lcd.drawLine(160, 141, 160, 157, PINK); // 1st Vertical line, 1 & 2
     lcd.drawLine(267, 141, 267, 157, PINK); // 1st Vertical line, 1 & 2
 
     lcd.setTextColor(YELLOW);
@@ -1277,7 +1277,7 @@ const unsigned long actionDuration = 5000; // Duration for the action (e.g., 5 s
           // Set text color and cursor position dynamically
           if (ZoneAisArmed == "ARMED") {
               lcd.setTextColor(RED);            // RED for armed
-              lcd.setCursor(xStart + 28, 125);  // Cursor at xStart + 80
+              lcd.setCursor(xStart + 26, 125);  // Cursor at xStart + 80
           } else {
               lcd.setTextColor(WHITE);          // WHITE for disarmed
               lcd.setCursor(xStart + 7, 125);   // Cursor at xStart + 7
@@ -1300,10 +1300,10 @@ const unsigned long actionDuration = 5000; // Duration for the action (e.g., 5 s
         }
 
         if (ZoneAvibrationThreshold != vibrationThreshold){
-          lcd.fillRect(xStart + 57, 141, 46, 16, BLACK);
+          lcd.fillRect(xStart + 58, 141, 46, 16, BLACK);
           // perform more custom actions here
           ZoneAvibrationThreshold = vibrationThreshold;
-          lcd.setCursor(xStart + 57, 141);
+          lcd.setCursor(xStart + 58, 141);
               // decide where the set cursor location will be
               lcd.setTextColor(GREEN);
               lcd.println(String(ZoneAvibrationThreshold, 2));
