@@ -1,0 +1,98 @@
+function doPost(e) {
+  // Define variables for Sheet ID and Sheet Name
+  const sheetId = 'XXXXXXXXXXXX'; // Replace with your Sheet ID
+  const sheetName = 'XXXX'; // Replace with your Sheet Name
+  
+  // Open the Google Sheet and get the desired sheet by name
+  const sheet = SpreadsheetApp.openById(sheetId).getSheetByName(sheetName);
+
+  // Parse the incoming JSON payload
+  const data = JSON.parse(e.postData.contents);
+
+  // Extract data for columns A-H
+  const rowData = [
+    data.ID,  // Column A
+    data.DD,  // Column B
+    data.DT,  // Column C
+    data.E,   // Column D
+    data.IA,  // Column E
+    data.VM,  // Column F
+    data.VT,  // Column G
+    data.FH   // Column H
+  ];
+
+  // Step 1: Get the last row of the table (A-H)
+  const lastRow = sheet.getLastRow();
+
+  // Step 2: Shift A-H data down by copying it from bottom to top
+  if (lastRow > 1) { // Ensure there is data to shift
+    const rangeToShift = sheet.getRange(2, 1, lastRow - 1, rowData.length); // Rows 2 to last, columns A-H
+    const values = rangeToShift.getValues();
+    sheet.getRange(3, 1, values.length, values[0].length).setValues(values);
+  }
+
+  // Step 3: Add new data to row 2 (A-H)
+  sheet.getRange(2, 1, 1, rowData.length).setValues([rowData]);
+
+  // Step 4: Get current month in EST
+  const estTimeZone = "America/New_York";
+  const now = new Date();
+  const estDate = new Date(now.toLocaleString("en-US", { timeZone: estTimeZone }));
+  const currentMonth = estDate.toLocaleString("en-US", { month: "short" }).toUpperCase(); // e.g., "JAN"
+
+  // Update K9 with the current month in all caps
+  sheet.getRange("K9").clearContent().setValue(`${currentMonth}`);
+
+  // Update L9 with the current month + " TIME"
+  sheet.getRange("L9").clearContent().setValue(`${currentMonth} TIME`);
+
+
+  // Parse the month from the provided date in the data (assumes format "MM/DD")
+  const dataMonth = data.DD ? new Date(`${data.DD}/2025`).toLocaleString("en-US", { month: "short" }).toUpperCase() : null;
+
+  // Step 5: Handle monthly and detection counts
+  const monthMapping = {
+    "JAN": 25,
+    "FEB": 26,
+    "MAR": 27,
+    "APR": 28,
+    "MAY": 29,
+    "JUN": 30,
+    "JUL": 31,
+    "AUG": 32,
+    "SEP": 33,
+    "OCT": 34,
+    "NOV": 35,
+    "DEC": 36
+  };
+
+  if (dataMonth && monthMapping[dataMonth]) {
+    const monthRow = monthMapping[dataMonth];
+    const jCell = sheet.getRange(monthRow, 10); // Column J
+    const kCell = sheet.getRange(monthRow, 11); // Column K
+    const currentJ = jCell.getValue() || 0;
+    const currentK = kCell.getValue() || 0;
+
+    // Increment based on conditions
+    jCell.setValue(currentJ + 1);
+    if (data.E.includes("DETECTED") && data.IA === "ARMED" && dataMonth === currentMonth) {
+      kCell.setValue(currentK + 1);
+    }
+  }
+
+  // Step 6: Handle SHOCK detection counts (K10–K12)
+  const shockIdMapping = {
+    "SHOCK-A": 10,
+    "SHOCK-B": 11,
+    "SHOCK-C": 12
+  };
+
+  if (data.E.includes("DETECTED") && dataMonth === currentMonth && shockIdMapping[data.ID]) {
+    const shockCell = sheet.getRange(11, shockIdMapping[data.ID]); // K10–K12
+    const currentShockCount = Number(shockCell.getValue()) || 0; // Convert value to a number
+    shockCell.setValue(currentShockCount + 1); // Increment the value
+  }
+
+  // Return a success response
+  return ContentService.createTextOutput(JSON.stringify({ status: 'success' })).setMimeType(ContentService.MimeType.JSON);
+}
