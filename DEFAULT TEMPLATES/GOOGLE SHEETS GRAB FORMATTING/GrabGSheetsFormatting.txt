@@ -1,0 +1,53 @@
+function extractFormattingFromSpecifiedSheet() {
+  const sheetName = "2025"; // Replace with the desired sheet name
+  const outputSheetName = "Formatted Data";
+
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(sheetName);
+
+  // Check if the specified sheet exists
+  if (!sheet) {
+    Logger.log(`Sheet "${sheetName}" does not exist. Please check the name and try again.`);
+    return;
+  }
+
+  // Get or create the output sheet
+  let outputSheet = spreadsheet.getSheetByName(outputSheetName);
+  if (!outputSheet) {
+    Logger.log(`Creating a new sheet named "${outputSheetName}"...`);
+    outputSheet = spreadsheet.insertSheet(outputSheetName);
+  }
+
+  // Clear the output sheet before writing new data
+  Logger.log(`Clearing the "${outputSheetName}" sheet...`);
+  outputSheet.clear();
+
+  // Extract data and formatting
+  const range = sheet.getDataRange();
+  const rows = range.getNumRows();
+  const cols = range.getNumColumns();
+
+  Logger.log(`Extracting data from "${sheetName}" (${rows} rows, ${cols} columns)...`);
+  const header = ["Row", "Column", "Value", "Background", "Font Color", "Font Size", "Font Weight", "Horizontal Alignment", "Vertical Alignment"];
+  outputSheet.appendRow(header);
+
+  for (let r = 1; r <= rows; r++) {
+    for (let c = 1; c <= cols; c++) {
+      const cell = sheet.getRange(r, c);
+      const data = [
+        r,
+        c,
+        cell.getValue(),
+        cell.getBackground(),
+        cell.getFontColor(),
+        cell.getFontSize(),
+        cell.getFontWeight(),
+        cell.getHorizontalAlignment(),
+        cell.getVerticalAlignment(),
+      ];
+      outputSheet.appendRow(data);
+    }
+  }
+
+  Logger.log(`Data extraction completed. Check the "${outputSheetName}" sheet.`);
+}
