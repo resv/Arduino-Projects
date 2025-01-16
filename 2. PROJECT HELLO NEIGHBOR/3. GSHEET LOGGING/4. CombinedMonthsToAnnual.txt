@@ -1,0 +1,163 @@
+function doPost(e) {
+  // Define variables for Sheet ID and Sheet Name
+  const sheetId = 'xxxxxxxxx'; // Replace with your Sheet ID
+  const sheetName = 'xxxxxxxxx'; // Replace with your Sheet Name
+  
+  // Open the Google Sheet and get the desired sheet by name
+  const sheet = SpreadsheetApp.openById(sheetId).getSheetByName(sheetName);
+
+  // Parse the incoming JSON payload
+  const data = JSON.parse(e.postData.contents);
+
+  // Extract data for columns A-H
+  const rowData = [
+    data.ID,  // Column A
+    data.DD,  // Column B
+    data.DT,  // Column C
+    data.E,   // Column D
+    data.IA,  // Column E
+    data.VM,  // Column F
+    data.VT,  // Column G
+    data.FH   // Column H
+  ];
+
+  // Step 1: Get the last row of the table (A-H)
+  const lastRow = sheet.getLastRow();
+
+  // Step 2: Shift A-H data down by copying it from bottom to top
+  if (lastRow > 1) { // Ensure there is data to shift
+    const rangeToShift = sheet.getRange(2, 1, lastRow - 1, rowData.length); // Rows 2 to last, columns A-H
+    const values = rangeToShift.getValues();
+    sheet.getRange(3, 1, values.length, values[0].length).setValues(values);
+  }
+
+  // Step 3: Add new data to row 2 (A-H)
+  sheet.getRange(2, 1, 1, rowData.length).setValues([rowData]);
+
+  // Step 4: Get current month in EST
+  const estTimeZone = "America/New_York";
+  const now = new Date();
+  const estDate = new Date(now.toLocaleString("en-US", { timeZone: estTimeZone }));
+  const currentMonth = estDate.toLocaleString("en-US", { month: "short" }).toUpperCase(); // e.g., "JAN"
+
+  // Update K9 with the current month in all caps
+  sheet.getRange("K9").clearContent().setValue(`${currentMonth}`);
+
+  // Update L9 with the current month + " TIME"
+  sheet.getRange("L9").clearContent().setValue(`${currentMonth} TIME`);
+
+  // Parse the month from the provided date in the data (assumes format "MM/DD")
+  const dataMonth = data.DD ? new Date(`${data.DD}/2025`).toLocaleString("en-US", { month: "short" }).toUpperCase() : null;
+
+  // Step 5: Handle monthly and detection counts
+  const monthMapping = {
+    "JAN": 25,
+    "FEB": 26,
+    "MAR": 27,
+    "APR": 28,
+    "MAY": 29,
+    "JUN": 30,
+    "JUL": 31,
+    "AUG": 32,
+    "SEP": 33,
+    "OCT": 34,
+    "NOV": 35,
+    "DEC": 36
+  };
+
+  if (dataMonth && monthMapping[dataMonth]) {
+    const monthRow = monthMapping[dataMonth];
+    const jCell = sheet.getRange(monthRow, 10); // Column J
+    const kCell = sheet.getRange(monthRow, 11); // Column K
+    const currentJ = Number(jCell.getValue()) || 0; // Ensure numeric
+    const currentK = Number(kCell.getValue()) || 0; // Ensure numeric
+
+    // Increment based on conditions
+    jCell.setValue(currentJ + 1);
+    if (data.E.includes("DETECTED") && data.IA === "ARMED" && dataMonth === currentMonth) {
+      kCell.setValue(currentK + 1);
+    }
+  }
+
+  // Step 6: Handle SHOCK detection counts (K10–K12)
+  const shockIdMapping = {
+    "SHOCK-A": 10,
+    "SHOCK-B": 11,
+    "SHOCK-C": 12
+  };
+
+  if (data.E.includes("DETECTED") && dataMonth === currentMonth && shockIdMapping[data.ID]) {
+    const shockCell = sheet.getRange(11, shockIdMapping[data.ID]); // K10–K12
+    const currentShockCount = Number(shockCell.getValue()) || 0; // Convert value to a number
+    shockCell.setValue(currentShockCount + 1); // Increment the value
+  }
+
+  // Step 7: Handle "CONNECTED" Events
+  if (data.E.includes("CONNECTED")) {
+    const firstString = data.E.split("CONNECTED")[0].trim();
+
+    const connectedMapping = {
+      "RESV-1ST": 4,
+      "RESV-2ND": 5,
+      "RESV-3RD": 6,
+      "SHOCK-A": 10,
+      "SHOCK-B": 11,
+      "SHOCK-C": 12
+    };
+
+    if (connectedMapping[firstString]) {
+      const targetRow = connectedMapping[firstString];
+      const combinedDateTime = `${data.DD} ${data.DT}`;
+      sheet.getRange(targetRow, 10).setValue(combinedDateTime); // Column J
+    }
+  }
+
+  // Step 8: Handle "REQUESTED" Events
+  if (data.E.includes("REQUESTED")) {
+    const firstString = data.E.split("REQUESTED")[0].trim();
+
+    const requestedMapping = {
+      "RESV-1ST": 4,
+      "RESV-2ND": 5,
+      "RESV-3RD": 6
+    };
+
+    if (requestedMapping[firstString]) {
+      const targetRow = requestedMapping[firstString];
+      const combinedDateTime = `${data.DD} ${data.DT}`;
+      sheet.getRange(targetRow, 12).setValue(combinedDateTime); // Column L
+      sheet.getRange(targetRow, 11).setValue(data.IA); // Column K with isARMED
+    }
+  }
+
+  // Step 9: Handle "ADJUSTED" Events
+  if (data.E.includes("ADJUSTED")) {
+    const firstString = data.E.split("ADJUSTED")[0].trim();
+
+    const adjustedMapping = {
+      "RESV-1ST": 4,
+      "RESV-2ND": 5,
+      "RESV-3RD": 6
+    };
+
+    if (adjustedMapping[firstString]) {
+      const targetRow = adjustedMapping[firstString];
+      const combinedDateTime = `${data.DD} ${data.DT}`;
+      const setToValue = `Set to ${data.VM}`; // "Set to " + VM
+      sheet.getRange(targetRow, 12).setValue(combinedDateTime); // Column L
+      sheet.getRange(targetRow, 11).setValue(setToValue); // Column K
+    }
+  }
+
+  // Step 10: Compute sums and differences
+  const sumJ = sheet.getRange("J25:J36").getValues().flat().reduce((acc, val) => acc + (Number(val) || 0), 0);
+  const sumK = sheet.getRange("K25:K36").getValues().flat().reduce((acc, val) => acc + (Number(val) || 0), 0);
+
+  // Place the computed values in their respective cells
+  sheet.getRange("K16").setValue(sumJ); // Sum of J25:J36
+  sheet.getRange("K20").setValue(sumK); // Sum of K25:K36
+  sheet.getRange("K18").setValue(sumJ - sumK); // Difference between K16 and K20
+
+  // Return a success response
+  return ContentService.createTextOutput(JSON.stringify({ status: 'success' })).setMimeType(ContentService.MimeType.JSON);
+}
