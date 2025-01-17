@@ -1,0 +1,227 @@
+function doPost(e) {
+  // Define variables for Sheet ID and Sheet Name
+  const sheetId = 'xxxxx'; // Replace with your Sheet ID
+  const sheetName = 'xxxxxxxx'; // Replace with your Sheet Name
+  
+  // Open the Google Sheet and get the desired sheet by name
+  const sheet = SpreadsheetApp.openById(sheetId).getSheetByName(sheetName);
+
+  // Parse the incoming JSON payload
+  const data = JSON.parse(e.postData.contents);
+
+  // Extract data for columns A-H
+  const rowData = [
+    data.ID,  // Column A
+    data.DD,  // Column B
+    data.DT,  // Column C
+    data.E,   // Column D
+    data.IA,  // Column E
+    data.VM,  // Column F
+    data.VT,  // Column G
+    data.FH   // Column H
+  ];
+
+  // Step 1: Get the last row of the table (A-H)
+  const lastRow = sheet.getLastRow();
+
+  // Step 2: Shift A-H data down by copying it from bottom to top
+  if (lastRow > 1) { // Ensure there is data to shift
+    const rangeToShift = sheet.getRange(2, 1, lastRow - 1, rowData.length); // Rows 2 to last, columns A-H
+    const values = rangeToShift.getValues();
+    sheet.getRange(3, 1, values.length, values[0].length).setValues(values);
+  }
+
+  // Step 3: Add new data to row 2 (A-H)
+  sheet.getRange(2, 1, 1, rowData.length).setValues([rowData]);
+
+  // Step 4: Get current month in EST
+  const estTimeZone = "America/New_York";
+  const now = new Date();
+  const estDate = new Date(now.toLocaleString("en-US", { timeZone: estTimeZone }));
+  const currentMonth = estDate.toLocaleString("en-US", { month: "short" }).toUpperCase(); // e.g., "JAN"
+
+  // Update K9 with the current month in all caps
+  sheet.getRange("K9").clearContent().setValue(`${currentMonth}`);
+
+  // Update L9 with the current month + " TIME"
+  sheet.getRange("L9").clearContent().setValue(`${currentMonth} TIME`);
+
+  // Parse the month from the provided date in the data (assumes format "MM/DD")
+  const dataMonth = data.DD ? new Date(`${data.DD}/2025`).toLocaleString("en-US", { month: "short" }).toUpperCase() : null;
+
+  // Step 5: Handle monthly and detection counts
+  const monthMapping = {
+    "JAN": 25,
+    "FEB": 26,
+    "MAR": 27,
+    "APR": 28,
+    "MAY": 29,
+    "JUN": 30,
+    "JUL": 31,
+    "AUG": 32,
+    "SEP": 33,
+    "OCT": 34,
+    "NOV": 35,
+    "DEC": 36
+  };
+
+  if (dataMonth && monthMapping[dataMonth]) {
+    const monthRow = monthMapping[dataMonth];
+    const jCell = sheet.getRange(monthRow, 10); // Column J
+    const kCell = sheet.getRange(monthRow, 11); // Column K
+    const currentJ = Number(jCell.getValue()) || 0; // Ensure numeric
+    const currentK = Number(kCell.getValue()) || 0; // Ensure numeric
+
+    // Increment J only for valid DETECTED events
+    if (data.E.includes("DETECTED") && dataMonth === currentMonth) {
+        jCell.setValue(currentJ + 1); // Increment J for detections
+        if (data.IA === "ARMED") {
+            kCell.setValue(currentK + 1); // Increment K if ARMED and DETECTED
+        }
+    }
+  }
+
+  // Step 6: Handle monthly reset for K10–K12 using K9
+  const currentMonthFromK9 = sheet.getRange("K9").getValue(); // Current month stored in K9
+
+  // Check if the month in K9 matches the current month
+  if (currentMonthFromK9 !== currentMonth) {
+    Logger.log(`Month has changed from ${currentMonthFromK9} to ${currentMonth}. Resetting K10–K12.`);
+
+    // Reset K10–K12 to 0
+    sheet.getRange("K10:K12").setValue(0);
+
+    // Update K9 with the new month
+    sheet.getRange("K9").setValue(currentMonth);
+  }
+
+  // Step 7: Handle SHOCK detection counts (K10–K12)
+  const shockIdMapping = {
+    "SHOCK-A": 10,
+    "SHOCK-B": 11,
+    "SHOCK-C": 12
+  };
+
+  // Normalize `data.ID` to uppercase and trim whitespace
+  const id = (data.ID || "").toUpperCase().trim();
+
+  Logger.log(`Step 6 - ID: ${id}, Event: ${data.E}, dataMonth: ${dataMonth}, currentMonth: ${currentMonth}`);
+
+  if (data.E.includes("DETECTED") && dataMonth === currentMonth && shockIdMapping[id]) {
+    const targetRow = shockIdMapping[id];
+    Logger.log(`Updating SHOCK detection for ${id} at Row ${targetRow}`);
+    
+    const shockCell = sheet.getRange(targetRow, 11); // Ensure proper range for K10–K12
+    const currentShockCount = Number(shockCell.getValue()) || 0; // Convert value to a number
+    shockCell.setValue(currentShockCount + 1); // Increment the value
+  }
+
+  // Step 8: Handle "CONNECTED" Events
+  if (data.E.includes("CONNECTED")) {
+    const firstString = data.E.split("CONNECTED")[0].trim().toUpperCase();
+
+    Logger.log(`Step 7 - Event: ${data.E}, firstString: ${firstString}`);
+
+    const connectedMapping = {
+      "RESV-1ST": 4,
+      "RESV-2ND": 5,
+      "RESV-3RD": 6,
+      "SHOCK-A": 10,
+      "SHOCK-B": 11,
+      "SHOCK-C": 12
+    };
+
+    if (connectedMapping[firstString]) {
+      const targetRow = connectedMapping[firstString];
+      Logger.log(`Updating CONNECTED for ${firstString} at Row ${targetRow}`);
+
+      const combinedDateTime = `${data.DD} ${data.DT}`;
+      sheet.getRange(targetRow, 10).setValue(combinedDateTime); // Column J
+    }
+  }
+
+  // Step 9: Handle "REQUESTED" Events
+  if (data.E.includes("REQUESTED")) {
+    const firstString = data.E.split("REQUESTED")[0].trim();
+
+    const requestedMapping = {
+      "RESV-1ST": 4,
+      "RESV-2ND": 5,
+      "RESV-3RD": 6
+    };
+
+    if (requestedMapping[firstString]) {
+      const targetRow = requestedMapping[firstString];
+      const combinedDateTime = `${data.DD} ${data.DT}`;
+      sheet.getRange(targetRow, 12).setValue(combinedDateTime); // Column L
+      sheet.getRange(targetRow, 11).setValue(data.IA); // Column K with isARMED
+    }
+  }
+
+  // Step 10: Handle "ADJUSTED" Events
+  if (data.E.includes("ADJUSTED")) {
+    const firstString = data.E.split("ADJUSTED")[0].trim();
+
+    const adjustedMapping = {
+      "RESV-1ST": 4,
+      "RESV-2ND": 5,
+      "RESV-3RD": 6
+    };
+
+    if (adjustedMapping[firstString]) {
+      const targetRow = adjustedMapping[firstString];
+      const combinedDateTime = `${data.DD} ${data.DT}`;
+      const setToValue = `Set to ${data.VM}`; // "Set to " + VM
+      sheet.getRange(targetRow, 12).setValue(combinedDateTime); // Column L
+      sheet.getRange(targetRow, 11).setValue(setToValue); // Column K
+    }
+  }
+
+  // Step 11: Compute sums and differences
+  const sumJ = sheet.getRange("J25:J36").getValues().flat().reduce((acc, val) => acc + (Number(val) || 0), 0);
+  const sumK = sheet.getRange("K25:K36").getValues().flat().reduce((acc, val) => acc + (Number(val) || 0), 0);
+
+  // Place the computed values in their respective cells
+  sheet.getRange("K16").setValue(sumJ); // Sum of J25:J36
+  sheet.getRange("K20").setValue(sumK); // Sum of K25:K36
+  sheet.getRange("K18").setValue(sumJ - sumK); // Difference between K16 and K20
+
+  // Step 11: Perform time conversions
+  const timeConversion = (value) => {
+    const totalSeconds = (Number(value) || 0) * 4; // Convert value to seconds
+    const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+    const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+    const seconds = String(totalSeconds % 60).padStart(2, "0");
+    return `${hours}:${minutes}:${seconds}`;
+  };
+
+  const timeCells = [
+    { source: "K10", target: "L10" },
+    { source: "K11", target: "L11" },
+    { source: "K12", target: "L12" },
+    { source: "K16", target: "L16" },
+    { source: "K18", target: "L18" },
+    { source: "K20", target: "L20" },
+    { source: "J25", target: "L25" },
+    { source: "J26", target: "L26" },
+    { source: "J27", target: "L27" },
+    { source: "J28", target: "L28" },
+    { source: "J29", target: "L29" },
+    { source: "J30", target: "L30" },
+    { source: "J31", target: "L31" },
+    { source: "J32", target: "L32" },
+    { source: "J33", target: "L33" },
+    { source: "J34", target: "L34" },
+    { source: "J35", target: "L35" },
+    { source: "J36", target: "L36" }
+  ];
+
+  timeCells.forEach(({ source, target }) => {
+    const value = sheet.getRange(source).getValue();
+    const convertedTime = timeConversion(value);
+    sheet.getRange(target).setValue(convertedTime);
+  });
+
+  // Return a success response
+  return ContentService.createTextOutput(JSON.stringify({ status: 'success' })).setMimeType(ContentService.MimeType.JSON);
+}
