@@ -11,7 +11,7 @@
 #define LCD_RST 4
 #define LCD_BLK 32 // Backlight pin
 
-#define BUTTON_PIN 0 // Onboard button for toggling
+#define ONBOARD_BUTTON_PIN 0 // Onboard button for toggling
 
 Adafruit_ST7789 tft = Adafruit_ST7789(LCD_CS, LCD_DC, LCD_RST);
 
@@ -20,7 +20,7 @@ int lastButtonState = HIGH; // Previous state of the button
 
 void setup() {
   pinMode(LCD_BLK, OUTPUT);      // Configure backlight pin as output
-  pinMode(BUTTON_PIN, INPUT_PULLUP); // Configure button with pull-up
+  pinMode(ONBOARD_BUTTON_PIN, INPUT_PULLUP); // Configure button with pull-up
 
   digitalWrite(LCD_BLK, HIGH);  // Turn on the backlight initially
   tft.init(LCD_WIDTH, LCD_HEIGHT);
@@ -33,7 +33,7 @@ void setup() {
 }
 
 void loop() {
-  int currentButtonState = digitalRead(BUTTON_PIN);
+  int currentButtonState = digitalRead(ONBOARD_BUTTON_PIN);
 
   // Check for state change (HIGH -> LOW)
   if (lastButtonState == HIGH && currentButtonState == LOW) {
