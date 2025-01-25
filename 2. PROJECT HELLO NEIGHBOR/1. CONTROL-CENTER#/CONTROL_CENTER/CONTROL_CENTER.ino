@@ -545,25 +545,26 @@ void loop() {
 
   // Handles reconnect to MQTT if lost
   if (!client.connected()) {
+    //    LCDUpdateConnections();
         connectToTopics();
   }
 
   // Handle MQTT keep-alive and callbacks
   client.loop();
 
-              // Handle Button 0 (ONBOARD_BUTTON_PIN for Arm/Disarm)
-           //   if (digitalRead(ONBOARD_BUTTON_PIN) == LOW && !buttonPressed0) {
-          //        buttonPressed0 = true;
-          //        buttonPressStart0 = millis();
-           //       isButtonHeld0 = false;
-          //    }
+           // // Handle Button 0 (ONBOARD_BUTTON_PIN for Arm/Disarm)
+           // if (digitalRead(ONBOARD_BUTTON_PIN) == LOW && !buttonPressed0) {
+           //     buttonPressed0 = true;
+           //     buttonPressStart0 = millis();
+           //     isButtonHeld0 = false;
+           // }
 
-          //    if (buttonPressed0 && digitalRead(ONBOARD_BUTTON_PIN) == LOW) {
-          //        if (millis() - buttonPressStart0 >= buttonHoldDurationThreshold && !isButtonHeld0) {
-          //            isButtonHeld0 = true;
-          //            publishArmDisarmEvent(true); // Trigger global Arm/Disarm event (long press).
-         //         }
-           //   }
+           // if (buttonPressed0 && digitalRead(ONBOARD_BUTTON_PIN) == LOW) {
+           //     if (millis() - buttonPressStart0 >= buttonHoldDurationThreshold && !isButtonHeld0) {
+           //         isButtonHeld0 = true;
+           //         publishArmDisarmEvent(true); // Trigger global Arm/Disarm event (long press).
+           //     }
+           // }
 
               if (digitalRead(ONBOARD_BUTTON_PIN) == HIGH && buttonPressed0) {
                   buttonPressed0 = false;
@@ -666,7 +667,6 @@ void loop() {
   // Periodic Wi-Fi reconnection check and cycle
   if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
       lastWiFiCheck = currentMillis;
-
       // Ensure Wi-Fi is connected
       if (WiFi.status() != WL_CONNECTED) {
           Serial.println("WIFI RECONNECTING...");
@@ -674,11 +674,13 @@ void loop() {
           event = String(thisClientID) + " CONNECTED";
           publishMQTT();
           resetGlobalVariables(); 
+          LCDDashboard();
       }
   }
 
   // Retry NTP fetch if needed
     if (WiFi.status() == WL_CONNECTED) {
+     //   LCDUpdateConnections();
         if (internalEpochTime == 0 || millis() - lastNTPRetryMillis >= ntpRetryInterval) {
             lastNTPRetryMillis = millis();  // Update retry timestamp
             if (fetchNTPTime()) {
@@ -757,6 +759,7 @@ void connectToTopics() {
     const unsigned long retryInterval = 5000; // Retry every 5 seconds if disconnected
 
     if (!client.connected()) {
+        LCDUpdateConnections();
         unsigned long currentMillis = millis();
 
         // Avoid retrying too frequently
@@ -765,6 +768,7 @@ void connectToTopics() {
 
             Serial.print("CONNECTING MQTT...");
             if (client.connect(clientID, mqtt_user, mqtt_password)) {
+                LCDUpdateConnections();
                 Serial.println("CONNECTED TO: [" + String(mqtt_topic_CENTRAL_HUB) + "] [" + String(mqtt_topic_SHOCK_CENTER) + "]");
 
                 // Subscribe to topics
@@ -1050,6 +1054,8 @@ void LCDDashboard(){
     LCDUpdateZone("A");
     LCDUpdateZone("B");
     LCDUpdateZone("C");
+
+    LCDUpdateConnections();
 };
 
 void LCDUpdateZone(String zone) {
@@ -1254,6 +1260,36 @@ void toggleBacklight() {
   lastButtonState = currentButtonState; // Update the last button state
 }
 
-// fix physical button B mid
-// NTP delay to longer on control centers
-//cycle NTP carriers
+void LCDUpdateConnections() {
+  lcd.setTextSize(1);
+//  if (WiFi.status() != WL_CONNECTED) {
+//    lcd.fillRect(258, 17, 5, 5, RED); // Fill background on !MQTT
+ //   lcd.setTextColor(WHITE);
+ //   lcd.setCursor(258, 17);
+ //   lcd.print("W");
+//  }
+//  if (WiFi.status() == WL_CONNECTED) {
+ //   lcd.fillRect(258, 17, 5, 5, BLACK); // Fill background on !MQTT
+ //   lcd.setTextColor(GREEN);
+ //   lcd.setCursor(258, 17);
+ //   lcd.print("W");
+//  }
+  //lcd.setTextColor(WHITE);
+ // lcd.setCursor(270, 17);
+ // lcd.print("|");
+
+ // lcd.drawLine(264, 17, 264, 23, WHITE); // draw WIFI | MQTT Line
+
+  if (!client.connected()){
+    lcd.fillRect(266, 17, 24, 8, RED); // Fill background on !MQTT
+    lcd.setTextColor(WHITE);
+    lcd.setCursor(266, 17);
+    lcd.print("MQTT");
+  } if (client.connected()) {
+    lcd.fillRect(266, 17, 24, 8, BLACK); // Fill background on !MQTT
+    lcd.setTextColor(GREEN);
+    lcd.setCursor(266, 17);
+    lcd.print("MQTT");
+  } 
+  lcd.setTextSize(3);
+}
