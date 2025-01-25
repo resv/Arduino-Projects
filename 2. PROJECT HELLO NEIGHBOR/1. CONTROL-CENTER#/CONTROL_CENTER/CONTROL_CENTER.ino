@@ -22,6 +22,10 @@
 
 Adafruit_ST7789 lcd = Adafruit_ST7789(LCD_CS, LCD_DC, LCD_RST);
 
+// Backlight variables
+bool backlightState = true; // Track backlight state
+int lastButtonState = HIGH; // Previous state of the button
+
 // Basic Colors
 uint16_t BLACK   = lcd.color565(0, 0, 0);
 uint16_t BLUE    = lcd.color565(0, 0, 255);
@@ -133,9 +137,9 @@ bool useJsonForSerial = true; // Change to false for key-value
 
 // Wi-Fi VARIABLES
 const char* wifi_credentials[][2] = {
-    {"OP9", "aaaaaaaaa1"},
-    {"icup +1", "aaaaaaaaa1"},
-    {"ICU", "Emmajin6!"}
+    {"OP13", "aaaaaaaaa1"}, // 
+    {"icup +1", "aaaaaaaaa1"}, // relax you are not on my intra
+    {"ICU", "Emmajin6!"} //// relax you are not on my intra
 };
 const int num_wifi_credentials = sizeof(wifi_credentials) / sizeof(wifi_credentials[0]);
 int currentWiFiIndex = 0; // Index of the current SSID to try
@@ -516,6 +520,7 @@ void setup() {
     esp_log_level_set("wifi", ESP_LOG_NONE);
 
     //Button setup
+    pinMode(LCD_BLK, OUTPUT); 
     pinMode(ONBOARD_BUTTON_PIN, INPUT_PULLUP); // Ensure the button pin is set to INPUT_PULLUP
     pinMode(TOUCH_SENSOR_PIN_22, INPUT);
     pinMode(TOUCH_SENSOR_PIN_21, INPUT);
@@ -547,18 +552,18 @@ void loop() {
   client.loop();
 
               // Handle Button 0 (ONBOARD_BUTTON_PIN for Arm/Disarm)
-              if (digitalRead(ONBOARD_BUTTON_PIN) == LOW && !buttonPressed0) {
-                  buttonPressed0 = true;
-                  buttonPressStart0 = millis();
-                  isButtonHeld0 = false;
-              }
+           //   if (digitalRead(ONBOARD_BUTTON_PIN) == LOW && !buttonPressed0) {
+          //        buttonPressed0 = true;
+          //        buttonPressStart0 = millis();
+           //       isButtonHeld0 = false;
+          //    }
 
-              if (buttonPressed0 && digitalRead(ONBOARD_BUTTON_PIN) == LOW) {
-                  if (millis() - buttonPressStart0 >= buttonHoldDurationThreshold && !isButtonHeld0) {
-                      isButtonHeld0 = true;
-                      publishArmDisarmEvent(true); // Trigger global Arm/Disarm event (long press).
-                  }
-              }
+          //    if (buttonPressed0 && digitalRead(ONBOARD_BUTTON_PIN) == LOW) {
+          //        if (millis() - buttonPressStart0 >= buttonHoldDurationThreshold && !isButtonHeld0) {
+          //            isButtonHeld0 = true;
+          //            publishArmDisarmEvent(true); // Trigger global Arm/Disarm event (long press).
+         //         }
+           //   }
 
               if (digitalRead(ONBOARD_BUTTON_PIN) == HIGH && buttonPressed0) {
                   buttonPressed0 = false;
@@ -695,6 +700,9 @@ void loop() {
       lastHeapLogMillis = millis();
       logFreeHeap();
   }
+
+  toggleBacklight();
+
 }
 
 bool fetchNTPTime() {
@@ -927,6 +935,7 @@ void publishAdjustVibrationThreshold(float adjustment, bool isGlobal) {
 
 void LCDInitialize(){
   lcd.init(LCD_WIDTH, LCD_HEIGHT);
+  digitalWrite(LCD_BLK, HIGH);  // Turn on the backlight initially
   lcd.setRotation(3);
   lcd.fillScreen(ST77XX_BLACK);
   lcd.setTextColor(ST77XX_WHITE);
@@ -1232,7 +1241,18 @@ void LCDUpdateLog(bool isGlobal) {
     }
 }
 
+// Function to handle the button press and toggle backlight
+void toggleBacklight() {
+  int currentButtonState = digitalRead(ONBOARD_BUTTON_PIN);
 
+  // Check for state change (HIGH -> LOW)
+  if (lastButtonState == HIGH && currentButtonState == LOW) {
+    backlightState = !backlightState; // Toggle backlight state
+    digitalWrite(LCD_BLK, backlightState ? HIGH : LOW); // Control backlight
+  }
+
+  lastButtonState = currentButtonState; // Update the last button state
+}
 
 // fix physical button B mid
 // NTP delay to longer on control centers
