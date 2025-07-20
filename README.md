@@ -11,6 +11,9 @@ Why? Because I cannot keep getting up to bang on my ceiling, it will break, I wi
 ![photo_2025-07-19_18-05-50 - Copy](https://github.com/user-attachments/assets/dd9b8297-2c63-4b0f-b68a-1b295b6cc027)
 ![photo_35_2025-07-19_18-07-35](https://github.com/user-attachments/assets/77817235-a1c1-4fc2-8db2-2a2435dd202f)
 ![photo_30_2025-07-19_18-07-35](https://github.com/user-attachments/assets/a67d1fe8-bfc3-4572-a9ad-9207d8628044)
+![photo_86_2025-07-19_18-07-35](https://github.com/user-attachments/assets/83c0fcda-eef8-44f1-a5aa-582aeedbe211)
+![photo_92_2025-07-19_18-07-35](https://github.com/user-attachments/assets/787c133c-6eca-4b4b-a60f-16f21f504785)
+
 ![photo_31_2025-07-19_18-07-35](https://github.com/user-attachments/assets/9ea679c0-4247-488c-808b-6d5de3b25ffd)
 ![photo_33_2025-07-19_18-07-35](https://github.com/user-attachments/assets/bb2c2d4a-7bbe-4284-b2f9-868a62c3e4ba)
 ![photo_41_2025-07-19_18-07-35](https://github.com/user-attachments/assets/1ccdac4c-37a0-4771-b512-ffc6605d4716)
@@ -34,6 +37,14 @@ Why? Because I cannot keep getting up to bang on my ceiling, it will break, I wi
 ![photo_59_2025-07-19_18-07-35](https://github.com/user-attachments/assets/9bd98d2f-9120-40d1-988b-f9a266eeb5c6)
 ![photo_41_2025-07-19_18-07-35](https://github.com/user-attachments/assets/fa0ddbac-d01f-4b3f-98de-c8808d0ffd29)
 ![photo_39_2025-07-19_18-07-35](https://github.com/user-attachments/assets/91e297b2-26ac-4e6a-9028-2b4a075bad7e)
+![photo_7_2024-12-22_11-25-03](https://github.com/user-attachments/assets/7cefdbf9-6dde-4c94-8622-6e0f31a94a54)
+![photo_4_2024-12-22_11-25-03](https://github.com/user-attachments/assets/6bb5a386-b0f5-42ba-a0ab-6ab9e5027069)
+![COMMS FLOW](https://github.com/user-attachments/assets/4b47ed75-1f98-4cf4-bf1d-0333ad28e164)
+![CONTROL CENTER MANUAL](https://github.com/user-attachments/assets/44317b53-278f-4e72-b127-ebd84f4b02be)
+![ESP32 COMMS FLOWGRAM](https://github.com/user-attachments/assets/f2ab93fb-7199-4127-97d5-b048ee66e264)
+![SHOCK CENTER MANUAL](https://github.com/user-attachments/assets/f27a6d8d-aed4-4480-8a18-b199576f57b9)
+![SHOCK CENTER PINOUT](https://github.com/user-attachments/assets/2c5e1fba-2aab-4c84-9aa8-ef5cf7f43039)
+
 ![photo_54_2025-07-19_18-07-35](https://github.com/user-attachments/assets/be145c7b-84ef-472c-ac82-1bf1321bd1a1)
 ![photo_29_2025-07-19_18-07-35 - Copy](https://github.com/user-attachments/assets/25cdf359-e83e-4ec3-a315-d73eb6296dc6)
 ![photo_78_2025-07-19_18-07-35](https://github.com/user-attachments/assets/843687d6-7182-413c-b018-789752b65a7b)
@@ -50,6 +61,7 @@ Why? Because I cannot keep getting up to bang on my ceiling, it will break, I wi
 ![photo_11_2025-07-19_18-07-35](https://github.com/user-attachments/assets/b8d678df-a67e-4254-a54c-135a78b90a02)
 ![photo_10_2025-07-19_18-07-35](https://github.com/user-attachments/assets/f8242a98-57c4-45bb-8e55-08a75e095aff)
 ![photo_2025-07-19_18-06-14](https://github.com/user-attachments/assets/2dc0ae5e-0824-4839-bdca-acdc9b97f241)
+
 
 
 
